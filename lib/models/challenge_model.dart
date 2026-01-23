@@ -7,7 +7,14 @@ enum ChallengeType { headToHead, group }
 
 enum ChallengeStatus { pending, accepted, active, completed, cancelled, disputed }
 
-enum GoalType { totalSteps, dailyAverage, mostStepsInDay }
+enum GoalType {
+  steps,           // Total step count over challenge period
+  distance,        // Total miles walked or run (COMING SOON)
+  milePace,        // Average mile time improvement (COMING SOON)
+  sleepDuration,   // Total hours of quality sleep (COMING SOON)
+  hrv,             // Heart rate variability trends (COMING SOON)
+  activeCalories   // Calories burned during activity (COMING SOON)
+}
 
 enum ChallengeDuration { oneDay, threeDays, oneWeek, twoWeeks, oneMonth }
 
@@ -178,7 +185,7 @@ class ChallengeModel {
       prizeAmount: (data['prizeAmount'] ?? 0).toDouble(),
       goalType: GoalType.values.firstWhere(
         (e) => e.name == data['goalType'],
-        orElse: () => GoalType.totalSteps,
+        orElse: () => GoalType.steps,
       ),
       goalValue: data['goalValue'] ?? 0,
       duration: ChallengeDuration.values.firstWhere(
@@ -355,23 +362,65 @@ extension ChallengeDurationExtension on ChallengeDuration {
 extension GoalTypeExtension on GoalType {
   String get displayName {
     switch (this) {
-      case GoalType.totalSteps:
-        return 'Total Steps';
-      case GoalType.dailyAverage:
-        return 'Daily Average';
-      case GoalType.mostStepsInDay:
-        return 'Most Steps in a Day';
+      case GoalType.steps:
+        return 'Steps';
+      case GoalType.distance:
+        return 'Distance';
+      case GoalType.milePace:
+        return 'Mile Pace';
+      case GoalType.sleepDuration:
+        return 'Sleep Duration';
+      case GoalType.hrv:
+        return 'HRV';
+      case GoalType.activeCalories:
+        return 'Active Calories';
     }
   }
 
   String get description {
     switch (this) {
-      case GoalType.totalSteps:
-        return 'Most total steps wins';
-      case GoalType.dailyAverage:
-        return 'Highest daily average wins';
-      case GoalType.mostStepsInDay:
-        return 'Best single day wins';
+      case GoalType.steps:
+        return 'Total step count over challenge period';
+      case GoalType.distance:
+        return 'Total miles walked or run';
+      case GoalType.milePace:
+        return 'Average mile time improvement';
+      case GoalType.sleepDuration:
+        return 'Total hours of quality sleep';
+      case GoalType.hrv:
+        return 'Heart rate variability trends';
+      case GoalType.activeCalories:
+        return 'Calories burned during activity';
+    }
+  }
+
+  String get emoji {
+    switch (this) {
+      case GoalType.steps:
+        return '👟';
+      case GoalType.distance:
+        return '🏃';
+      case GoalType.milePace:
+        return '⏱️';
+      case GoalType.sleepDuration:
+        return '😴';
+      case GoalType.hrv:
+        return '❤️';
+      case GoalType.activeCalories:
+        return '🔥';
+    }
+  }
+
+  bool get isAvailable {
+    switch (this) {
+      case GoalType.steps:
+        return true;
+      case GoalType.distance:
+      case GoalType.milePace:
+      case GoalType.sleepDuration:
+      case GoalType.hrv:
+      case GoalType.activeCalories:
+        return false;
     }
   }
 }

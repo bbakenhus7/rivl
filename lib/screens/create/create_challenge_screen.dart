@@ -53,13 +53,10 @@ class CreateChallengeScreen extends StatelessWidget {
                 // Goal Type
                 const Text('Competition Type', style: RivlTextStyles.heading3),
                 const SizedBox(height: 12),
-                ...GoalType.values.map((goalType) {
-                  return _GoalTypeOption(
-                    goalType: goalType,
-                    isSelected: provider.selectedGoalType == goalType,
-                    onTap: () => provider.setSelectedGoalType(goalType),
-                  );
-                }),
+                _ChallengeTypeGrid(
+                  selectedGoalType: provider.selectedGoalType,
+                  onGoalTypeSelected: provider.setSelectedGoalType,
+                ),
                 const SizedBox(height: 24),
 
                 // Prize Summary
@@ -275,12 +272,43 @@ class _DurationSelector extends StatelessWidget {
   }
 }
 
-class _GoalTypeOption extends StatelessWidget {
+class _ChallengeTypeGrid extends StatelessWidget {
+  final GoalType selectedGoalType;
+  final Function(GoalType) onGoalTypeSelected;
+
+  const _ChallengeTypeGrid({
+    required this.selectedGoalType,
+    required this.onGoalTypeSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 16,
+      crossAxisSpacing: 16,
+      childAspectRatio: 0.85,
+      children: GoalType.values.map((goalType) {
+        return _ChallengeTypeCard(
+          goalType: goalType,
+          isSelected: selectedGoalType == goalType,
+          onTap: goalType.isAvailable
+              ? () => onGoalTypeSelected(goalType)
+              : null,
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _ChallengeTypeCard extends StatelessWidget {
   final GoalType goalType;
   final bool isSelected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
-  const _GoalTypeOption({
+  const _ChallengeTypeCard({
     required this.goalType,
     required this.isSelected,
     required this.onTap,
@@ -288,10 +316,15 @@ class _GoalTypeOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isAvailable = goalType.isAvailable;
+
     return Card(
-      color: isSelected ? RivlColors.primary.withOpacity(0.1) : null,
+      elevation: isSelected ? 4 : 1,
+      color: isAvailable
+          ? (isSelected ? RivlColors.primary.withOpacity(0.1) : null)
+          : RivlColors.primary.withOpacity(0.3),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         side: BorderSide(
           color: isSelected ? RivlColors.primary : Colors.transparent,
           width: 2,
@@ -299,26 +332,70 @@ class _GoalTypeOption extends StatelessWidget {
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      goalType.displayName,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(goalType.description, style: RivlTextStyles.caption),
-                  ],
-                ),
+              // Icon/Emoji
+              Text(
+                goalType.emoji,
+                style: const TextStyle(fontSize: 48),
               ),
-              if (isSelected)
-                const Icon(Icons.check_circle, color: RivlColors.primary),
+              const SizedBox(height: 12),
+              // Title
+              Text(
+                goalType.displayName,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              // Description
+              Text(
+                goalType.description,
+                style: RivlTextStyles.caption,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 12),
+              // Button or Coming Soon Badge
+              if (isAvailable)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isSelected ? RivlColors.primary : RivlColors.primary.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'LAUNCH',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? Colors.white : RivlColors.primary,
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'COMING SOON',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
