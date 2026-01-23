@@ -26,7 +26,7 @@ class ChallengeProvider extends ChangeNotifier {
   UserModel? _selectedOpponent;
   StakeOption _selectedStake = StakeOption.options[2]; // $15 default
   ChallengeDuration _selectedDuration = ChallengeDuration.oneWeek;
-  GoalType _selectedGoalType = GoalType.totalSteps;
+  GoalType _selectedGoalType = GoalType.steps;
 
   StreamSubscription? _challengesSubscription;
 
@@ -106,12 +106,14 @@ class ChallengeProvider extends ChangeNotifier {
 
   int get suggestedGoalValue {
     switch (_selectedGoalType) {
-      case GoalType.totalSteps:
+      case GoalType.steps:
         return _selectedDuration.days * 10000;
-      case GoalType.dailyAverage:
-        return 10000;
-      case GoalType.mostStepsInDay:
-        return 15000;
+      case GoalType.distance:
+      case GoalType.milePace:
+      case GoalType.sleepDuration:
+      case GoalType.hrv:
+      case GoalType.activeCalories:
+        return 0; // Coming soon types - default to 0
     }
   }
 
@@ -155,7 +157,7 @@ class ChallengeProvider extends ChangeNotifier {
     _selectedOpponent = null;
     _selectedStake = StakeOption.options[2];
     _selectedDuration = ChallengeDuration.oneWeek;
-    _selectedGoalType = GoalType.totalSteps;
+    _selectedGoalType = GoalType.steps;
     notifyListeners();
   }
 
