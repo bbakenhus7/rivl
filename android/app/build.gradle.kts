@@ -6,8 +6,8 @@ plugins {
 }
 
 android {
-    namespace = "com.example.rivl"
-    compileSdk = flutter.compileSdkVersion
+    namespace = "com.rivlapp.rivl"  // TODO: Change to your own package name
+    compileSdk = 34  // Android 14
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -20,12 +20,11 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.rivl"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        // TODO: Change to your own unique Application ID
+        applicationId = "com.rivlapp.rivl"  // Must match namespace
+        // Health Connect requires minSdk 28 (Android 9.0)
+        minSdk = 28
+        targetSdk = 34  // Android 14
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
