@@ -103,12 +103,12 @@ class ChallengeDetailScreen extends StatelessWidget {
                         ),
 
                         // VS
-                        const Text(
+                        Text(
                           'VS',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: RivlColors.textSecondary,
+                            color: context.textSecondary,
                           ),
                         ),
 
