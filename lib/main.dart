@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'firebase_options_stub.dart' as dev_options;
+import 'firebase_options.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
@@ -19,11 +19,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Initialize Firebase
-  if (kIsWeb) {
-    await Firebase.initializeApp(options: dev_options.DefaultFirebaseOptions.web);
-  } else {
-    await Firebase.initializeApp();
-  }
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   
   // Initialize Stripe (only for non-web platforms)
   // Use a Stripe test publishable key placeholder for local development.
