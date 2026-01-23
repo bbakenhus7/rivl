@@ -22,7 +22,7 @@ const db = admin.firestore();
 // Set it with: firebase functions:config:set stripe.secret_key="sk_test_YOUR_KEY"
 const stripeSecretKey = functions.config().stripe?.secret_key || process.env.STRIPE_SECRET_KEY || '';
 const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2024-12-18.acacia',
+  apiVersion: '2023-10-16',
 });
 
 // Platform fee percentage (15%)
@@ -235,7 +235,8 @@ export const stripeWebhook = functions.https.onRequest(async (req, res) => {
     event = stripe.webhooks.constructEvent(req.rawBody, sig, webhookSecret);
   } catch (err: any) {
     console.error('Webhook signature verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    res.status(400).send(`Webhook Error: ${err.message}`);
+    return;
   }
 
   // Handle the event
@@ -259,7 +260,6 @@ export const stripeWebhook = functions.https.onRequest(async (req, res) => {
  * Handle successful payment
  */
 async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
-  const userId = paymentIntent.metadata.userId;
   const type = paymentIntent.metadata.type;
 
   if (type !== 'challenge_stake') return;
@@ -371,7 +371,7 @@ async function completeChallenge(challengeId: string) {
     if (!challenge.exists) return;
 
     const challengeData = challenge.data()!;
-    const { creatorId, opponentId, goalType, stakeAmount, prizeAmount } = challengeData;
+    const { creatorId, opponentId, goalType, prizeAmount } = challengeData;
 
     // Get final step counts for both participants
     const dailyStepsSnapshot = await challengeRef.collection('dailySteps').get();
