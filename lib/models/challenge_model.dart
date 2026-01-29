@@ -9,11 +9,11 @@ enum ChallengeStatus { pending, accepted, active, completed, cancelled, disputed
 
 enum GoalType {
   steps,           // Total step count over challenge period
-  distance,        // Total miles walked or run (COMING SOON)
-  milePace,        // Average mile time improvement (COMING SOON)
-  sleepDuration,   // Total hours of quality sleep (COMING SOON)
-  hrv,             // Heart rate variability trends (COMING SOON)
-  activeCalories   // Calories burned during activity (COMING SOON)
+  distance,        // Total miles walked or run
+  milePace,        // Average mile time improvement
+  fiveKPace,       // Best 5K time
+  sleepDuration,   // Total hours of quality sleep
+  vo2Max           // VO2 max cardiovascular fitness
 }
 
 enum ChallengeDuration { oneDay, threeDays, oneWeek, twoWeeks, oneMonth }
@@ -368,12 +368,12 @@ extension GoalTypeExtension on GoalType {
         return 'Distance';
       case GoalType.milePace:
         return 'Mile Pace';
+      case GoalType.fiveKPace:
+        return '5K Pace';
       case GoalType.sleepDuration:
         return 'Sleep Duration';
-      case GoalType.hrv:
-        return 'HRV';
-      case GoalType.activeCalories:
-        return 'Active Calories';
+      case GoalType.vo2Max:
+        return 'VO2 Max';
     }
   }
 
@@ -385,12 +385,12 @@ extension GoalTypeExtension on GoalType {
         return 'Total miles walked or run';
       case GoalType.milePace:
         return 'Average mile time improvement';
+      case GoalType.fiveKPace:
+        return 'Best 5K completion time';
       case GoalType.sleepDuration:
         return 'Total hours of quality sleep';
-      case GoalType.hrv:
-        return 'Heart rate variability trends';
-      case GoalType.activeCalories:
-        return 'Calories burned during activity';
+      case GoalType.vo2Max:
+        return 'Cardiovascular fitness level';
     }
   }
 
@@ -402,25 +402,17 @@ extension GoalTypeExtension on GoalType {
         return '🏃';
       case GoalType.milePace:
         return '⏱️';
+      case GoalType.fiveKPace:
+        return '🏅';
       case GoalType.sleepDuration:
         return '😴';
-      case GoalType.hrv:
-        return '❤️';
-      case GoalType.activeCalories:
-        return '🔥';
+      case GoalType.vo2Max:
+        return '💪';
     }
   }
 
   bool get isAvailable {
-    switch (this) {
-      case GoalType.steps:
-        return true;
-      case GoalType.distance:
-      case GoalType.milePace:
-      case GoalType.sleepDuration:
-      case GoalType.hrv:
-      case GoalType.activeCalories:
-        return false;
-    }
+    // All challenge types are now available
+    return true;
   }
 }

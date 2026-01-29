@@ -83,6 +83,68 @@ class HealthService {
     };
   }
 
+  // Distance tracking (in miles)
+  Future<double> getTodayDistance() async {
+    // Stub: return realistic distance (2-5 miles)
+    return 3.2;
+  }
+
+  Future<double> getDistanceInRange(DateTime start, DateTime end) async {
+    // Stub: rough estimate based on days
+    final days = end.difference(start).inDays + 1;
+    final rnd = Random(43);
+    return days * (2.0 + rnd.nextDouble() * 3.0);
+  }
+
+  // Mile pace tracking (in minutes per mile)
+  Future<double> getAverageMilePace() async {
+    // Stub: return realistic pace (8-12 minutes/mile)
+    return 9.5;
+  }
+
+  Future<double> getMilePaceInRange(DateTime start, DateTime end) async {
+    // Stub: average pace over period
+    final rnd = Random(44);
+    return 8.0 + rnd.nextDouble() * 4.0;
+  }
+
+  // 5K pace tracking (in minutes)
+  Future<double> getBest5KTime() async {
+    // Stub: return realistic 5K time (25-35 minutes)
+    return 28.5;
+  }
+
+  Future<double> get5KTimeInRange(DateTime start, DateTime end) async {
+    // Stub: best 5K time in period
+    final rnd = Random(45);
+    return 25.0 + rnd.nextDouble() * 10.0;
+  }
+
+  // Sleep duration tracking (in hours)
+  Future<double> getTodaySleep() async {
+    // Stub: return realistic sleep (6-9 hours)
+    return 7.5;
+  }
+
+  Future<double> getSleepInRange(DateTime start, DateTime end) async {
+    // Stub: total sleep over period
+    final days = end.difference(start).inDays + 1;
+    final rnd = Random(46);
+    return days * (6.0 + rnd.nextDouble() * 3.0);
+  }
+
+  // VO2 Max tracking (ml/kg/min)
+  Future<double> getVO2Max() async {
+    // Stub: return realistic VO2 max (35-55 ml/kg/min)
+    return 42.0;
+  }
+
+  Future<double> getVO2MaxInRange(DateTime start, DateTime end) async {
+    // Stub: average VO2 max over period
+    final rnd = Random(47);
+    return 35.0 + rnd.nextDouble() * 20.0;
+  }
+
   Future<double> validateSteps(List<DailySteps> stepHistory) async {
     if (stepHistory.isEmpty) return 0.5;
     return 0.9;
@@ -92,5 +154,29 @@ class HealthService {
     if (steps >= 1000000) return '${(steps / 1000000).toStringAsFixed(1)}M';
     if (steps >= 1000) return '${(steps / 1000).toStringAsFixed(1)}K';
     return steps.toString();
+  }
+
+  String formatDistance(double miles) {
+    return '${miles.toStringAsFixed(1)} mi';
+  }
+
+  String formatPace(double minutesPerMile) {
+    final minutes = minutesPerMile.floor();
+    final seconds = ((minutesPerMile - minutes) * 60).round();
+    return '$minutes:${seconds.toString().padLeft(2, '0')}/mi';
+  }
+
+  String formatTime(double minutes) {
+    final mins = minutes.floor();
+    final secs = ((minutes - mins) * 60).round();
+    return '$mins:${secs.toString().padLeft(2, '0')}';
+  }
+
+  String formatSleep(double hours) {
+    return '${hours.toStringAsFixed(1)} hrs';
+  }
+
+  String formatVO2Max(double value) {
+    return '${value.toStringAsFixed(1)} ml/kg/min';
   }
 }
