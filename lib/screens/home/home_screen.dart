@@ -23,10 +23,12 @@ class HomeScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
+                color: RivlColors.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
                 Icons.local_fire_department,
+                color: RivlColors.primary,
                 size: 24,
               ),
             ),
@@ -77,50 +79,6 @@ class HomeScreen extends StatelessWidget {
 
               // Today's Steps Card
               const StepsCard(),
-              const SizedBox(height: 24),
-
-              // Quick Actions
-              const Text('Quick Actions', style: RivlTextStyles.heading3),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _QuickActionCard(
-                      icon: Icons.flash_on,
-                      title: 'Quick Match',
-                      onTap: () => Navigator.pushNamed(context, '/discovery'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _QuickActionCard(
-                      icon: Icons.leaderboard,
-                      title: 'Leaderboard',
-                      onTap: () => Navigator.pushNamed(context, '/leaderboard'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _QuickActionCard(
-                      icon: Icons.account_balance_wallet,
-                      title: 'Wallet',
-                      onTap: () => Navigator.pushNamed(context, '/wallet'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _QuickActionCard(
-                      icon: Icons.bar_chart,
-                      title: 'Stats',
-                      onTap: () => Navigator.pushNamed(context, '/stats'),
-                    ),
-                  ),
-                ],
-              ),
               const SizedBox(height: 24),
 
               // Active Challenges
@@ -290,6 +248,7 @@ class _PendingChallengeCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
+                    color: RivlColors.primary,
                   ),
                 ),
               ],
@@ -372,6 +331,7 @@ class _StatItem extends StatelessWidget {
           style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
+            color: RivlColors.primary,
           ),
         ),
         const SizedBox(height: 4),
@@ -407,6 +367,7 @@ class _QuickActionCard extends StatelessWidget {
             children: [
               Icon(
                 icon,
+                color: RivlColors.primary,
                 size: 28,
               ),
               const SizedBox(height: 8),
@@ -425,4 +386,3 @@ class _QuickActionCard extends StatelessWidget {
     );
   }
 }
-
