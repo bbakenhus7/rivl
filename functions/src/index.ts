@@ -452,6 +452,10 @@ async function completeChallenge(challengeId: string) {
     await updateUserStats(winnerId, { wins: 1, earnings: prizeAmount });
     await updateUserStats(loserId, { losses: 1 });
 
+    // Award XP for battle pass
+    await awardXP(winnerId, challengeData, true);
+    await awardXP(loserId, challengeData, false);
+
     // Update leaderboard
     await updateLeaderboard(winnerId);
     await updateLeaderboard(loserId);
@@ -532,6 +536,74 @@ async function updateLeaderboard(userId: string) {
 function calculateWinRate(wins: number, losses: number): number {
   const total = wins + losses;
   return total > 0 ? (wins / total) * 100 : 0;
+}
+
+/**
+ * Award XP for battle pass progression
+ */
+async function awardXP(userId: string, challengeData: any, won: boolean) {
+  const XP_WIN = 100;
+  const XP_PARTICIPATION = 50;
+
+  // Calculate base XP
+  let baseXP = won ? XP_WIN : XP_PARTICIPATION;
+
+  // Bonus for higher stakes
+  const stakeAmount = challengeData.stakeAmount || 0;
+  if (stakeAmount >= 50) baseXP += 25;
+  else if (stakeAmount >= 25) baseXP += 15;
+
+  // Bonus for longer challenges
+  const startDate = challengeData.startDate?.toDate();
+  const endDate = challengeData.endDate?.toDate();
+  if (startDate && endDate) {
+    const durationDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (durationDays >= 14) baseXP += 30;
+    else if (durationDays >= 7) baseXP += 15;
+  }
+
+  // Award XP
+  const userRef = db.collection('users').doc(userId);
+  const userDoc = await userRef.get();
+  const userData = userDoc.data() || {};
+
+  let currentXP = (userData.currentXP || 0) + baseXP;
+  let totalXP = (userData.totalXP || 0) + baseXP;
+  let battlePassLevel = userData.battlePassLevel || 1;
+
+  // Level up logic
+  const xpForNextLevel = 100 + (battlePassLevel * 50);
+  while (currentXP >= xpForNextLevel) {
+    currentXP -= xpForNextLevel;
+    battlePassLevel++;
+  }
+
+  // Update user
+  await userRef.update({
+    currentXP,
+    totalXP,
+    battlePassLevel,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // Record XP transaction
+  await userRef.collection('xpHistory').add({
+    amount: baseXP,
+    source: won ? 'challenge_win' : 'challenge_participation',
+    challengeId: challengeData.id,
+    levelBefore: userData.battlePassLevel || 1,
+    levelAfter: battlePassLevel,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // Notify if leveled up
+  if (battlePassLevel > (userData.battlePassLevel || 1)) {
+    await createNotification(userId, {
+      type: 'level_up',
+      title: 'Level Up!',
+      message: `You reached Battle Pass Level ${battlePassLevel}! Claim your rewards.`,
+    });
+  }
 }
 
 // ============================================
