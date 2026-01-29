@@ -20,6 +20,12 @@ class UserModel {
   final double totalEarnings;
   final int currentStreak;
   final int longestStreak;
+
+  // Battle Pass & XP
+  final int currentXP;
+  final int totalXP;
+  final int battlePassLevel;
+  final int coins;
   
   // Referral
   final String referralCode;
@@ -58,6 +64,10 @@ class UserModel {
     this.totalEarnings = 0,
     this.currentStreak = 0,
     this.longestStreak = 0,
+    this.currentXP = 0,
+    this.totalXP = 0,
+    this.battlePassLevel = 1,
+    this.coins = 0,
     required this.referralCode,
     this.referredBy,
     this.referralCount = 0,
@@ -96,6 +106,10 @@ class UserModel {
       totalEarnings: (data['totalEarnings'] ?? 0).toDouble(),
       currentStreak: data['currentStreak'] ?? 0,
       longestStreak: data['longestStreak'] ?? 0,
+      currentXP: data['currentXP'] ?? 0,
+      totalXP: data['totalXP'] ?? 0,
+      battlePassLevel: data['battlePassLevel'] ?? 1,
+      coins: data['coins'] ?? 0,
       referralCode: data['referralCode'] ?? '',
       referredBy: data['referredBy'],
       referralCount: data['referralCount'] ?? 0,
@@ -128,6 +142,10 @@ class UserModel {
       'totalEarnings': totalEarnings,
       'currentStreak': currentStreak,
       'longestStreak': longestStreak,
+      'currentXP': currentXP,
+      'totalXP': totalXP,
+      'battlePassLevel': battlePassLevel,
+      'coins': coins,
       'referralCode': referralCode,
       'referredBy': referredBy,
       'referralCount': referralCount,
