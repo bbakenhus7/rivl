@@ -642,19 +642,4 @@ class ChurnPrediction {
   });
 }
 
-extension ChallengeDurationDays on ChallengeDuration {
-  int get days {
-    switch (this) {
-      case ChallengeDuration.oneDay:
-        return 1;
-      case ChallengeDuration.threeDays:
-        return 3;
-      case ChallengeDuration.oneWeek:
-        return 7;
-      case ChallengeDuration.twoWeeks:
-        return 14;
-      case ChallengeDuration.oneMonth:
-        return 30;
-    }
-  }
-}
+// Note: ChallengeDuration.days is provided by ChallengeDurationExtension in challenge_model.dart
