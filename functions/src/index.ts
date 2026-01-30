@@ -11,22 +11,28 @@
 
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { defineSecret } from 'firebase-functions/params';
 import Stripe from 'stripe';
 
 // Initialize Firebase Admin
 admin.initializeApp();
 const db = admin.firestore();
 
-// Initialize Stripe
-// Get your secret key from: https://dashboard.stripe.com/apikeys
-// Set it with: firebase functions:config:set stripe.secret_key="sk_test_YOUR_KEY"
-const stripeSecretKey = functions.config().stripe?.secret_key || process.env.STRIPE_SECRET_KEY || '';
-const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2023-10-16',
-});
+// Define secrets using Firebase Secret Manager
+// Set with: firebase functions:secrets:set STRIPE_SECRET_KEY
+// Set with: firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
+const stripeSecretKey = defineSecret('STRIPE_SECRET_KEY');
+const stripeWebhookSecret = defineSecret('STRIPE_WEBHOOK_SECRET');
 
 // Platform fee percentage (15%)
 const PLATFORM_FEE_PERCENT = 0.15;
+
+// Helper to get Stripe instance (must be called within function context)
+function getStripe(): Stripe {
+  return new Stripe(stripeSecretKey.value(), {
+    apiVersion: '2023-10-16',
+  });
+}
 
 // ============================================
 // CHALLENGE CREATION & PAYMENT
@@ -36,7 +42,9 @@ const PLATFORM_FEE_PERCENT = 0.15;
  * Create a challenge with payment intent
  * Callable function from the app
  */
-export const createChallenge = functions.https.onCall(async (data, context) => {
+export const createChallenge = functions
+  .runWith({ secrets: [stripeSecretKey] })
+  .https.onCall(async (data, context) => {
   // Verify authentication
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
@@ -68,6 +76,7 @@ export const createChallenge = functions.https.onCall(async (data, context) => {
 
   try {
     // Create Stripe Payment Intent for creator
+    const stripe = getStripe();
     const creatorPaymentIntent = await stripe.paymentIntents.create({
       amount: stakeAmount * 100, // Convert to cents
       currency: 'usd',
@@ -129,7 +138,9 @@ export const createChallenge = functions.https.onCall(async (data, context) => {
 /**
  * Accept a challenge and create payment intent for opponent
  */
-export const acceptChallenge = functions.https.onCall(async (data, context) => {
+export const acceptChallenge = functions
+  .runWith({ secrets: [stripeSecretKey] })
+  .https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
   }
@@ -157,6 +168,7 @@ export const acceptChallenge = functions.https.onCall(async (data, context) => {
     }
 
     // Create Stripe Payment Intent for opponent
+    const stripe = getStripe();
     const opponentPaymentIntent = await stripe.paymentIntents.create({
       amount: challengeData.stakeAmount * 100,
       currency: 'usd',
@@ -223,16 +235,16 @@ export const acceptChallenge = functions.https.onCall(async (data, context) => {
 /**
  * Webhook to handle Stripe payment confirmations
  */
-export const stripeWebhook = functions.https.onRequest(async (req, res) => {
+export const stripeWebhook = functions
+  .runWith({ secrets: [stripeSecretKey, stripeWebhookSecret] })
+  .https.onRequest(async (req, res) => {
   const sig = req.headers['stripe-signature'] as string;
-
-  // Get webhook secret from config
-  const webhookSecret = functions.config().stripe?.webhook_secret || process.env.STRIPE_WEBHOOK_SECRET || '';
+  const stripe = getStripe();
 
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(req.rawBody, sig, webhookSecret);
+    event = stripe.webhooks.constructEvent(req.rawBody, sig, stripeWebhookSecret.value());
   } catch (err: any) {
     console.error('Webhook signature verification failed:', err.message);
     res.status(400).send(`Webhook Error: ${err.message}`);
