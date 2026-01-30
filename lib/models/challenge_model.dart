@@ -409,20 +409,20 @@ extension GoalTypeExtension on GoalType {
     }
   }
 
-  String get emoji {
+  IconData get icon {
     switch (this) {
       case GoalType.steps:
-        return '👟';
+        return Icons.directions_walk;
       case GoalType.distance:
-        return '🏃';
+        return Icons.straighten;
       case GoalType.milePace:
-        return '⏱️';
+        return Icons.timer_outlined;
       case GoalType.fiveKPace:
-        return '🏅';
+        return Icons.speed;
       case GoalType.sleepDuration:
-        return '😴';
+        return Icons.bedtime_outlined;
       case GoalType.vo2Max:
-        return '💪';
+        return Icons.favorite_outline;
     }
   }
 

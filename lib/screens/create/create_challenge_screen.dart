@@ -338,10 +338,11 @@ class _ChallengeTypeCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Icon/Emoji
-              Text(
-                goalType.emoji,
-                style: const TextStyle(fontSize: 48),
+              // Icon
+              Icon(
+                goalType.icon,
+                size: 48,
+                color: isSelected ? RivlColors.primary : Colors.grey[600],
               ),
               const SizedBox(height: 12),
               // Title

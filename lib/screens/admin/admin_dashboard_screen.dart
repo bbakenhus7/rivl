@@ -501,9 +501,10 @@ class _ChallengeCard extends StatelessWidget {
             color: challenge.statusColor.withOpacity(0.2),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Text(
-            challenge.goalType.emoji,
-            style: const TextStyle(fontSize: 24),
+          child: Icon(
+            challenge.goalType.icon,
+            size: 24,
+            color: challenge.statusColor,
           ),
         ),
         title: Text('${challenge.creatorName} vs ${challenge.opponentName ?? "Pending"}'),
