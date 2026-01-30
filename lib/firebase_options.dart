@@ -19,36 +19,35 @@ class DefaultFirebaseOptions {
   }
 
   // Web Configuration
-  // Replace these values with your actual Firebase config
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'YOUR_API_KEY_HERE', // Example: 'AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
-    authDomain: 'YOUR_PROJECT_ID.firebaseapp.com', // Example: 'rivl-fitness.firebaseapp.com'
-    projectId: 'YOUR_PROJECT_ID', // Example: 'rivl-fitness'
-    storageBucket: 'YOUR_PROJECT_ID.appspot.com', // Example: 'rivl-fitness.appspot.com'
-    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID', // Example: '123456789012'
-    appId: 'YOUR_WEB_APP_ID', // Example: '1:123456789012:web:abcdef1234567890'
-    measurementId: 'YOUR_MEASUREMENT_ID', // Example: 'G-XXXXXXXXXX'
+    apiKey: 'AIzaSyDbtmGqg5yxs3l7S03RaikYK0Zq1y1ySaI',
+    authDomain: 'rivl-3bf21.firebaseapp.com',
+    projectId: 'rivl-3bf21',
+    storageBucket: 'rivl-3bf21.firebasestorage.app',
+    messagingSenderId: '868172313930',
+    appId: '1:868172313930:web:893cf08d511b7c9ec23db3',
+    measurementId: 'G-LGD052GJ5K',
   );
 
   // iOS Configuration (for mobile app builds)
-  // Get this from Firebase Console → iOS app settings
+  // TODO: Add iOS app in Firebase Console and update apiKey/appId
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'YOUR_IOS_API_KEY',
-    appId: 'YOUR_IOS_APP_ID',
-    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-    projectId: 'YOUR_PROJECT_ID',
-    storageBucket: 'YOUR_PROJECT_ID.appspot.com',
+    apiKey: 'YOUR_IOS_API_KEY', // Get from Firebase Console → iOS app
+    appId: 'YOUR_IOS_APP_ID', // Get from Firebase Console → iOS app
+    messagingSenderId: '868172313930',
+    projectId: 'rivl-3bf21',
+    storageBucket: 'rivl-3bf21.firebasestorage.app',
     iosBundleId: 'com.yourcompany.rivl', // Change this to your bundle ID
   );
 
   // Android Configuration (for mobile app builds)
-  // Get this from Firebase Console → Android app settings
+  // TODO: Add Android app in Firebase Console and update apiKey/appId
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'YOUR_ANDROID_API_KEY',
-    appId: 'YOUR_ANDROID_APP_ID',
-    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-    projectId: 'YOUR_PROJECT_ID',
-    storageBucket: 'YOUR_PROJECT_ID.appspot.com',
+    apiKey: 'YOUR_ANDROID_API_KEY', // Get from Firebase Console → Android app
+    appId: 'YOUR_ANDROID_APP_ID', // Get from Firebase Console → Android app
+    messagingSenderId: '868172313930',
+    projectId: 'rivl-3bf21',
+    storageBucket: 'rivl-3bf21.firebasestorage.app',
   );
 }
 
