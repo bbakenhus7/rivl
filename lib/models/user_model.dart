@@ -88,6 +88,36 @@ class UserModel {
     return '${(winRate * 100).toStringAsFixed(0)}%';
   }
 
+  /// Demo user for preview mode when not authenticated
+  factory UserModel.demo() {
+    return UserModel(
+      id: 'demo-user',
+      email: 'demo@rivl.app',
+      displayName: 'Demo User',
+      username: 'demo_athlete',
+      totalChallenges: 47,
+      wins: 32,
+      losses: 15,
+      winRate: 0.68,
+      totalSteps: 1250000,
+      totalEarnings: 485.00,
+      currentStreak: 7,
+      longestStreak: 21,
+      currentXP: 2450,
+      totalXP: 12450,
+      battlePassLevel: 12,
+      coins: 850,
+      referralCode: 'DEMO2024',
+      referralCount: 5,
+      referralEarnings: 10.00,
+      createdAt: DateTime.now().subtract(const Duration(days: 90)),
+      updatedAt: DateTime.now(),
+      lastActiveAt: DateTime.now(),
+      isVerified: true,
+      isPremium: false,
+    );
+  }
+
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return UserModel(
