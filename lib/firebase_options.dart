@@ -29,15 +29,14 @@ class DefaultFirebaseOptions {
     measurementId: 'G-LGD052GJ5K',
   );
 
-  // iOS Configuration (for mobile app builds)
-  // TODO: Add iOS app in Firebase Console and update apiKey/appId
+  // iOS Configuration
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'YOUR_IOS_API_KEY', // Get from Firebase Console → iOS app
-    appId: 'YOUR_IOS_APP_ID', // Get from Firebase Console → iOS app
+    apiKey: 'AIzaSyCXQDZkfBBRBmQYxzLY8rNcw6SbPwlgwXc',
+    appId: '1:868172313930:ios:fd29333adb591bf2c23db3',
     messagingSenderId: '868172313930',
     projectId: 'rivl-3bf21',
     storageBucket: 'rivl-3bf21.firebasestorage.app',
-    iosBundleId: 'com.yourcompany.rivl', // Change this to your bundle ID
+    iosBundleId: 'com.rivl.fitness',
   );
 
   // Android Configuration (for mobile app builds)
