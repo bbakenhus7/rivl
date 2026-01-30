@@ -1,61 +1,72 @@
 // firebase_options.dart
-// Firebase Configuration for RIVL Production
-//
-// INSTRUCTIONS:
-// 1. Go to https://console.firebase.google.com
-// 2. Select your RIVL project
-// 3. Click the gear icon → Project settings
-// 4. Scroll down to "Your apps" section
-// 5. Click on your web app
-// 6. Copy the config values and paste them below
-// 7. Replace ALL the placeholder values marked with "YOUR_"
+// Firebase Configuration for RIVL
 
-import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
-    // For web deployment
-    return web;
+    if (kIsWeb) {
+      return web;
+    }
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return android;
+      case TargetPlatform.iOS:
+        return ios;
+      case TargetPlatform.macOS:
+        return macos;
+      case TargetPlatform.windows:
+        return web;
+      case TargetPlatform.linux:
+        return web;
+      default:
+        throw UnsupportedError(
+          'DefaultFirebaseOptions are not supported for this platform.',
+        );
+    }
   }
 
   // Web Configuration
-  // Replace these values with your actual Firebase config
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'YOUR_API_KEY_HERE', // Example: 'AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
-    authDomain: 'YOUR_PROJECT_ID.firebaseapp.com', // Example: 'rivl-fitness.firebaseapp.com'
-    projectId: 'YOUR_PROJECT_ID', // Example: 'rivl-fitness'
-    storageBucket: 'YOUR_PROJECT_ID.appspot.com', // Example: 'rivl-fitness.appspot.com'
-    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID', // Example: '123456789012'
-    appId: 'YOUR_WEB_APP_ID', // Example: '1:123456789012:web:abcdef1234567890'
-    measurementId: 'YOUR_MEASUREMENT_ID', // Example: 'G-XXXXXXXXXX'
+    apiKey: 'AIzaSyDbtmGqg5yxs3l7S03RaikYK0Zq1y1ySaI',
+    authDomain: 'rivl-3bf21.firebaseapp.com',
+    projectId: 'rivl-3bf21',
+    storageBucket: 'rivl-3bf21.firebasestorage.app',
+    messagingSenderId: '868172313930',
+    appId: '1:868172313930:web:893cf08d511b7c9ec23db3',
+    measurementId: 'G-LGD052GJ5K',
   );
 
-  // iOS Configuration (for mobile app builds)
-  // Get this from Firebase Console → iOS app settings
+  // iOS Configuration
+  // TODO: Add iOS app in Firebase Console and update these values
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'YOUR_IOS_API_KEY',
-    appId: 'YOUR_IOS_APP_ID',
-    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-    projectId: 'YOUR_PROJECT_ID',
-    storageBucket: 'YOUR_PROJECT_ID.appspot.com',
-    iosBundleId: 'com.yourcompany.rivl', // Change this to your bundle ID
+    apiKey: 'AIzaSyDbtmGqg5yxs3l7S03RaikYK0Zq1y1ySaI',
+    appId: '1:868172313930:ios:PLACEHOLDER',
+    messagingSenderId: '868172313930',
+    projectId: 'rivl-3bf21',
+    storageBucket: 'rivl-3bf21.firebasestorage.app',
+    iosBundleId: 'com.rivl.app',
   );
 
-  // Android Configuration (for mobile app builds)
-  // Get this from Firebase Console → Android app settings
+  // Android Configuration
+  // TODO: Add Android app in Firebase Console and update these values
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'YOUR_ANDROID_API_KEY',
-    appId: 'YOUR_ANDROID_APP_ID',
-    messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-    projectId: 'YOUR_PROJECT_ID',
-    storageBucket: 'YOUR_PROJECT_ID.appspot.com',
+    apiKey: 'AIzaSyDbtmGqg5yxs3l7S03RaikYK0Zq1y1ySaI',
+    appId: '1:868172313930:android:PLACEHOLDER',
+    messagingSenderId: '868172313930',
+    projectId: 'rivl-3bf21',
+    storageBucket: 'rivl-3bf21.firebasestorage.app',
+  );
+
+  // macOS Configuration
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyDbtmGqg5yxs3l7S03RaikYK0Zq1y1ySaI',
+    appId: '1:868172313930:ios:PLACEHOLDER',
+    messagingSenderId: '868172313930',
+    projectId: 'rivl-3bf21',
+    storageBucket: 'rivl-3bf21.firebasestorage.app',
+    iosBundleId: 'com.rivl.app',
   );
 }
-
-// VERIFICATION CHECKLIST:
-// Before deploying, make sure:
-// ✅ All "YOUR_" placeholders are replaced with real values
-// ✅ No test/stub/fake values remain
-// ✅ apiKey starts with "AIza"
-// ✅ projectId matches your Firebase project name
-// ✅ You've tested authentication after updating
