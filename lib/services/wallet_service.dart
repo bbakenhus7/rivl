@@ -1,6 +1,9 @@
 // services/wallet_service.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../models/wallet_model.dart';
 
 /// Wallet service for managing user funds, deposits, and withdrawals
@@ -60,10 +63,10 @@ class WalletService {
   }
 
   // ============================================
-  // DEPOSITS (via Stripe ACH)
+  // DEPOSITS (via Stripe)
   // ============================================
 
-  /// Initiate deposit via Stripe ACH
+  /// Initiate deposit via Stripe PaymentSheet
   Future<WalletTransaction> initiateDeposit({
     required String userId,
     required double amount,
@@ -75,45 +78,58 @@ class WalletService {
       throw Exception('Maximum deposit is \$${MAX_DEPOSIT.toStringAsFixed(0)}');
     }
 
-    // Create pending transaction
-    final transaction = WalletTransaction(
-      id: '',
-      odId: userId,
-      type: TransactionType.deposit,
-      status: TransactionStatus.pending,
-      amount: amount,
-      fee: 0, // No deposit fee
-      netAmount: amount,
-      description: 'Bank deposit via ACH',
-      createdAt: DateTime.now(),
-    );
+    try {
+      // Call Cloud Function to create PaymentIntent
+      final functions = FirebaseFunctions.instance;
+      final result = await functions
+          .httpsCallable('createDepositPaymentIntent')
+          .call({'amount': amount, 'userId': userId});
 
-    final docRef = await _db
-        .collection('wallets')
-        .doc(userId)
-        .collection('transactions')
-        .add(transaction.toFirestore());
+      final data = result.data as Map<String, dynamic>;
+      final clientSecret = data['clientSecret'] as String;
+      final paymentIntentId = data['paymentIntentId'] as String;
+      final transactionId = data['transactionId'] as String;
 
-    // Update pending balance
-    await _db.collection('wallets').doc(userId).update({
-      'pendingBalance': FieldValue.increment(amount),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+      // Initialize PaymentSheet (skip on web)
+      if (!kIsWeb) {
+        await Stripe.instance.initPaymentSheet(
+          paymentSheetParameters: SetupPaymentSheetParameters(
+            paymentIntentClientSecret: clientSecret,
+            merchantDisplayName: 'RIVL',
+            style: ThemeMode.system,
+          ),
+        );
 
-    // In production, this would create a Stripe PaymentIntent
-    // and return the client secret for frontend to complete payment
+        // Present PaymentSheet
+        await Stripe.instance.presentPaymentSheet();
 
-    return WalletTransaction(
-      id: docRef.id,
-      odId: userId,
-      type: TransactionType.deposit,
-      status: TransactionStatus.pending,
-      amount: amount,
-      fee: 0,
-      netAmount: amount,
-      description: 'Bank deposit via ACH',
-      createdAt: DateTime.now(),
-    );
+        // Payment succeeded - confirm the deposit
+        await functions
+            .httpsCallable('confirmWalletDeposit')
+            .call({'paymentIntentId': paymentIntentId, 'userId': userId});
+      } else {
+        // For web, we need a different approach - for now just throw
+        throw Exception('Web payments coming soon! Please use the mobile app.');
+      }
+
+      return WalletTransaction(
+        id: transactionId,
+        odId: userId,
+        type: TransactionType.deposit,
+        status: TransactionStatus.completed,
+        amount: amount,
+        fee: 0,
+        netAmount: amount,
+        description: 'Wallet deposit',
+        createdAt: DateTime.now(),
+        completedAt: DateTime.now(),
+      );
+    } on StripeException catch (e) {
+      // User cancelled or payment failed
+      throw Exception(e.error.localizedMessage ?? 'Payment cancelled');
+    } on FirebaseFunctionsException catch (e) {
+      throw Exception(e.message ?? 'Failed to process deposit');
+    }
   }
 
   /// Complete deposit (called by Stripe webhook)
