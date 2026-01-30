@@ -1,3 +1,4 @@
+# Automatically builds and deploys Flutter web app to GitHub Pages
 name: Build and Deploy to GitHub Pages
 
 on:
