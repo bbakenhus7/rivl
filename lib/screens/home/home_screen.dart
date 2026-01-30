@@ -65,7 +65,7 @@ class HomeScreen extends StatelessWidget {
               Consumer<AuthProvider>(
                 builder: (context, auth, _) {
                   return Text(
-                    'Hey, ${auth.user?.displayName.split(' ').first ?? 'there'}! 👋',
+                    'Hey, ${auth.user?.displayName.split(' ').first ?? 'there'}',
                     style: RivlTextStyles.heading2,
                   );
                 },

@@ -107,13 +107,17 @@ class ChallengeProvider extends ChangeNotifier {
   int get suggestedGoalValue {
     switch (_selectedGoalType) {
       case GoalType.steps:
-        return _selectedDuration.days * 10000;
+        return _selectedDuration.days * 10000; // 10K steps per day
       case GoalType.distance:
+        return _selectedDuration.days * 5; // 5 miles per day
       case GoalType.milePace:
+        return 8; // Target 8 min/mile pace
+      case GoalType.fiveKPace:
+        return 25; // Target 25 min 5K time
       case GoalType.sleepDuration:
-      case GoalType.hrv:
-      case GoalType.activeCalories:
-        return 0; // Coming soon types - default to 0
+        return _selectedDuration.days * 8; // 8 hours per night
+      case GoalType.vo2Max:
+        return 45; // Target VO2 max of 45
     }
   }
 
