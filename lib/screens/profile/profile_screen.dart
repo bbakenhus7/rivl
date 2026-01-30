@@ -25,7 +25,7 @@ class ProfileScreen extends StatelessWidget {
       ),
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
-          final user = authProvider.currentUserModel;
+          final user = authProvider.user;
 
           if (user == null) {
             return const Center(child: CircularProgressIndicator());

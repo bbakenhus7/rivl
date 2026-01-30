@@ -46,8 +46,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       await context.read<AuthProvider>().signIn(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
+        _emailController.text.trim(),
+        _passwordController.text,
       );
     } catch (e) {
       setState(() {
@@ -468,7 +468,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                builder: (_) => const SignupScreen(),
+                builder: (_) => const SignUpScreen(),
               ),
             );
           },

@@ -81,6 +81,42 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // ============================================
+  // SOCIAL SIGN IN
+  // ============================================
+
+  Future<void> signInWithApple() async {
+    _state = AuthState.loading;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      // TODO: Implement Apple Sign-In with firebase_auth
+      throw Exception('Apple Sign-In is not yet implemented');
+    } catch (e) {
+      _state = AuthState.error;
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> signInWithGoogle() async {
+    _state = AuthState.loading;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      // TODO: Implement Google Sign-In with firebase_auth
+      throw Exception('Google Sign-In is not yet implemented');
+    } catch (e) {
+      _state = AuthState.error;
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // ============================================
   // SIGN UP
   // ============================================
 
