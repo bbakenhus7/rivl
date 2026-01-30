@@ -131,7 +131,7 @@ class FirebaseService {
     if (user == null) throw Exception('User not found');
 
     final totalPot = stakeAmount * 2;
-    final prizeAmount = _calculatePrize(totalPot);
+    final prizeAmount = _calculatePrize(totalPot, type);
 
     final challenge = ChallengeModel(
       id: '',
@@ -341,8 +341,14 @@ class FirebaseService {
     return List.generate(6, (_) => chars[random.nextInt(chars.length)]).join();
   }
 
-  double _calculatePrize(double totalPot) {
-    // ~15% fee
-    return (totalPot * 0.85).roundToDouble();
+  double _calculatePrize(double totalPot, ChallengeType type) {
+    // Platform fees: 3% for 1v1 (headToHead), 5% for groups
+    final feeRate = type == ChallengeType.headToHead ? 0.03 : 0.05;
+    return (totalPot * (1 - feeRate)).roundToDouble();
+  }
+
+  double getPlatformFee(double totalPot, ChallengeType type) {
+    final feeRate = type == ChallengeType.headToHead ? 0.03 : 0.05;
+    return (totalPot * feeRate).roundToDouble();
   }
 }

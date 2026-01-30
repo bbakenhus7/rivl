@@ -303,25 +303,40 @@ class DailySteps {
 // Stake options
 class StakeOption {
   final double amount;
-  final double prize;
-  final double fee;
+  final double prize;      // Prize for 1v1 (3% fee)
+  final double groupPrize; // Prize for groups (5% fee)
+  final double fee;        // Fee for 1v1
+  final double groupFee;   // Fee for groups
 
   const StakeOption({
     required this.amount,
     required this.prize,
+    required this.groupPrize,
     required this.fee,
+    required this.groupFee,
   });
 
   String get displayAmount => '\$${amount.toInt()}';
   String get displayPrize => '\$${prize.toInt()}';
+  String get displayGroupPrize => '\$${groupPrize.toInt()}';
 
+  // Calculate prize based on challenge type (3% for 1v1, 5% for groups)
+  double getPrizeForType(ChallengeType type) {
+    return type == ChallengeType.headToHead ? prize : groupPrize;
+  }
+
+  double getFeeForType(ChallengeType type) {
+    return type == ChallengeType.headToHead ? fee : groupFee;
+  }
+
+  // Updated stake options: $10-$100 range with 3% fee for 1v1, 5% for groups
   static const List<StakeOption> options = [
-    StakeOption(amount: 5, prize: 8, fee: 0.5),
-    StakeOption(amount: 10, prize: 17, fee: 0.85),
-    StakeOption(amount: 15, prize: 25, fee: 1.25),
-    StakeOption(amount: 20, prize: 34, fee: 1.70),
-    StakeOption(amount: 25, prize: 42, fee: 2.10),
-    StakeOption(amount: 50, prize: 85, fee: 4.25),
+    StakeOption(amount: 10, prize: 19.40, groupPrize: 19.00, fee: 0.60, groupFee: 1.00),
+    StakeOption(amount: 20, prize: 38.80, groupPrize: 38.00, fee: 1.20, groupFee: 2.00),
+    StakeOption(amount: 25, prize: 48.50, groupPrize: 47.50, fee: 1.50, groupFee: 2.50),
+    StakeOption(amount: 50, prize: 97.00, groupPrize: 95.00, fee: 3.00, groupFee: 5.00),
+    StakeOption(amount: 75, prize: 145.50, groupPrize: 142.50, fee: 4.50, groupFee: 7.50),
+    StakeOption(amount: 100, prize: 194.00, groupPrize: 190.00, fee: 6.00, groupFee: 10.00),
   ];
 }
 

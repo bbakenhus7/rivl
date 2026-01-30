@@ -5,6 +5,7 @@ import '../models/challenge_model.dart';
 
 /// AI-powered anti-cheat verification service
 /// Uses machine learning algorithms to detect fraudulent activity
+/// Cross-references multiple biometric data sources for verification
 class AntiCheatService {
   static final AntiCheatService _instance = AntiCheatService._internal();
   factory AntiCheatService() => _instance;
@@ -16,6 +17,12 @@ class AntiCheatService {
   static const double REPUTATION_THRESHOLD = 0.5;
   static const int MAX_DAILY_STEPS = 50000;
   static const int SUSPICIOUS_DAILY_STEPS = 30000;
+
+  // Heart rate correlation thresholds
+  static const double MIN_HR_CORRELATION = 0.65; // Minimum correlation between steps and HR
+  static const int RESTING_HR_MAX = 100; // Max resting heart rate
+  static const int ACTIVE_HR_MIN = 90; // Minimum HR during activity
+  static const int MAX_HR_SUSTAINED = 180; // Max sustainable HR
 
   /// Calculate comprehensive anti-cheat score (0.0 = cheating, 1.0 = legitimate)
   Future<AntiCheatResult> analyzeActivity({
@@ -207,22 +214,183 @@ class AntiCheatService {
     return score.clamp(0.0, 1.0);
   }
 
-  /// Cross-reference with heart rate data
+  /// Cross-reference with heart rate data using ML correlation analysis
+  /// This is a key anti-fraud measure - steps should correlate with heart rate
   Future<double> _crossReferenceHeartRate(
     List<DailySteps> stepHistory,
     List<Map<String, dynamic>> heartRateData,
   ) async {
-    // In production, would correlate step spikes with HR spikes
-    // High steps should correlate with elevated heart rate
+    if (heartRateData.isEmpty) return 0.7; // Neutral score if no HR data
+
+    double score = 1.0;
+    final flags = <String>[];
+
+    // 1. Check for HR data presence during high activity
+    for (final day in stepHistory) {
+      if (day.steps > 10000) {
+        final dayHRData = heartRateData.where((hr) => hr['date'] == day.date).toList();
+        if (dayHRData.isEmpty) {
+          score -= 0.1;
+          flags.add('Missing HR data on high activity day: ${day.date}');
+        }
+      }
+    }
+
+    // 2. Analyze step-to-HR correlation
+    final correlationScore = _calculateStepHRCorrelation(stepHistory, heartRateData);
+    if (correlationScore < MIN_HR_CORRELATION) {
+      score -= (MIN_HR_CORRELATION - correlationScore);
+      flags.add('Low step-HR correlation: ${correlationScore.toStringAsFixed(2)}');
+    }
+
+    // 3. Check for physiologically impossible patterns
+    final physiologyScore = _validateHeartRatePhysiology(heartRateData);
+    if (physiologyScore < 0.7) {
+      score -= (0.7 - physiologyScore);
+      flags.add('Physiologically suspicious HR patterns');
+    }
+
+    // 4. Detect HR data manipulation patterns
+    final manipulationScore = _detectHRManipulation(heartRateData);
+    if (manipulationScore < 0.8) {
+      score -= (0.8 - manipulationScore) * 0.5;
+      flags.add('Potential HR data manipulation detected');
+    }
+
+    // 5. Verify HR response to step intensity
+    final responseScore = _validateHRStepResponse(stepHistory, heartRateData);
+    if (responseScore < 0.6) {
+      score -= (0.6 - responseScore) * 0.5;
+      flags.add('HR response inconsistent with step intensity');
+    }
+
+    return score.clamp(0.0, 1.0);
+  }
+
+  /// Calculate Pearson correlation between step counts and average heart rate
+  double _calculateStepHRCorrelation(
+    List<DailySteps> stepHistory,
+    List<Map<String, dynamic>> heartRateData,
+  ) {
+    final matchedData = <Map<String, num>>[];
+
+    for (final day in stepHistory) {
+      final dayHR = heartRateData.where((hr) => hr['date'] == day.date).toList();
+      if (dayHR.isNotEmpty) {
+        final avgHR = dayHR.map((hr) => hr['value'] as num).reduce((a, b) => a + b) / dayHR.length;
+        matchedData.add({'steps': day.steps, 'hr': avgHR});
+      }
+    }
+
+    if (matchedData.length < 3) return 0.7; // Not enough data
+
+    // Calculate Pearson correlation coefficient
+    final n = matchedData.length;
+    final sumSteps = matchedData.map((d) => d['steps']!).reduce((a, b) => a + b);
+    final sumHR = matchedData.map((d) => d['hr']!).reduce((a, b) => a + b);
+    final sumStepsHR = matchedData.map((d) => d['steps']! * d['hr']!).reduce((a, b) => a + b);
+    final sumStepsSq = matchedData.map((d) => d['steps']! * d['steps']!).reduce((a, b) => a + b);
+    final sumHRSq = matchedData.map((d) => d['hr']! * d['hr']!).reduce((a, b) => a + b);
+
+    final numerator = (n * sumStepsHR) - (sumSteps * sumHR);
+    final denominator = sqrt(
+      ((n * sumStepsSq) - (sumSteps * sumSteps)) *
+      ((n * sumHRSq) - (sumHR * sumHR))
+    );
+
+    if (denominator == 0) return 0.5;
+
+    final correlation = numerator / denominator;
+    return ((correlation + 1) / 2).clamp(0.0, 1.0); // Normalize to 0-1
+  }
+
+  /// Validate that heart rate patterns are physiologically possible
+  double _validateHeartRatePhysiology(List<Map<String, dynamic>> heartRateData) {
+    if (heartRateData.isEmpty) return 0.8;
+
+    double score = 1.0;
+
+    for (final hr in heartRateData) {
+      final value = hr['value'] as int;
+
+      // Check for impossible values
+      if (value < 30 || value > 220) {
+        return 0.0; // Definitely fraudulent
+      }
+
+      // Check for suspicious sustained high HR
+      if (value > MAX_HR_SUSTAINED) {
+        score -= 0.1;
+      }
+    }
+
+    // Check for too-consistent HR (bot-like behavior)
+    final hrValues = heartRateData.map((hr) => hr['value'] as int).toList();
+    final hrVariance = _calculateVariance(hrValues);
+    if (hrVariance < 10) {
+      score -= 0.3; // HR should naturally vary
+    }
+
+    return score.clamp(0.0, 1.0);
+  }
+
+  /// Detect patterns that suggest HR data manipulation
+  double _detectHRManipulation(List<Map<String, dynamic>> heartRateData) {
+    if (heartRateData.length < 5) return 0.8;
+
+    double score = 1.0;
+
+    // Check for repeating exact values (copy-paste fraud)
+    final hrValues = heartRateData.map((hr) => hr['value']).toList();
+    final uniqueRatio = hrValues.toSet().length / hrValues.length;
+    if (uniqueRatio < 0.3) {
+      score -= 0.4; // Too many repeated values
+    }
+
+    // Check for perfectly linear patterns (generated data)
+    bool isPerfectlyLinear = true;
+    for (int i = 2; i < hrValues.length; i++) {
+      final diff1 = hrValues[i] - hrValues[i - 1];
+      final diff2 = hrValues[i - 1] - hrValues[i - 2];
+      if (diff1 != diff2) {
+        isPerfectlyLinear = false;
+        break;
+      }
+    }
+    if (isPerfectlyLinear && hrValues.length > 5) {
+      score -= 0.5; // Suspiciously linear pattern
+    }
+
+    return score.clamp(0.0, 1.0);
+  }
+
+  /// Validate that HR responds appropriately to step intensity
+  double _validateHRStepResponse(
+    List<DailySteps> stepHistory,
+    List<Map<String, dynamic>> heartRateData,
+  ) {
     double score = 1.0;
 
     for (final day in stepHistory) {
-      if (day.steps > 15000) {
-        // Should have corresponding HR data
-        final hasHRData = heartRateData.any((hr) => hr['date'] == day.date);
-        if (!hasHRData) {
-          score -= 0.15;
-        }
+      final dayHR = heartRateData.where((hr) => hr['date'] == day.date).toList();
+      if (dayHR.isEmpty) continue;
+
+      final maxHR = dayHR.map((hr) => hr['value'] as int).reduce(max);
+      final avgHR = dayHR.map((hr) => hr['value'] as int).reduce((a, b) => a + b) / dayHR.length;
+
+      // High step days should have elevated HR
+      if (day.steps > 15000 && maxHR < 110) {
+        score -= 0.15; // Suspiciously low HR for high activity
+      }
+
+      // Very high step days should show significant HR elevation
+      if (day.steps > 25000 && avgHR < 90) {
+        score -= 0.2; // Very suspicious
+      }
+
+      // Low step days with very high HR is suspicious (unless medical condition)
+      if (day.steps < 3000 && avgHR > 120) {
+        score -= 0.1; // Possible data inconsistency
       }
     }
 
