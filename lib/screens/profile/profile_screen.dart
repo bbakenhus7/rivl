@@ -25,16 +25,36 @@ class ProfileScreen extends StatelessWidget {
       ),
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
-          final user = authProvider.user;
-
-          if (user == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
+          // Use actual user or demo user for preview
+          final user = authProvider.user ?? UserModel.demo();
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
+                // Demo mode banner if not authenticated
+                if (authProvider.user == null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: RivlColors.info.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline, color: RivlColors.info, size: 20),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Demo Mode - Sign in to see your real stats',
+                            style: TextStyle(color: RivlColors.info, fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 // Profile Header
                 _ProfileHeader(user: user),
                 const SizedBox(height: 24),
