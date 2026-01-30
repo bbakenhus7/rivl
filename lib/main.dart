@@ -12,6 +12,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'providers/auth_provider.dart';
 import 'providers/challenge_provider.dart';
 import 'providers/health_provider.dart';
+import 'providers/wallet_provider.dart';
 import 'screens/splash_screen.dart';
 import 'utils/theme.dart';
 
@@ -62,6 +63,7 @@ class RivlApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ChallengeProvider()),
         ChangeNotifierProvider(create: (_) => HealthProvider()),
+        ChangeNotifierProvider(create: (_) => WalletProvider()),
       ],
       child: MaterialApp(
         title: 'RIVL',

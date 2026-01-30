@@ -947,3 +947,166 @@ export const manualCompleteChallenge = functions.https.onCall(async (data, conte
 
   return { success: true };
 });
+
+// ============================================
+// WALLET DEPOSITS
+// ============================================
+
+/**
+ * Create a PaymentIntent for wallet deposit
+ * Returns client secret for Stripe PaymentSheet
+ */
+export const createDepositPaymentIntent = functions
+  .runWith({ secrets: [stripeSecretKey] })
+  .https.onCall(async (data, context) => {
+  const { amount, userId } = data;
+
+  // Allow unauthenticated for demo mode, but prefer auth
+  const effectiveUserId = context.auth?.uid || userId || 'demo_user';
+
+  if (!amount || amount < 10) {
+    throw new functions.https.HttpsError('invalid-argument', 'Minimum deposit is $10');
+  }
+
+  if (amount > 1000) {
+    throw new functions.https.HttpsError('invalid-argument', 'Maximum deposit is $1000');
+  }
+
+  try {
+    const stripe = getStripe();
+
+    // Create or get Stripe customer
+    let customerId: string;
+    const walletDoc = await db.collection('wallets').doc(effectiveUserId).get();
+
+    if (walletDoc.exists && walletDoc.data()?.stripeCustomerId) {
+      customerId = walletDoc.data()!.stripeCustomerId;
+    } else {
+      const customer = await stripe.customers.create({
+        metadata: {
+          rivlUserId: effectiveUserId,
+        },
+      });
+      customerId = customer.id;
+
+      // Save customer ID to wallet
+      await db.collection('wallets').doc(effectiveUserId).set({
+        stripeCustomerId: customerId,
+        balance: 0,
+        pendingBalance: 0,
+        lifetimeDeposits: 0,
+        lifetimeWithdrawals: 0,
+        lifetimeWinnings: 0,
+        lifetimeLosses: 0,
+        isVerified: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+
+    // Create PaymentIntent
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100), // Convert to cents
+      currency: 'usd',
+      customer: customerId,
+      metadata: {
+        userId: effectiveUserId,
+        type: 'wallet_deposit',
+      },
+      automatic_payment_methods: {
+        enabled: true,
+      },
+    });
+
+    // Create pending transaction in Firestore
+    const txRef = await db
+      .collection('wallets')
+      .doc(effectiveUserId)
+      .collection('transactions')
+      .add({
+        type: 'deposit',
+        status: 'pending',
+        amount: amount,
+        fee: 0,
+        netAmount: amount,
+        description: 'Wallet deposit',
+        stripePaymentIntentId: paymentIntent.id,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+    // Update pending balance
+    await db.collection('wallets').doc(effectiveUserId).update({
+      pendingBalance: admin.firestore.FieldValue.increment(amount),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return {
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+      transactionId: txRef.id,
+      customerId: customerId,
+    };
+  } catch (error: any) {
+    console.error('Error creating deposit PaymentIntent:', error);
+    throw new functions.https.HttpsError('internal', error.message);
+  }
+});
+
+/**
+ * Confirm wallet deposit after successful payment
+ * Called after PaymentSheet completes successfully
+ */
+export const confirmWalletDeposit = functions
+  .runWith({ secrets: [stripeSecretKey] })
+  .https.onCall(async (data, context) => {
+  const { paymentIntentId, userId } = data;
+
+  const effectiveUserId = context.auth?.uid || userId || 'demo_user';
+
+  if (!paymentIntentId) {
+    throw new functions.https.HttpsError('invalid-argument', 'Missing paymentIntentId');
+  }
+
+  try {
+    const stripe = getStripe();
+
+    // Verify payment succeeded
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    if (paymentIntent.status !== 'succeeded') {
+      throw new functions.https.HttpsError('failed-precondition', 'Payment not completed');
+    }
+
+    const amount = paymentIntent.amount / 100; // Convert from cents
+
+    // Find and update the pending transaction
+    const txQuery = await db
+      .collection('wallets')
+      .doc(effectiveUserId)
+      .collection('transactions')
+      .where('stripePaymentIntentId', '==', paymentIntentId)
+      .limit(1)
+      .get();
+
+    if (!txQuery.empty) {
+      const txDoc = txQuery.docs[0];
+      await txDoc.ref.update({
+        status: 'completed',
+        completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    // Update wallet balance
+    await db.collection('wallets').doc(effectiveUserId).update({
+      balance: admin.firestore.FieldValue.increment(amount),
+      pendingBalance: admin.firestore.FieldValue.increment(-amount),
+      lifetimeDeposits: admin.firestore.FieldValue.increment(amount),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return { success: true, amount };
+  } catch (error: any) {
+    console.error('Error confirming deposit:', error);
+    throw new functions.https.HttpsError('internal', error.message);
+  }
+});

@@ -8,8 +8,25 @@ import '../../models/user_model.dart';
 import '../../utils/theme.dart';
 import '../wallet/wallet_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Initialize wallet for demo or authenticated user
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = context.read<AuthProvider>();
+      final walletProvider = context.read<WalletProvider>();
+      final userId = authProvider.user?.id ?? 'demo_user';
+      walletProvider.initialize(userId);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
