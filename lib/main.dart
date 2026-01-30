@@ -27,7 +27,7 @@ void main() async {
   // Use a Stripe test publishable key placeholder for local development.
   if (!kIsWeb) {
     try {
-      Stripe.publishableKey = 'pk_test_FAKE_PUBLISHABLE_KEY_FOR_LOCAL';
+      Stripe.publishableKey = 'pk_test_51SvOs4FJPVRByrQYaB8DqcSSobK4zBBV3rFO3YpCoTBk0s08yo9Aec1s95uxXnpOesn4Y6QnQItBKX4KnWvzSRwN007RkMUOCl';
       await Stripe.instance.applySettings();
     } catch (e) {
       // If Stripe fails to initialize, continue without blocking app startup.
