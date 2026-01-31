@@ -38,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            // App Bar
+            // App Bar with RIVL Logo
             SliverAppBar(
               expandedHeight: 120,
               floating: true,
@@ -49,20 +49,57 @@ class _HomeScreenState extends State<HomeScreen> {
                   decoration: const BoxDecoration(
                     gradient: RivlColors.primaryGradient,
                   ),
-                ),
-                title: Consumer<AuthProvider>(
-                  builder: (context, auth, _) {
-                    final name = auth.user?.displayName.split(' ').first ?? 'there';
-                    return Text(
-                      'Hey, $name',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          // RIVL Logo
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.local_fire_department,
+                              color: RivlColors.primary,
+                              size: 28,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'RIVL',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 2,
+                                ),
+                              ),
+                              Consumer<AuthProvider>(
+                                builder: (context, auth, _) {
+                                  final name = auth.user?.displayName.split(' ').first ?? 'there';
+                                  return Text(
+                                    'Hey, $name',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.9),
+                                      fontSize: 14,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    );
-                  },
+                    ),
+                  ),
                 ),
-                titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
               ),
               actions: [
                 IconButton(
@@ -81,8 +118,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   const _RecoveryStrainRow(),
                   const SizedBox(height: 16),
 
-                  // Main Activity Ring Card
-                  const _ActivityRingsCard(),
+                  // Main Activity Bars Card
+                  const _ActivityBarsCard(),
                   const SizedBox(height: 16),
 
                   // Health Metrics Grid
@@ -272,9 +309,9 @@ class _ScoreCard extends StatelessWidget {
   }
 }
 
-// Activity Rings Card (like Apple Watch)
-class _ActivityRingsCard extends StatelessWidget {
-  const _ActivityRingsCard();
+// Activity Bars Card (horizontal progress bars)
+class _ActivityBarsCard extends StatelessWidget {
+  const _ActivityBarsCard();
 
   @override
   Widget build(BuildContext context) {
@@ -293,67 +330,42 @@ class _ActivityRingsCard extends StatelessWidget {
               ),
             ],
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Activity Rings
-              SizedBox(
-                width: 140,
-                height: 140,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Steps ring (outer)
-                    _ActivityRing(
-                      progress: health.metrics.stepsProgress,
-                      color: RivlColors.primary,
-                      size: 140,
-                      strokeWidth: 14,
-                    ),
-                    // Calories ring (middle)
-                    _ActivityRing(
-                      progress: health.metrics.caloriesProgress,
-                      color: Colors.green,
-                      size: 110,
-                      strokeWidth: 14,
-                    ),
-                    // Distance ring (inner)
-                    _ActivityRing(
-                      progress: health.metrics.distanceProgress,
-                      color: Colors.cyan,
-                      size: 80,
-                      strokeWidth: 14,
-                    ),
-                  ],
-                ),
+              const Text(
+                'Today\'s Activity',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-              const SizedBox(width: 24),
-              // Stats
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _RingStat(
-                      label: 'Steps',
-                      value: health.formatSteps(health.todaySteps),
-                      goal: '${health.dailyGoal ~/ 1000}K',
-                      color: RivlColors.primary,
-                    ),
-                    const SizedBox(height: 16),
-                    _RingStat(
-                      label: 'Calories',
-                      value: health.formatCalories(health.activeCalories),
-                      goal: '${health.metrics.caloriesGoal}',
-                      color: Colors.green,
-                    ),
-                    const SizedBox(height: 16),
-                    _RingStat(
-                      label: 'Distance',
-                      value: health.formatDistance(health.distance),
-                      goal: '${health.metrics.distanceGoal.toInt()} mi',
-                      color: Colors.cyan,
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 20),
+              // Steps Bar
+              _ActivityBar(
+                icon: Icons.directions_walk,
+                label: 'Steps',
+                value: health.formatSteps(health.todaySteps),
+                goal: '${health.dailyGoal ~/ 1000}K',
+                progress: health.metrics.stepsProgress,
+                color: RivlColors.primary,
+              ),
+              const SizedBox(height: 16),
+              // Calories Bar
+              _ActivityBar(
+                icon: Icons.local_fire_department,
+                label: 'Calories',
+                value: health.formatCalories(health.activeCalories),
+                goal: '${health.metrics.caloriesGoal}',
+                progress: health.metrics.caloriesProgress,
+                color: Colors.green,
+              ),
+              const SizedBox(height: 16),
+              // Distance Bar
+              _ActivityBar(
+                icon: Icons.place,
+                label: 'Distance',
+                value: health.formatDistance(health.distance),
+                goal: '${health.metrics.distanceGoal.toInt()} mi',
+                progress: health.metrics.distanceProgress,
+                color: Colors.cyan,
               ),
             ],
           ),
@@ -363,83 +375,94 @@ class _ActivityRingsCard extends StatelessWidget {
   }
 }
 
-class _ActivityRing extends StatelessWidget {
-  final double progress;
-  final Color color;
-  final double size;
-  final double strokeWidth;
-
-  const _ActivityRing({
-    required this.progress,
-    required this.color,
-    required this.size,
-    required this.strokeWidth,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Stack(
-        children: [
-          // Background ring
-          CircularProgressIndicator(
-            value: 1,
-            strokeWidth: strokeWidth,
-            backgroundColor: Colors.transparent,
-            valueColor: AlwaysStoppedAnimation(color.withOpacity(0.2)),
-          ),
-          // Progress ring
-          CircularProgressIndicator(
-            value: progress,
-            strokeWidth: strokeWidth,
-            backgroundColor: Colors.transparent,
-            valueColor: AlwaysStoppedAnimation(color),
-            strokeCap: StrokeCap.round,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RingStat extends StatelessWidget {
+class _ActivityBar extends StatelessWidget {
+  final IconData icon;
   final String label;
   final String value;
   final String goal;
+  final double progress;
   final Color color;
 
-  const _RingStat({
+  const _ActivityBar({
+    required this.icon,
     required this.label,
     required this.value,
     required this.goal,
+    required this.progress,
     required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-              Row(
-                children: [
-                  Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  Text(' / $goal', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-                ],
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
               ),
-            ],
-          ),
+              child: Icon(icon, color: color, size: 18),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              value,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            Text(
+              ' / $goal',
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Stack(
+          children: [
+            // Background bar
+            Container(
+              height: 10,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(5),
+              ),
+            ),
+            // Progress bar
+            FractionallySizedBox(
+              widthFactor: progress.clamp(0.0, 1.0),
+              child: Container(
+                height: 10,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withOpacity(0.4),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
