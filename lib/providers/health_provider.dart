@@ -3,29 +3,50 @@
 import 'package:flutter/material.dart';
 import '../services/health_service.dart';
 import '../models/challenge_model.dart';
+import '../models/health_metrics.dart';
 
 class HealthProvider extends ChangeNotifier {
   final HealthService _healthService = HealthService();
 
   bool _isAuthorized = false;
   bool _isLoading = false;
-  int _todaySteps = 0;
-  List<DailySteps> _weeklySteps = [];
-  Map<String, dynamic> _weeklySummary = {};
+  HealthMetrics _metrics = HealthMetrics.demo();
   String? _errorMessage;
 
   // Getters
   bool get isAuthorized => _isAuthorized;
   bool get isLoading => _isLoading;
-  int get todaySteps => _todaySteps;
-  List<DailySteps> get weeklySteps => _weeklySteps;
-  Map<String, dynamic> get weeklySummary => _weeklySummary;
+  HealthMetrics get metrics => _metrics;
   String? get errorMessage => _errorMessage;
 
+  // Quick access to common metrics
+  int get todaySteps => _metrics.steps;
+  int get heartRate => _metrics.heartRate;
+  int get restingHeartRate => _metrics.restingHeartRate;
+  double get hrv => _metrics.hrv;
+  int get activeCalories => _metrics.activeCalories;
+  double get distance => _metrics.distance;
+  double get sleepHours => _metrics.sleepHours;
+  double get vo2Max => _metrics.vo2Max;
+  double get respiratoryRate => _metrics.respiratoryRate;
+  double get bloodOxygen => _metrics.bloodOxygen;
+  List<DailySteps> get weeklySteps => _metrics.weeklySteps;
+  List<WorkoutData> get recentWorkouts => _metrics.recentWorkouts;
+
+  // Recovery and strain
+  int get recoveryScore => _metrics.recoveryScore;
+  String get recoveryStatus => _metrics.recoveryStatus;
+  int get strainScore => _metrics.strainScore;
+
   // Goal tracking
-  int get dailyGoal => 10000;
-  double get goalProgress => (_todaySteps / dailyGoal).clamp(0.0, 1.0);
-  bool get goalReached => _todaySteps >= dailyGoal;
+  int get dailyGoal => _metrics.stepsGoal;
+  double get goalProgress => _metrics.stepsProgress;
+  bool get goalReached => _metrics.stepsGoalReached;
+
+  // Weekly stats
+  int get weeklyTotal => _metrics.weeklyTotalSteps;
+  int get weeklyAverage => _metrics.weeklyAverageSteps;
+  int get weeklyBest => _metrics.weeklyBestDay;
 
   // ============================================
   // AUTHORIZATION
@@ -62,7 +83,12 @@ class HealthProvider extends ChangeNotifier {
   Future<void> refreshData() async {
     if (!_isAuthorized) {
       await checkAuthorization();
-      if (!_isAuthorized) return;
+      if (!_isAuthorized) {
+        // Use demo data if not authorized
+        _metrics = HealthMetrics.demo();
+        notifyListeners();
+        return;
+      }
     }
 
     _isLoading = true;
@@ -70,16 +96,10 @@ class HealthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Fetch today's steps
-      _todaySteps = await _healthService.getTodaySteps();
-
-      // Fetch weekly steps
-      _weeklySteps = await _healthService.getDailySteps(7);
-
-      // Get weekly summary
-      _weeklySummary = await _healthService.getWeeklySummary();
+      _metrics = await _healthService.getHealthMetrics();
     } catch (e) {
       _errorMessage = 'Failed to fetch health data';
+      _metrics = HealthMetrics.demo();
     }
 
     _isLoading = false;
@@ -87,14 +107,14 @@ class HealthProvider extends ChangeNotifier {
   }
 
   Future<int> getTodaySteps() async {
-    if (!_isAuthorized) return 0;
-    
+    if (!_isAuthorized) return _metrics.steps;
+
     try {
-      _todaySteps = await _healthService.getTodaySteps();
+      final steps = await _healthService.getTodaySteps();
       notifyListeners();
-      return _todaySteps;
+      return steps;
     } catch (e) {
-      return _todaySteps;
+      return _metrics.steps;
     }
   }
 
@@ -108,18 +128,20 @@ class HealthProvider extends ChangeNotifier {
   }
 
   // ============================================
-  // HELPERS
+  // FORMATTING HELPERS
   // ============================================
 
-  String formatSteps(int steps) {
-    return _healthService.formatSteps(steps);
-  }
+  String formatSteps(int steps) => _healthService.formatSteps(steps);
+  String formatDistance(double miles) => _healthService.formatDistance(miles);
+  String formatCalories(int calories) => _healthService.formatCalories(calories);
+  String formatHeartRate(int bpm) => _healthService.formatHeartRate(bpm);
+  String formatHRV(double ms) => _healthService.formatHRV(ms);
+  String formatSleep(double hours) => _healthService.formatSleep(hours);
+  String formatVO2Max(double value) => _healthService.formatVO2Max(value);
+  String formatBloodOxygen(double percent) => _healthService.formatBloodOxygen(percent);
+  String formatRespiratoryRate(double rate) => _healthService.formatRespiratoryRate(rate);
 
-  String get todayStepsFormatted => formatSteps(_todaySteps);
-
-  int get weeklyTotal => _weeklySummary['totalSteps'] ?? 0;
-  int get weeklyAverage => _weeklySummary['averageSteps'] ?? 0;
-  int get weeklyBest => _weeklySummary['bestDay'] ?? 0;
+  String get todayStepsFormatted => formatSteps(_metrics.steps);
 
   void clearError() {
     _errorMessage = null;
