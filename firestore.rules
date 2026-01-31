@@ -1,122 +1,71 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function isParticipant(challengeData) {
-      return request.auth.uid in challengeData.participantIds;
-    }
-
-    function isValidUser() {
-      return request.resource.data.email is string
-        && request.resource.data.username is string
-        && request.resource.data.displayName is string;
-    }
-
-    function isValidChallenge() {
-      return request.resource.data.creatorId is string
-        && request.resource.data.opponentId is string
-        && request.resource.data.stakeAmount is number
-        && request.resource.data.stakeAmount >= 5
-        && request.resource.data.stakeAmount <= 100;
-    }
-
     // Users collection
     match /users/{userId} {
-      // Anyone signed in can read user profiles
-      allow read: if isSignedIn();
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
 
-      // Only the user can create their own profile
-      allow create: if isSignedIn()
-        && isOwner(userId)
-        && isValidUser();
-
-      // Only the user can update their own profile
-      allow update: if isSignedIn()
-        && isOwner(userId);
-
-      // Users cannot delete their own profiles (prevent data loss)
-      allow delete: if false;
-
-      // Subcollections - transactions, notifications
-      match /transactions/{transactionId} {
-        allow read: if isSignedIn() && isOwner(userId);
-        allow write: if false; // Only Cloud Functions can write transactions
+      // User subcollections
+      match /notifications/{notificationId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
       }
 
-      match /notifications/{notificationId} {
-        allow read: if isSignedIn() && isOwner(userId);
-        allow write: if false; // Only Cloud Functions can create notifications
+      match /transactions/{transactionId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+      }
+
+      match /xpHistory/{xpId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Wallets collection
+    match /wallets/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      // Only Cloud Functions can update balance
+      allow update: if request.auth != null && request.auth.uid == userId
+                    && !request.resource.data.diff(resource.data).affectedKeys()
+                       .hasAny(['balance', 'pendingBalance', 'lifetimeDeposits', 'lifetimeWithdrawals']);
+
+      // Wallet transactions subcollection
+      match /transactions/{transactionId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        // Only Cloud Functions can write transactions
+        allow write: if false;
       }
     }
 
     // Challenges collection
     match /challenges/{challengeId} {
-      // Anyone signed in can read challenges
-      allow read: if isSignedIn();
+      allow read: if request.auth != null
+                  && request.auth.uid in resource.data.participantIds;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null
+                    && request.auth.uid in resource.data.participantIds;
 
-      // Only authenticated users can create challenges
-      allow create: if isSignedIn()
-        && request.auth.uid == request.resource.data.creatorId
-        && isValidChallenge();
-
-      // Only participants can update challenges
-      allow update: if isSignedIn()
-        && isParticipant(resource.data)
-        // Prevent changing critical fields
-        && request.resource.data.stakeAmount == resource.data.stakeAmount
-        && request.resource.data.creatorId == resource.data.creatorId
-        && request.resource.data.opponentId == resource.data.opponentId;
-
-      // Challenges cannot be deleted (preserve history)
-      allow delete: if false;
-
-      // Daily steps subcollection
+      // Daily steps/activity subcollection
       match /dailySteps/{dayId} {
-        allow read: if isSignedIn() && isParticipant(get(/databases/$(database)/documents/challenges/$(challengeId)).data);
-        allow write: if isSignedIn()
-          && isParticipant(get(/databases/$(database)/documents/challenges/$(challengeId)).data)
-          && request.resource.data.userId == request.auth.uid;
+        allow read, write: if request.auth != null;
+      }
+
+      match /dailyActivity/{dayId} {
+        allow read, write: if request.auth != null;
       }
     }
 
-    // Leaderboard collection (read-only, updated by Cloud Functions)
+    // Leaderboard - public read
     match /leaderboard/{userId} {
-      allow read: if isSignedIn();
-      allow write: if false; // Only Cloud Functions can update leaderboard
+      allow read: if request.auth != null;
+      allow write: if false; // Only Cloud Functions
     }
 
-    // System configuration (read-only)
-    match /config/{document} {
-      allow read: if isSignedIn();
-      allow write: if false; // Only admins via Cloud Functions
-    }
-
-    // Disputes collection
-    match /disputes/{disputeId} {
-      allow read: if isSignedIn()
-        && (request.auth.uid == resource.data.reporterId
-            || request.auth.uid == resource.data.accusedId);
-
-      allow create: if isSignedIn()
-        && request.auth.uid == request.resource.data.reporterId;
-
-      allow update: if false; // Only Cloud Functions handle dispute resolution
-      allow delete: if false;
-    }
-
-    // Referrals tracking
-    match /referrals/{referralId} {
-      allow read: if isSignedIn();
-      allow write: if false; // Only Cloud Functions track referrals
+    // Admin notifications
+    match /adminNotifications/{notificationId} {
+      allow read, write: if false; // Only Cloud Functions
     }
   }
 }
