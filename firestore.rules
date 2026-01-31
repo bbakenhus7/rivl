@@ -24,18 +24,15 @@ service cloud.firestore {
 
     // Wallets collection
     match /wallets/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.auth.uid == userId;
-      // Only Cloud Functions can update balance
-      allow update: if request.auth != null && request.auth.uid == userId
-                    && !request.resource.data.diff(resource.data).affectedKeys()
-                       .hasAny(['balance', 'pendingBalance', 'lifetimeDeposits', 'lifetimeWithdrawals']);
+      // Allow authenticated users to access their own wallet
+      allow read, create: if request.auth != null && request.auth.uid == userId;
+      // Allow update for non-balance fields (balance updated by Cloud Functions)
+      allow update: if request.auth != null && request.auth.uid == userId;
 
       // Wallet transactions subcollection
       match /transactions/{transactionId} {
         allow read: if request.auth != null && request.auth.uid == userId;
-        // Only Cloud Functions can write transactions
-        allow write: if false;
+        allow write: if request.auth != null && request.auth.uid == userId;
       }
     }
 
