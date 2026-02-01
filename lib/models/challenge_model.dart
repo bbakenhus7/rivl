@@ -316,9 +316,9 @@ class StakeOption {
     required this.groupFee,
   });
 
-  String get displayAmount => '\$${amount.toInt()}';
-  String get displayPrize => '\$${prize.toInt()}';
-  String get displayGroupPrize => '\$${groupPrize.toInt()}';
+  String get displayAmount => amount == 0 ? 'Free' : '\$${amount.toInt()}';
+  String get displayPrize => prize == 0 ? 'Free' : '\$${prize.toInt()}';
+  String get displayGroupPrize => groupPrize == 0 ? 'Free' : '\$${groupPrize.toInt()}';
 
   // Calculate prize based on challenge type (3% for 1v1, 5% for groups)
   double getPrizeForType(ChallengeType type) {
@@ -329,8 +329,9 @@ class StakeOption {
     return type == ChallengeType.headToHead ? fee : groupFee;
   }
 
-  // Updated stake options: $10-$100 range with 3% fee for 1v1, 5% for groups
+  // Updated stake options: $0-$100 range with 3% fee for 1v1, 5% for groups
   static const List<StakeOption> options = [
+    StakeOption(amount: 0, prize: 0, groupPrize: 0, fee: 0, groupFee: 0), // Free - just for fun!
     StakeOption(amount: 10, prize: 19.40, groupPrize: 19.00, fee: 0.60, groupFee: 1.00),
     StakeOption(amount: 20, prize: 38.80, groupPrize: 38.00, fee: 1.20, groupFee: 2.00),
     StakeOption(amount: 25, prize: 48.50, groupPrize: 47.50, fee: 1.50, groupFee: 2.50),
