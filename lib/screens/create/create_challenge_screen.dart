@@ -69,21 +69,25 @@ class CreateChallengeScreen extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      const Text(
-                        'Prize Pool',
+                      Text(
+                        provider.selectedStake.amount == 0 ? 'Challenge' : 'Prize Pool',
                         style: RivlTextStyles.bodySecondary,
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '\$${provider.selectedStake.prize.toInt()}',
+                        provider.selectedStake.amount == 0
+                            ? 'Free'
+                            : '\$${provider.selectedStake.prize.toInt()}',
                         style: const TextStyle(
                           fontSize: 48,
                           fontWeight: FontWeight.bold,
                           color: RivlColors.primary,
                         ),
                       ),
-                      const Text(
-                        'Winner takes all!',
+                      Text(
+                        provider.selectedStake.amount == 0
+                            ? 'Just for fun!'
+                            : 'Winner takes all!',
                         style: RivlTextStyles.caption,
                       ),
                     ],
@@ -232,7 +236,7 @@ class _StakeSelector extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Win ${option.displayPrize}',
+                  option.amount == 0 ? 'For fun!' : 'Win ${option.displayPrize}',
                   style: RivlTextStyles.caption,
                 ),
               ],
