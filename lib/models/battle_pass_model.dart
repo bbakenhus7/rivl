@@ -177,13 +177,13 @@ class BattlePassSeason {
   static List<BattlePassReward> generateDefaultRewards() {
     return [
       // Tier 1 - 100 XP
-      BattlePassReward(level: 1, tier: RewardTier.free, type: RewardType.coins, name: '50 RIVL Coins', description: 'Starter currency', value: 50),
+      BattlePassReward(level: 1, tier: RewardTier.free, type: RewardType.giftcard, name: '15% Off Gymshark', description: 'Discount on workout apparel', value: 15),
       BattlePassReward(level: 1, tier: RewardTier.premium, type: RewardType.boost, name: '2x XP Boost', description: '24hr double XP', value: 1),
       // Tier 2 - 250 XP
       BattlePassReward(level: 2, tier: RewardTier.free, type: RewardType.badge, name: 'Early Bird Badge', description: 'Season starter badge', value: 1),
       BattlePassReward(level: 2, tier: RewardTier.premium, type: RewardType.product, name: 'LMNT Electrolytes Sample', description: 'Free 8-pack sampler', value: 1),
       // Tier 3 - 500 XP
-      BattlePassReward(level: 3, tier: RewardTier.free, type: RewardType.coins, name: '100 RIVL Coins', description: 'Keep stacking', value: 100),
+      BattlePassReward(level: 3, tier: RewardTier.free, type: RewardType.giftcard, name: '25% Off MyProtein', description: 'Discount on supplements & gear', value: 25),
       BattlePassReward(level: 3, tier: RewardTier.premium, type: RewardType.product, name: 'Blender Bottle', description: 'RIVL branded shaker', value: 1),
       // Tier 4 - 1,000 XP
       BattlePassReward(level: 4, tier: RewardTier.free, type: RewardType.avatar, name: 'Flame Avatar Frame', description: 'Animated fire border', value: 1),
@@ -192,7 +192,7 @@ class BattlePassSeason {
       BattlePassReward(level: 5, tier: RewardTier.free, type: RewardType.boost, name: '3x XP Weekend', description: 'Triple XP for 48hrs', value: 1),
       BattlePassReward(level: 5, tier: RewardTier.premium, type: RewardType.giftcard, name: '\$10 Nike Gift Card', description: 'Nike.com credit', value: 10),
       // Tier 6 - 2,500 XP
-      BattlePassReward(level: 6, tier: RewardTier.free, type: RewardType.coins, name: '200 RIVL Coins', description: 'Mid-season bonus', value: 200),
+      BattlePassReward(level: 6, tier: RewardTier.free, type: RewardType.giftcard, name: '50% Off Hydro Flask', description: 'Half off bottles & gear', value: 50),
       BattlePassReward(level: 6, tier: RewardTier.premium, type: RewardType.product, name: 'Whey Protein Tub', description: 'Optimum Nutrition 2lb', value: 1),
       // Tier 7 - 3,500 XP
       BattlePassReward(level: 7, tier: RewardTier.free, type: RewardType.badge, name: 'Grinder Badge', description: 'Halfway warrior badge', value: 1),
@@ -201,7 +201,7 @@ class BattlePassSeason {
       BattlePassReward(level: 8, tier: RewardTier.free, type: RewardType.premium_days, name: '3 Days Premium', description: 'Free premium trial', value: 3),
       BattlePassReward(level: 8, tier: RewardTier.premium, type: RewardType.giftcard, name: '\$25 Lululemon Gift Card', description: 'Lululemon.com credit', value: 25),
       // Tier 9 - 7,000 XP
-      BattlePassReward(level: 9, tier: RewardTier.free, type: RewardType.coins, name: '500 RIVL Coins', description: 'Big coin drop', value: 500),
+      BattlePassReward(level: 9, tier: RewardTier.free, type: RewardType.giftcard, name: '75% Off Vuori', description: 'Premium activewear discount', value: 75),
       BattlePassReward(level: 9, tier: RewardTier.premium, type: RewardType.product, name: 'Theragun Mini', description: 'Percussion massage device', value: 1),
       // Tier 10 - 10,000 XP
       BattlePassReward(level: 10, tier: RewardTier.free, type: RewardType.unlock, name: 'Legendary Status', description: 'Season champion badge + frame', value: 1),
