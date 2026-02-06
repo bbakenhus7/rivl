@@ -82,6 +82,71 @@ class RivlApp extends StatelessWidget {
         darkTheme: RivlTheme.darkTheme,
         themeMode: ThemeMode.system,
         home: const SplashScreen(),
+        builder: (context, child) {
+          return Column(
+            children: [
+              const WaitlistBanner(),
+              Expanded(child: child ?? const SizedBox.shrink()),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class WaitlistBanner extends StatelessWidget {
+  const WaitlistBanner({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 6,
+        bottom: 6,
+        left: 16,
+        right: 16,
+      ),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF3399FF), Color(0xFF1A6FD4)],
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.rocket_launch, color: Colors.amber, size: 18),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              'RIVL is launching soon! Be the first to compete.',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              // TODO: Link to waitlist signup
+            },
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: RivlColors.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            child: const Text(
+              'Join Waitlist',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            ),
+          ),
+        ],
       ),
     );
   }
