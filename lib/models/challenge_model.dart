@@ -12,6 +12,7 @@ enum GoalType {
   distance,        // Total miles walked or run
   milePace,        // Average mile time improvement
   fiveKPace,       // Best 5K time
+  tenKPace,        // Best 10K time
   sleepDuration,   // Total hours of quality sleep
   vo2Max,          // VO2 max cardiovascular fitness
   rivlHealthScore  // Combined health score from all 6 metrics (0-100)
@@ -402,6 +403,8 @@ extension GoalTypeExtension on GoalType {
         return 'Mile Pace';
       case GoalType.fiveKPace:
         return '5K Pace';
+      case GoalType.tenKPace:
+        return '10K Pace';
       case GoalType.sleepDuration:
         return 'Sleep Duration';
       case GoalType.vo2Max:
@@ -421,6 +424,8 @@ extension GoalTypeExtension on GoalType {
         return 'Average mile time improvement';
       case GoalType.fiveKPace:
         return 'Best 5K completion time';
+      case GoalType.tenKPace:
+        return 'Best 10K completion time';
       case GoalType.sleepDuration:
         return 'Total hours of quality sleep';
       case GoalType.vo2Max:
@@ -439,6 +444,8 @@ extension GoalTypeExtension on GoalType {
       case GoalType.milePace:
         return Icons.timer_outlined;
       case GoalType.fiveKPace:
+        return Icons.speed;
+      case GoalType.tenKPace:
         return Icons.speed;
       case GoalType.sleepDuration:
         return Icons.bedtime_outlined;

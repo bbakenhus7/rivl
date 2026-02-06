@@ -114,6 +114,8 @@ class ChallengeProvider extends ChangeNotifier {
         return 8; // Target 8 min/mile pace
       case GoalType.fiveKPace:
         return 25; // Target 25 min 5K time
+      case GoalType.tenKPace:
+        return 50; // Target 50 min 10K time
       case GoalType.sleepDuration:
         return _selectedDuration.days * 8; // 8 hours per night
       case GoalType.vo2Max:
