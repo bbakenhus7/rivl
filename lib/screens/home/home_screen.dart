@@ -30,6 +30,74 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _showAppInfo(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    gradient: RivlColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.local_fire_department, color: Colors.white, size: 24),
+                ),
+                const SizedBox(width: 12),
+                const Text('What is RIVL?', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'RIVL is an AI-powered fitness competition app that turns your health data into real stakes. '
+              'Challenge friends to step counts, distance, sleep, and more — with real money on the line.',
+              style: TextStyle(fontSize: 15, color: Colors.grey[700], height: 1.5),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'How it works:',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+            ),
+            const SizedBox(height: 8),
+            _InfoBullet(text: 'Connect your wearable (Apple Watch, Fitbit, Garmin, etc.)'),
+            _InfoBullet(text: 'Challenge a friend and set a stake amount'),
+            _InfoBullet(text: 'Compete on steps, distance, sleep, VO2 max, and more'),
+            _InfoBullet(text: 'Winner takes the pot — AI anti-cheat keeps it fair'),
+            _InfoBullet(text: 'Earn XP and unlock rewards through the Season Pass'),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Got it'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -145,6 +213,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                     );
                   },
+                ),
+                // Info button
+                IconButton(
+                  icon: const Icon(Icons.info_outline, color: Colors.white),
+                  onPressed: () => _showAppInfo(context),
                 ),
               ],
             ),
@@ -930,5 +1003,39 @@ class _WorkoutTile extends StatelessWidget {
     if (diff == 0) return 'Today';
     if (diff == 1) return 'Yesterday';
     return '${diff}d ago';
+  }
+}
+
+class _InfoBullet extends StatelessWidget {
+  final String text;
+  const _InfoBullet({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 6, right: 8),
+            child: Container(
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(
+                color: RivlColors.primary,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 14, color: Colors.grey[700], height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
