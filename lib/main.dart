@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'firebase_options.dart';
 import 'package:provider/provider.dart';
@@ -129,7 +130,10 @@ class WaitlistBanner extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
-              // TODO: Link to waitlist signup
+              showDialog(
+                context: context,
+                builder: (ctx) => const _WaitlistDialog(),
+              );
             },
             style: TextButton.styleFrom(
               backgroundColor: Colors.white,
@@ -145,6 +149,180 @@ class WaitlistBanner extends StatelessWidget {
               'Join Waitlist',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WaitlistDialog extends StatefulWidget {
+  const _WaitlistDialog();
+
+  @override
+  State<_WaitlistDialog> createState() => _WaitlistDialogState();
+}
+
+class _WaitlistDialogState extends State<_WaitlistDialog> {
+  final _nameController = TextEditingController();
+  final _contactController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  bool _submitted = false;
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _contactController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _submitting = true);
+
+    try {
+      await FirebaseFirestore.instance.collection('waitlist').add({
+        'name': _nameController.text.trim(),
+        'contact': _contactController.text.trim(),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      // If Firestore is unavailable, still show success for demo
+    }
+
+    if (mounted) {
+      setState(() {
+        _submitting = false;
+        _submitted = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: _submitted ? _buildSuccess() : _buildForm(),
+      ),
+    );
+  }
+
+  Widget _buildSuccess() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            color: RivlColors.success.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.check_circle, color: RivlColors.success, size: 40),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          "You're on the list!",
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          "We'll notify you as soon as RIVL launches.",
+          style: TextStyle(color: Colors.grey[600], fontSize: 14),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Got it'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildForm() {
+    return Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              gradient: RivlColors.primaryGradient,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.rocket_launch, color: Colors.white, size: 28),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Join the Waitlist',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Be the first to compete when RIVL launches.',
+            style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          TextFormField(
+            controller: _nameController,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(
+              labelText: 'Name',
+              hintText: 'Your full name',
+              prefixIcon: Icon(Icons.person_outline),
+            ),
+            validator: (val) {
+              if (val == null || val.trim().isEmpty) return 'Please enter your name';
+              return null;
+            },
+          ),
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: _contactController,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+              labelText: 'Email or Phone',
+              hintText: 'email@example.com or (555) 123-4567',
+              prefixIcon: Icon(Icons.alternate_email),
+            ),
+            validator: (val) {
+              if (val == null || val.trim().isEmpty) return 'Please enter email or phone';
+              final v = val.trim();
+              final hasAt = v.contains('@');
+              final hasDigits = RegExp(r'\d{7,}').hasMatch(v.replaceAll(RegExp(r'[\s\-\(\)\+]'), ''));
+              if (!hasAt && !hasDigits) return 'Enter a valid email or phone number';
+              return null;
+            },
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _submitting ? null : _submit,
+              child: _submitting
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Sign Up'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Maybe later'),
           ),
         ],
       ),

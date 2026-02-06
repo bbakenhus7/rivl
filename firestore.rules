@@ -64,5 +64,15 @@ service cloud.firestore {
     match /adminNotifications/{notificationId} {
       allow read, write: if false; // Only Cloud Functions
     }
+
+    // Waitlist - anyone can submit, no auth required
+    match /waitlist/{entryId} {
+      allow create: if request.resource.data.keys().hasAll(['name', 'contact'])
+                    && request.resource.data.name is string
+                    && request.resource.data.contact is string
+                    && request.resource.data.name.size() > 0
+                    && request.resource.data.contact.size() > 0;
+      allow read, update, delete: if false; // Only accessible via Firebase Console
+    }
   }
 }
