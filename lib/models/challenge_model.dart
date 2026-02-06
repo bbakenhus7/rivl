@@ -13,7 +13,8 @@ enum GoalType {
   milePace,        // Average mile time improvement
   fiveKPace,       // Best 5K time
   sleepDuration,   // Total hours of quality sleep
-  vo2Max           // VO2 max cardiovascular fitness
+  vo2Max,          // VO2 max cardiovascular fitness
+  rivlHealthScore  // Combined health score from all 6 metrics (0-100)
 }
 
 enum ChallengeDuration { oneDay, threeDays, oneWeek, twoWeeks, oneMonth }
@@ -405,6 +406,8 @@ extension GoalTypeExtension on GoalType {
         return 'Sleep Duration';
       case GoalType.vo2Max:
         return 'VO2 Max';
+      case GoalType.rivlHealthScore:
+        return 'RIVL Health Score';
     }
   }
 
@@ -422,6 +425,8 @@ extension GoalTypeExtension on GoalType {
         return 'Total hours of quality sleep';
       case GoalType.vo2Max:
         return 'Cardiovascular fitness level';
+      case GoalType.rivlHealthScore:
+        return 'Overall health combining steps, distance, sleep, heart rate, HRV & VO2 max';
     }
   }
 
@@ -439,6 +444,8 @@ extension GoalTypeExtension on GoalType {
         return Icons.bedtime_outlined;
       case GoalType.vo2Max:
         return Icons.favorite_outline;
+      case GoalType.rivlHealthScore:
+        return Icons.shield;
     }
   }
 

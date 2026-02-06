@@ -118,6 +118,8 @@ class ChallengeProvider extends ChangeNotifier {
         return _selectedDuration.days * 8; // 8 hours per night
       case GoalType.vo2Max:
         return 45; // Target VO2 max of 45
+      case GoalType.rivlHealthScore:
+        return 75; // Target average RIVL Health Score of 75/100
     }
   }
 

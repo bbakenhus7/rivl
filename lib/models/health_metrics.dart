@@ -81,6 +81,56 @@ class HealthMetrics {
     return 'Low';
   }
 
+  // RIVL Health Score: combined metric from all 6 health dimensions (0-100)
+  int get rivlHealthScore {
+    // 1. Steps score (0-100): 10K steps = 100
+    final stepsScore = (steps / 10000 * 100).clamp(0.0, 100.0);
+
+    // 2. Distance score (0-100): 5 miles = 100
+    final distanceScore = (distance / 5.0 * 100).clamp(0.0, 100.0);
+
+    // 3. Sleep score (0-100): 7-9 hours is optimal
+    double sleepScore;
+    if (sleepHours >= 7 && sleepHours <= 9) {
+      sleepScore = 100;
+    } else if (sleepHours >= 6 && sleepHours < 7) {
+      sleepScore = 70 + (sleepHours - 6) * 30;
+    } else if (sleepHours > 9 && sleepHours <= 10) {
+      sleepScore = 100 - (sleepHours - 9) * 20;
+    } else {
+      sleepScore = (sleepHours / 7 * 60).clamp(0, 60);
+    }
+
+    // 4. Resting heart rate score (0-100): lower is better, 50-80 range
+    final rhrScore = ((80 - restingHeartRate) / 30 * 100).clamp(0.0, 100.0);
+
+    // 5. HRV score (0-100): higher is better, 20-100ms range
+    final hrvScoreVal = ((hrv - 20) / 80 * 100).clamp(0.0, 100.0);
+
+    // 6. VO2 Max score (0-100): higher is better, 25-60 range
+    final vo2Score = ((vo2Max - 25) / 35 * 100).clamp(0.0, 100.0);
+
+    // Weighted average: steps & distance matter most for a fitness competition
+    final weighted = (stepsScore * 0.25) +
+        (distanceScore * 0.20) +
+        (sleepScore * 0.15) +
+        (rhrScore * 0.15) +
+        (hrvScoreVal * 0.10) +
+        (vo2Score * 0.15);
+
+    return weighted.round().clamp(0, 100);
+  }
+
+  String get rivlHealthGrade {
+    final score = rivlHealthScore;
+    if (score >= 90) return 'A+';
+    if (score >= 80) return 'A';
+    if (score >= 70) return 'B';
+    if (score >= 60) return 'C';
+    if (score >= 50) return 'D';
+    return 'F';
+  }
+
   // Exertion score out of 100 (based on steps and calories)
   int get strainScore {
     final stepsExertion = (steps / 15000 * 100).clamp(0, 100);
