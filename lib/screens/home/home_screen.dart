@@ -245,12 +245,12 @@ class _RecoveryStrainRow extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: _ScoreCard(
-                title: 'Strain',
+                title: 'Exertion',
                 score: health.strainScore,
                 status: _getStrainStatus(health.strainScore),
                 color: _getStrainColor(health.strainScore),
                 icon: Icons.local_fire_department,
-                maxScore: 21,
+                maxScore: 100,
               ),
             ),
           ],
@@ -267,16 +267,16 @@ class _RecoveryStrainRow extends StatelessWidget {
   }
 
   Color _getStrainColor(int score) {
-    if (score >= 18) return RivlColors.error;
-    if (score >= 14) return Colors.orange;
-    if (score >= 10) return Colors.lightGreen;
+    if (score >= 85) return RivlColors.error;
+    if (score >= 65) return Colors.orange;
+    if (score >= 40) return Colors.lightGreen;
     return RivlColors.info;
   }
 
   String _getStrainStatus(int score) {
-    if (score >= 18) return 'Overreaching';
-    if (score >= 14) return 'High';
-    if (score >= 10) return 'Moderate';
+    if (score >= 85) return 'Overreaching';
+    if (score >= 65) return 'High';
+    if (score >= 40) return 'Moderate';
     return 'Light';
   }
 }

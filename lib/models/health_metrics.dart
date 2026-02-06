@@ -80,11 +80,11 @@ class HealthMetrics {
     return 'Low';
   }
 
-  // Strain score (simplified - based on steps and calories)
+  // Exertion score out of 100 (based on steps and calories)
   int get strainScore {
-    final stepsStrain = (steps / 15000 * 10).clamp(0, 10);
-    final caloriesStrain = (activeCalories / 800 * 10).clamp(0, 10);
-    return ((stepsStrain + caloriesStrain) / 2 * 2.1).round().clamp(0, 21);
+    final stepsExertion = (steps / 15000 * 100).clamp(0, 100);
+    final caloriesExertion = (activeCalories / 800 * 100).clamp(0, 100);
+    return ((stepsExertion + caloriesExertion) / 2).round().clamp(0, 100);
   }
 
   // Demo data factory
