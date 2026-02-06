@@ -2,7 +2,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum RewardType { coins, premium_days, avatar, badge, boost, unlock }
+enum RewardType { coins, premium_days, avatar, badge, boost, unlock, product, giftcard }
 
 enum RewardTier { free, premium }
 
@@ -173,86 +173,61 @@ class BattlePassSeason {
     this.rewards = const [],
   });
 
-  /// Generate default rewards for a season
+  /// Generate fitness-themed demo rewards for a season
   static List<BattlePassReward> generateDefaultRewards() {
-    final rewards = <BattlePassReward>[];
+    return [
+      // Tier 1 - 100 XP
+      BattlePassReward(level: 1, tier: RewardTier.free, type: RewardType.coins, name: '50 RIVL Coins', description: 'Starter currency', value: 50),
+      BattlePassReward(level: 1, tier: RewardTier.premium, type: RewardType.boost, name: '2x XP Boost', description: '24hr double XP', value: 1),
+      // Tier 2 - 250 XP
+      BattlePassReward(level: 2, tier: RewardTier.free, type: RewardType.badge, name: 'Early Bird Badge', description: 'Season starter badge', value: 1),
+      BattlePassReward(level: 2, tier: RewardTier.premium, type: RewardType.product, name: 'LMNT Electrolytes Sample', description: 'Free 8-pack sampler', value: 1),
+      // Tier 3 - 500 XP
+      BattlePassReward(level: 3, tier: RewardTier.free, type: RewardType.coins, name: '100 RIVL Coins', description: 'Keep stacking', value: 100),
+      BattlePassReward(level: 3, tier: RewardTier.premium, type: RewardType.product, name: 'Blender Bottle', description: 'RIVL branded shaker', value: 1),
+      // Tier 4 - 1,000 XP
+      BattlePassReward(level: 4, tier: RewardTier.free, type: RewardType.avatar, name: 'Flame Avatar Frame', description: 'Animated fire border', value: 1),
+      BattlePassReward(level: 4, tier: RewardTier.premium, type: RewardType.product, name: 'AG1 Starter Kit', description: '5-day Athletic Greens supply', value: 1),
+      // Tier 5 - 1,750 XP
+      BattlePassReward(level: 5, tier: RewardTier.free, type: RewardType.boost, name: '3x XP Weekend', description: 'Triple XP for 48hrs', value: 1),
+      BattlePassReward(level: 5, tier: RewardTier.premium, type: RewardType.giftcard, name: '\$10 Nike Gift Card', description: 'Nike.com credit', value: 10),
+      // Tier 6 - 2,500 XP
+      BattlePassReward(level: 6, tier: RewardTier.free, type: RewardType.coins, name: '200 RIVL Coins', description: 'Mid-season bonus', value: 200),
+      BattlePassReward(level: 6, tier: RewardTier.premium, type: RewardType.product, name: 'Whey Protein Tub', description: 'Optimum Nutrition 2lb', value: 1),
+      // Tier 7 - 3,500 XP
+      BattlePassReward(level: 7, tier: RewardTier.free, type: RewardType.badge, name: 'Grinder Badge', description: 'Halfway warrior badge', value: 1),
+      BattlePassReward(level: 7, tier: RewardTier.premium, type: RewardType.product, name: 'Liquid IV 16-Pack', description: 'Hydration multiplier', value: 1),
+      // Tier 8 - 5,000 XP
+      BattlePassReward(level: 8, tier: RewardTier.free, type: RewardType.premium_days, name: '3 Days Premium', description: 'Free premium trial', value: 3),
+      BattlePassReward(level: 8, tier: RewardTier.premium, type: RewardType.giftcard, name: '\$25 Lululemon Gift Card', description: 'Lululemon.com credit', value: 25),
+      // Tier 9 - 7,000 XP
+      BattlePassReward(level: 9, tier: RewardTier.free, type: RewardType.coins, name: '500 RIVL Coins', description: 'Big coin drop', value: 500),
+      BattlePassReward(level: 9, tier: RewardTier.premium, type: RewardType.product, name: 'Theragun Mini', description: 'Percussion massage device', value: 1),
+      // Tier 10 - 10,000 XP
+      BattlePassReward(level: 10, tier: RewardTier.free, type: RewardType.unlock, name: 'Legendary Status', description: 'Season champion badge + frame', value: 1),
+      BattlePassReward(level: 10, tier: RewardTier.premium, type: RewardType.giftcard, name: '\$100 Amazon Gift Card', description: 'Fitness gear shopping spree', value: 100),
+    ];
+  }
 
-    for (int level = 1; level <= 100; level++) {
-      // Free tier rewards every 5 levels
-      if (level % 5 == 0) {
-        rewards.add(BattlePassReward(
-          level: level,
-          tier: RewardTier.free,
-          type: RewardType.coins,
-          name: '${level * 10} Coins',
-          description: 'Use for in-app purchases',
-          value: level * 10,
-        ));
-      }
+  /// XP thresholds for each tier level (cumulative)
+  static const List<int> tierXPThresholds = [
+    0,     // Tier 1: 0 XP (start)
+    100,   // Tier 1: 100 XP
+    250,   // Tier 2: 250 XP
+    500,   // Tier 3: 500 XP
+    1000,  // Tier 4: 1,000 XP
+    1750,  // Tier 5: 1,750 XP
+    2500,  // Tier 6: 2,500 XP
+    3500,  // Tier 7: 3,500 XP
+    5000,  // Tier 8: 5,000 XP
+    7000,  // Tier 9: 7,000 XP
+    10000, // Tier 10: 10,000 XP
+  ];
 
-      // Premium tier rewards every level
-      if (level % 10 == 0) {
-        // Every 10 levels: premium avatar
-        rewards.add(BattlePassReward(
-          level: level,
-          tier: RewardTier.premium,
-          type: RewardType.avatar,
-          name: 'Elite Avatar Frame',
-          description: 'Exclusive avatar frame',
-          value: 1,
-        ));
-      } else if (level % 5 == 0) {
-        // Every 5 levels: badge
-        rewards.add(BattlePassReward(
-          level: level,
-          tier: RewardTier.premium,
-          type: RewardType.badge,
-          name: 'Level $level Badge',
-          description: 'Show off your achievement',
-          value: 1,
-        ));
-      } else {
-        // Other levels: coins or boosts
-        rewards.add(BattlePassReward(
-          level: level,
-          tier: RewardTier.premium,
-          type: level % 3 == 0 ? RewardType.boost : RewardType.coins,
-          name: level % 3 == 0 ? 'XP Boost' : '${level * 20} Coins',
-          description: level % 3 == 0 ? '2x XP for next challenge' : 'Premium currency',
-          value: level % 3 == 0 ? 1 : level * 20,
-        ));
-      }
-    }
-
-    // Special rewards at milestones
-    rewards.add(BattlePassReward(
-      level: 25,
-      tier: RewardTier.premium,
-      type: RewardType.unlock,
-      name: 'Custom Challenge Creator',
-      description: 'Create custom challenge types',
-      value: 1,
-    ));
-
-    rewards.add(BattlePassReward(
-      level: 50,
-      tier: RewardTier.premium,
-      type: RewardType.premium_days,
-      name: '7 Days Premium',
-      description: 'Free premium subscription',
-      value: 7,
-    ));
-
-    rewards.add(BattlePassReward(
-      level: 100,
-      tier: RewardTier.premium,
-      type: RewardType.unlock,
-      name: 'Legendary Status',
-      description: 'Exclusive legendary badge and avatar',
-      value: 1,
-    ));
-
-    return rewards;
+  /// Get the XP needed for a specific tier level
+  static int xpForTier(int tier) {
+    if (tier < 1 || tier > 10) return 0;
+    return tierXPThresholds[tier];
   }
 }
 

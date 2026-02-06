@@ -58,10 +58,34 @@ class BattlePassProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      _error = e.toString();
+      // Fallback to demo data when Firestore is unavailable
+      _loadDemoData(userId);
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// Load demo battle pass data for preview
+  void _loadDemoData(String userId) {
+    _currentSeason = _generateQuarterlySeason();
+    final now = DateTime.now();
+    final quarter = ((now.month - 1) ~/ 3) + 1;
+    final seasonStart = DateTime(now.year, ((quarter - 1) * 3) + 1, 1);
+    final seasonEnd = DateTime(now.year, (quarter * 3) + 1, 1);
+
+    _progress = BattlePassProgress(
+      userId: userId,
+      season: quarter,
+      currentLevel: 4,
+      currentXP: 320,
+      totalXP: 1320,
+      isPremiumUnlocked: false,
+      claimedRewards: const [],
+      seasonStartDate: seasonStart,
+      seasonEndDate: seasonEnd,
+      createdAt: now,
+      updatedAt: now,
+    );
   }
 
   /// Load current season configuration
@@ -83,7 +107,7 @@ class BattlePassProvider with ChangeNotifier {
           startDate: (data['startDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
           endDate: (data['endDate'] as Timestamp?)?.toDate() ??
               DateTime.now().add(const Duration(days: 60)),
-          maxLevel: data['maxLevel'] ?? 100,
+          maxLevel: data['maxLevel'] ?? 10,
           rewards: BattlePassSeason.generateDefaultRewards(),
         );
       } else {
@@ -107,7 +131,7 @@ class BattlePassProvider with ChangeNotifier {
       theme: _seasonTheme(quarter),
       startDate: seasonStart,
       endDate: seasonEnd,
-      maxLevel: 100,
+      maxLevel: 10,
       rewards: BattlePassSeason.generateDefaultRewards(),
     );
   }
@@ -360,6 +384,16 @@ class BattlePassProvider with ChangeNotifier {
         // Add to user's unlocked items
         await userRef.update({
           'unlockedItems': FieldValue.arrayUnion([reward.name]),
+        });
+        break;
+
+      case RewardType.product:
+      case RewardType.giftcard:
+        // Physical products / gift cards - record for fulfillment
+        await userRef.collection('pendingRewards').add({
+          'reward': reward.toMap(),
+          'status': 'pending',
+          'claimedAt': FieldValue.serverTimestamp(),
         });
         break;
 
