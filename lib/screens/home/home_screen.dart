@@ -5,11 +5,14 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/challenge_provider.dart';
 import '../../providers/health_provider.dart';
+import '../../providers/streak_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../models/challenge_model.dart';
 import '../../models/health_metrics.dart';
 import '../../utils/theme.dart';
 import '../../widgets/challenge_card.dart';
 import '../challenges/challenge_detail_screen.dart';
+import '../notifications/notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -102,11 +105,93 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               actions: [
-                IconButton(
-                  icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-                  onPressed: () {},
+                // Streak badge
+                Consumer<StreakProvider>(
+                  builder: (context, streak, _) {
+                    if (streak.currentStreak <= 0) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Chip(
+                        avatar: const Icon(Icons.whatshot, color: Colors.orange, size: 18),
+                        label: Text(
+                          '${streak.currentStreak}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                        backgroundColor: Colors.white.withOpacity(0.2),
+                        side: BorderSide.none,
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    );
+                  },
+                ),
+                // Notification bell with badge
+                Consumer<NotificationProvider>(
+                  builder: (context, notif, _) {
+                    return IconButton(
+                      icon: Badge(
+                        isLabelVisible: notif.hasUnread,
+                        label: Text('${notif.unreadCount}'),
+                        child: const Icon(Icons.notifications_outlined, color: Colors.white),
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                        );
+                      },
+                    );
+                  },
                 ),
               ],
+            ),
+
+            // Waitlist Banner
+            SliverToBoxAdapter(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.rocket_launch, color: Colors.amber, size: 20),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'RIVL is launching soon! Be the first to compete.',
+                        style: TextStyle(color: Colors.white, fontSize: 13),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        // TODO: Link to waitlist signup
+                      },
+                      style: TextButton.styleFrom(
+                        backgroundColor: Colors.amber,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      child: const Text(
+                        'Join Waitlist',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
 
             // Content
@@ -204,12 +289,12 @@ class _RecoveryStrainRow extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: _ScoreCard(
-                title: 'Strain',
+                title: 'Exertion',
                 score: health.strainScore,
                 status: _getStrainStatus(health.strainScore),
                 color: _getStrainColor(health.strainScore),
                 icon: Icons.local_fire_department,
-                maxScore: 21,
+                maxScore: 100,
               ),
             ),
           ],
@@ -226,16 +311,16 @@ class _RecoveryStrainRow extends StatelessWidget {
   }
 
   Color _getStrainColor(int score) {
-    if (score >= 18) return RivlColors.error;
-    if (score >= 14) return Colors.orange;
-    if (score >= 10) return Colors.lightGreen;
+    if (score >= 85) return RivlColors.error;
+    if (score >= 65) return Colors.orange;
+    if (score >= 40) return Colors.lightGreen;
     return RivlColors.info;
   }
 
   String _getStrainStatus(int score) {
-    if (score >= 18) return 'Overreaching';
-    if (score >= 14) return 'High';
-    if (score >= 10) return 'Moderate';
+    if (score >= 85) return 'Overreaching';
+    if (score >= 65) return 'High';
+    if (score >= 40) return 'Moderate';
     return 'Light';
   }
 }
@@ -788,7 +873,7 @@ class _WorkoutTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Center(
-              child: Text(workout.icon, style: const TextStyle(fontSize: 20)),
+              child: Icon(workout.iconData, color: RivlColors.primary, size: 22),
             ),
           ),
           const SizedBox(width: 12),

@@ -13,7 +13,8 @@ enum GoalType {
   milePace,        // Average mile time improvement
   fiveKPace,       // Best 5K time
   sleepDuration,   // Total hours of quality sleep
-  vo2Max           // VO2 max cardiovascular fitness
+  vo2Max,          // VO2 max cardiovascular fitness
+  rivlHealthScore  // Combined health score from all 6 metrics (0-100)
 }
 
 enum ChallengeDuration { oneDay, threeDays, oneWeek, twoWeeks, oneMonth }
@@ -329,15 +330,30 @@ class StakeOption {
     return type == ChallengeType.headToHead ? fee : groupFee;
   }
 
-  // Updated stake options: $0-$100 range with 3% fee for 1v1, 5% for groups
+  bool get isCustom => amount == -1;
+
+  /// Create a custom stake option from user-entered amount
+  static StakeOption custom(double amount) {
+    final totalPot = amount * 2;
+    final h2hFee = totalPot * 0.03;
+    final groupFee = totalPot * 0.05;
+    return StakeOption(
+      amount: amount,
+      prize: totalPot - h2hFee,
+      groupPrize: totalPot - groupFee,
+      fee: h2hFee,
+      groupFee: groupFee,
+    );
+  }
+
   static const List<StakeOption> options = [
-    StakeOption(amount: 0, prize: 0, groupPrize: 0, fee: 0, groupFee: 0), // Free - just for fun!
+    StakeOption(amount: 0, prize: 0, groupPrize: 0, fee: 0, groupFee: 0),
     StakeOption(amount: 10, prize: 19.40, groupPrize: 19.00, fee: 0.60, groupFee: 1.00),
-    StakeOption(amount: 20, prize: 38.80, groupPrize: 38.00, fee: 1.20, groupFee: 2.00),
     StakeOption(amount: 25, prize: 48.50, groupPrize: 47.50, fee: 1.50, groupFee: 2.50),
     StakeOption(amount: 50, prize: 97.00, groupPrize: 95.00, fee: 3.00, groupFee: 5.00),
-    StakeOption(amount: 75, prize: 145.50, groupPrize: 142.50, fee: 4.50, groupFee: 7.50),
     StakeOption(amount: 100, prize: 194.00, groupPrize: 190.00, fee: 6.00, groupFee: 10.00),
+    // Custom placeholder — triggers input dialog
+    StakeOption(amount: -1, prize: 0, groupPrize: 0, fee: 0, groupFee: 0),
   ];
 }
 
@@ -390,6 +406,8 @@ extension GoalTypeExtension on GoalType {
         return 'Sleep Duration';
       case GoalType.vo2Max:
         return 'VO2 Max';
+      case GoalType.rivlHealthScore:
+        return 'RIVL Health Score';
     }
   }
 
@@ -407,6 +425,8 @@ extension GoalTypeExtension on GoalType {
         return 'Total hours of quality sleep';
       case GoalType.vo2Max:
         return 'Cardiovascular fitness level';
+      case GoalType.rivlHealthScore:
+        return 'Overall health combining steps, distance, sleep, heart rate, HRV & VO2 max';
     }
   }
 
@@ -424,6 +444,8 @@ extension GoalTypeExtension on GoalType {
         return Icons.bedtime_outlined;
       case GoalType.vo2Max:
         return Icons.favorite_outline;
+      case GoalType.rivlHealthScore:
+        return Icons.shield;
     }
   }
 

@@ -13,6 +13,11 @@ import 'providers/auth_provider.dart';
 import 'providers/challenge_provider.dart';
 import 'providers/health_provider.dart';
 import 'providers/wallet_provider.dart';
+import 'providers/streak_provider.dart';
+import 'providers/notification_provider.dart';
+import 'providers/battle_pass_provider.dart';
+import 'providers/subscription_provider.dart';
+import 'providers/activity_feed_provider.dart';
 import 'screens/splash_screen.dart';
 import 'utils/theme.dart';
 
@@ -64,6 +69,11 @@ class RivlApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ChallengeProvider()),
         ChangeNotifierProvider(create: (_) => HealthProvider()),
         ChangeNotifierProvider(create: (_) => WalletProvider()),
+        ChangeNotifierProvider(create: (_) => StreakProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider(create: (_) => BattlePassProvider()),
+        ChangeNotifierProvider(create: (_) => SubscriptionProvider()),
+        ChangeNotifierProvider(create: (_) => ActivityFeedProvider()),
       ],
       child: MaterialApp(
         title: 'RIVL',

@@ -24,7 +24,7 @@ class ChallengeProvider extends ChangeNotifier {
 
   // Create challenge form state
   UserModel? _selectedOpponent;
-  StakeOption _selectedStake = StakeOption.options[3]; // $15 default
+  StakeOption _selectedStake = StakeOption.options[2]; // $25 default
   ChallengeDuration _selectedDuration = ChallengeDuration.oneWeek;
   GoalType _selectedGoalType = GoalType.steps;
 
@@ -118,6 +118,8 @@ class ChallengeProvider extends ChangeNotifier {
         return _selectedDuration.days * 8; // 8 hours per night
       case GoalType.vo2Max:
         return 45; // Target VO2 max of 45
+      case GoalType.rivlHealthScore:
+        return 75; // Target average RIVL Health Score of 75/100
     }
   }
 
@@ -159,7 +161,7 @@ class ChallengeProvider extends ChangeNotifier {
 
   void resetCreateForm() {
     _selectedOpponent = null;
-    _selectedStake = StakeOption.options[3];
+    _selectedStake = StakeOption.options[2];
     _selectedDuration = ChallengeDuration.oneWeek;
     _selectedGoalType = GoalType.steps;
     notifyListeners();
