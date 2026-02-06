@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/challenge_provider.dart';
 import '../../models/challenge_model.dart';
 import '../../utils/theme.dart';
@@ -22,6 +23,10 @@ class _ChallengesScreenState extends State<ChallengesScreen> with SingleTickerPr
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    final auth = context.read<AuthProvider>();
+    if (auth.user == null) {
+      context.read<ChallengeProvider>().loadDemoChallenges();
+    }
   }
 
   @override
