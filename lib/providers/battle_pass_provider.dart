@@ -87,51 +87,59 @@ class BattlePassProvider with ChangeNotifier {
           rewards: BattlePassSeason.generateDefaultRewards(),
         );
       } else {
-        // Auto-generate season based on current date (2-month seasons)
-        final now = DateTime.now();
-        final seasonNumber = ((now.month - 1) ~/ 2) + 1;
-        final seasonStart = DateTime(now.year, ((seasonNumber - 1) * 2) + 1, 1);
-        final seasonEnd = DateTime(now.year, ((seasonNumber - 1) * 2) + 3, 1);
-
-        _currentSeason = BattlePassSeason(
-          season: seasonNumber,
-          name: _seasonName(seasonNumber),
-          theme: 'fitness',
-          startDate: seasonStart,
-          endDate: seasonEnd,
-          maxLevel: 100,
-          rewards: BattlePassSeason.generateDefaultRewards(),
-        );
+        _currentSeason = _generateQuarterlySeason();
       }
     } catch (e) {
-      // Fallback on error
-      final now = DateTime.now();
-      final seasonNumber = ((now.month - 1) ~/ 2) + 1;
-      final seasonStart = DateTime(now.year, ((seasonNumber - 1) * 2) + 1, 1);
-      final seasonEnd = DateTime(now.year, ((seasonNumber - 1) * 2) + 3, 1);
-
-      _currentSeason = BattlePassSeason(
-        season: seasonNumber,
-        name: _seasonName(seasonNumber),
-        theme: 'fitness',
-        startDate: seasonStart,
-        endDate: seasonEnd,
-        maxLevel: 100,
-        rewards: BattlePassSeason.generateDefaultRewards(),
-      );
+      _currentSeason = _generateQuarterlySeason();
     }
   }
 
-  String _seasonName(int number) {
-    const names = [
-      'Fitness Warriors',
-      'Summer Grind',
-      'Fall Frenzy',
-      'Winter Warriors',
-      'Spring Sprint',
-      'Peak Performance',
-    ];
-    return 'Season $number: ${names[(number - 1) % names.length]}';
+  /// Generate a quarterly season based on current date
+  BattlePassSeason _generateQuarterlySeason() {
+    final now = DateTime.now();
+    final quarter = ((now.month - 1) ~/ 3) + 1; // 1=Winter, 2=Spring, 3=Summer, 4=Fall
+    final seasonStart = DateTime(now.year, ((quarter - 1) * 3) + 1, 1);
+    final seasonEnd = DateTime(now.year, (quarter * 3) + 1, 1);
+
+    return BattlePassSeason(
+      season: quarter,
+      name: _seasonName(quarter),
+      theme: _seasonTheme(quarter),
+      startDate: seasonStart,
+      endDate: seasonEnd,
+      maxLevel: 100,
+      rewards: BattlePassSeason.generateDefaultRewards(),
+    );
+  }
+
+  String _seasonName(int quarter) {
+    switch (quarter) {
+      case 1:
+        return 'Winter Warriors';
+      case 2:
+        return 'Spring Sprint';
+      case 3:
+        return 'Summer Grind';
+      case 4:
+        return 'Fall Frenzy';
+      default:
+        return 'Season $quarter';
+    }
+  }
+
+  String _seasonTheme(int quarter) {
+    switch (quarter) {
+      case 1:
+        return 'winter';
+      case 2:
+        return 'spring';
+      case 3:
+        return 'summer';
+      case 4:
+        return 'fall';
+      default:
+        return 'fitness';
+    }
   }
 
   /// Add XP to user's progress
