@@ -62,6 +62,8 @@ void main() async {
 class RivlApp extends StatelessWidget {
   const RivlApp({super.key});
 
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -78,6 +80,7 @@ class RivlApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'RIVL',
+        navigatorKey: navigatorKey,
         debugShowCheckedModeBanner: false,
         theme: RivlTheme.lightTheme,
         darkTheme: RivlTheme.darkTheme,
@@ -130,10 +133,13 @@ class WaitlistBanner extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
-              showDialog(
-                context: context,
-                builder: (ctx) => const _WaitlistDialog(),
-              );
+              final navContext = RivlApp.navigatorKey.currentContext;
+              if (navContext != null) {
+                showDialog(
+                  context: navContext,
+                  builder: (ctx) => const _WaitlistDialog(),
+                );
+              }
             },
             style: TextButton.styleFrom(
               backgroundColor: Colors.white,
