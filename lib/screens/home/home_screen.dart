@@ -536,6 +536,7 @@ class _HealthMetricsGrid extends StatelessWidget {
                   value: health.heartRate > 0 ? '${health.heartRate}' : '--',
                   unit: 'bpm',
                   color: Colors.red,
+                  description: 'Heart rate measures how many times your heart beats per minute. Tracking it during exercise shows how hard your cardiovascular system is working, and monitoring trends over time can reveal improvements in fitness or flag potential health concerns early.',
                 ),
                 _MetricTile(
                   icon: Icons.bedtime,
@@ -543,6 +544,7 @@ class _HealthMetricsGrid extends StatelessWidget {
                   value: health.sleepHours > 0 ? health.formatSleep(health.sleepHours) : '--',
                   unit: '',
                   color: Colors.indigo,
+                  description: 'Sleep is when your body recovers, builds muscle, and consolidates memory. Getting 7-9 hours of quality sleep each night improves athletic performance, mental clarity, and immune function. Poor sleep undermines even the best training.',
                 ),
                 _MetricTile(
                   icon: Icons.show_chart,
@@ -550,6 +552,7 @@ class _HealthMetricsGrid extends StatelessWidget {
                   value: health.hrv > 0 ? health.formatHRV(health.hrv) : '--',
                   unit: 'ms',
                   color: Colors.purple,
+                  description: 'Heart Rate Variability (HRV) measures the variation in time between heartbeats. A higher HRV generally indicates better cardiovascular fitness and recovery. It\'s one of the best indicators of how ready your body is to perform and whether you\'re overtraining.',
                 ),
                 _MetricTile(
                   icon: Icons.monitor_heart,
@@ -557,6 +560,7 @@ class _HealthMetricsGrid extends StatelessWidget {
                   value: health.restingHeartRate > 0 ? '${health.restingHeartRate}' : '--',
                   unit: 'bpm',
                   color: Colors.pink,
+                  description: 'Resting heart rate is your heart rate when you\'re completely at rest. A lower resting heart rate typically means your heart is more efficient. Athletes often have resting rates between 40-60 bpm. Tracking it over time shows your cardiovascular fitness improving.',
                 ),
                 _MetricTile(
                   icon: Icons.air,
@@ -564,6 +568,7 @@ class _HealthMetricsGrid extends StatelessWidget {
                   value: health.bloodOxygen > 0 ? health.formatBloodOxygen(health.bloodOxygen) : '--',
                   unit: '',
                   color: Colors.teal,
+                  description: 'Blood oxygen (SpO2) measures the percentage of oxygen your red blood cells are carrying. Normal levels are 95-100%. Tracking it helps monitor respiratory health, sleep quality, and how well your body delivers oxygen to muscles during intense exercise.',
                 ),
                 _MetricTile(
                   icon: Icons.speed,
@@ -571,6 +576,7 @@ class _HealthMetricsGrid extends StatelessWidget {
                   value: health.vo2Max > 0 ? health.formatVO2Max(health.vo2Max) : '--',
                   unit: 'ml/kg/min',
                   color: Colors.orange,
+                  description: 'VO2 Max is the maximum amount of oxygen your body can use during intense exercise. It\'s considered the gold standard measure of aerobic fitness. Higher VO2 Max values are linked to better endurance, longer lifespan, and reduced risk of chronic disease.',
                 ),
               ],
             ),
@@ -587,6 +593,7 @@ class _MetricTile extends StatelessWidget {
   final String value;
   final String unit;
   final Color color;
+  final String description;
 
   const _MetricTile({
     required this.icon,
@@ -594,62 +601,126 @@ class _MetricTile extends StatelessWidget {
     required this.value,
     required this.unit,
     required this.color,
+    required this.description,
   });
+
+  void _showDetail(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: color, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      if (value != '--')
+                        Text(
+                          '$value${unit.isNotEmpty ? ' $unit' : ''}',
+                          style: TextStyle(fontSize: 14, color: color, fontWeight: FontWeight.w600),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              description,
+              style: TextStyle(fontSize: 15, color: Colors.grey[700], height: 1.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+    return GestureDetector(
+      onTap: () => _showDetail(context),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: color, size: 16),
                 ),
-                child: Icon(icon, color: color, size: 16),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                  overflow: TextOverflow.ellipsis,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              if (unit.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 2),
-                  child: Text(unit, style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+              ],
+            ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
-            ],
-          ),
-        ],
+                if (unit.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, bottom: 2),
+                    child: Text(unit, style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
