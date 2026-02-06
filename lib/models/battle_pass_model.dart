@@ -178,7 +178,7 @@ class BattlePassSeason {
     return [
       // Tier 1 - 100 XP
       BattlePassReward(level: 1, tier: RewardTier.free, type: RewardType.giftcard, name: '15% Off Gymshark', description: 'Discount on workout apparel', value: 15),
-      BattlePassReward(level: 1, tier: RewardTier.premium, type: RewardType.boost, name: '2x XP Boost', description: '24hr double XP', value: 1),
+      BattlePassReward(level: 1, tier: RewardTier.premium, type: RewardType.badge, name: 'Premium Competitor Badge', description: 'Exclusive badge for premium members', value: 1),
       // Tier 2 - 250 XP
       BattlePassReward(level: 2, tier: RewardTier.free, type: RewardType.badge, name: 'Early Bird Badge', description: 'Season starter badge', value: 1),
       BattlePassReward(level: 2, tier: RewardTier.premium, type: RewardType.product, name: 'LMNT Electrolytes Sample', description: 'Free 8-pack sampler', value: 1),
