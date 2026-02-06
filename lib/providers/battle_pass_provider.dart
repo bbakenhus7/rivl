@@ -88,6 +88,13 @@ class BattlePassProvider with ChangeNotifier {
     );
   }
 
+  /// Ensure demo data is loaded (call when no user is authenticated)
+  void ensureDemoData() {
+    if (_progress != null && _currentSeason != null) return;
+    _loadDemoData('demo');
+    notifyListeners();
+  }
+
   /// Load current season configuration
   Future<void> _loadCurrentSeason() async {
     try {
