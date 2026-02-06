@@ -5,11 +5,14 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/challenge_provider.dart';
 import '../../providers/health_provider.dart';
+import '../../providers/streak_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../models/challenge_model.dart';
 import '../../models/health_metrics.dart';
 import '../../utils/theme.dart';
 import '../../widgets/challenge_card.dart';
 import '../challenges/challenge_detail_screen.dart';
+import '../notifications/notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -102,9 +105,47 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               actions: [
-                IconButton(
-                  icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-                  onPressed: () {},
+                // Streak badge
+                Consumer<StreakProvider>(
+                  builder: (context, streak, _) {
+                    if (streak.currentStreak <= 0) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: Chip(
+                        avatar: const Icon(Icons.whatshot, color: Colors.orange, size: 18),
+                        label: Text(
+                          '${streak.currentStreak}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                        backgroundColor: Colors.white.withOpacity(0.2),
+                        side: BorderSide.none,
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    );
+                  },
+                ),
+                // Notification bell with badge
+                Consumer<NotificationProvider>(
+                  builder: (context, notif, _) {
+                    return IconButton(
+                      icon: Badge(
+                        isLabelVisible: notif.hasUnread,
+                        label: Text('${notif.unreadCount}'),
+                        child: const Icon(Icons.notifications_outlined, color: Colors.white),
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                        );
+                      },
+                    );
+                  },
                 ),
               ],
             ),

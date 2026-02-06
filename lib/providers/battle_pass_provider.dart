@@ -66,19 +66,72 @@ class BattlePassProvider with ChangeNotifier {
 
   /// Load current season configuration
   Future<void> _loadCurrentSeason() async {
-    final now = DateTime.now();
+    try {
+      // Try to load active season from Firestore
+      final snapshot = await _firestore
+          .collection('seasons')
+          .where('active', isEqualTo: true)
+          .limit(1)
+          .get();
 
-    // For now, use a hardcoded season
-    // In production, you'd query Firestore for active season
-    _currentSeason = BattlePassSeason(
-      season: 1,
-      name: 'Season 1: Fitness Warriors',
-      theme: 'fitness',
-      startDate: DateTime(2026, 1, 1),
-      endDate: DateTime(2026, 3, 1),
-      maxLevel: 100,
-      rewards: BattlePassSeason.generateDefaultRewards(),
-    );
+      if (snapshot.docs.isNotEmpty) {
+        final data = snapshot.docs.first.data();
+        _currentSeason = BattlePassSeason(
+          season: data['season'] ?? 1,
+          name: data['name'] ?? 'Season 1',
+          theme: data['theme'] ?? 'fitness',
+          startDate: (data['startDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          endDate: (data['endDate'] as Timestamp?)?.toDate() ??
+              DateTime.now().add(const Duration(days: 60)),
+          maxLevel: data['maxLevel'] ?? 100,
+          rewards: BattlePassSeason.generateDefaultRewards(),
+        );
+      } else {
+        // Auto-generate season based on current date (2-month seasons)
+        final now = DateTime.now();
+        final seasonNumber = ((now.month - 1) ~/ 2) + 1;
+        final seasonStart = DateTime(now.year, ((seasonNumber - 1) * 2) + 1, 1);
+        final seasonEnd = DateTime(now.year, ((seasonNumber - 1) * 2) + 3, 1);
+
+        _currentSeason = BattlePassSeason(
+          season: seasonNumber,
+          name: _seasonName(seasonNumber),
+          theme: 'fitness',
+          startDate: seasonStart,
+          endDate: seasonEnd,
+          maxLevel: 100,
+          rewards: BattlePassSeason.generateDefaultRewards(),
+        );
+      }
+    } catch (e) {
+      // Fallback on error
+      final now = DateTime.now();
+      final seasonNumber = ((now.month - 1) ~/ 2) + 1;
+      final seasonStart = DateTime(now.year, ((seasonNumber - 1) * 2) + 1, 1);
+      final seasonEnd = DateTime(now.year, ((seasonNumber - 1) * 2) + 3, 1);
+
+      _currentSeason = BattlePassSeason(
+        season: seasonNumber,
+        name: _seasonName(seasonNumber),
+        theme: 'fitness',
+        startDate: seasonStart,
+        endDate: seasonEnd,
+        maxLevel: 100,
+        rewards: BattlePassSeason.generateDefaultRewards(),
+      );
+    }
+  }
+
+  String _seasonName(int number) {
+    const names = [
+      'Fitness Warriors',
+      'Summer Grind',
+      'Fall Frenzy',
+      'Winter Warriors',
+      'Spring Sprint',
+      'Peak Performance',
+    ];
+    return 'Season $number: ${names[(number - 1) % names.length]}';
   }
 
   /// Add XP to user's progress
@@ -114,6 +167,8 @@ class BattlePassProvider with ChangeNotifier {
       // Save to Firestore
       await _saveProgress(userId);
 
+      final levelBefore = _progress!.currentLevel;
+
       // Record XP transaction
       await _firestore
           .collection('users')
@@ -122,9 +177,16 @@ class BattlePassProvider with ChangeNotifier {
           .add({
         'amount': xp,
         'source': source,
-        'levelBefore': _progress!.currentLevel - (newLevel - _progress!.currentLevel),
+        'levelBefore': levelBefore,
         'levelAfter': newLevel,
         'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update user document with latest battle pass level
+      await _firestore.collection('users').doc(userId).update({
+        'battlePassLevel': newLevel,
+        'currentXP': newXP,
+        'totalXP': newTotalXP,
       });
 
       notifyListeners();

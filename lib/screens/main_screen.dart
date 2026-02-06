@@ -5,11 +5,17 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/challenge_provider.dart';
 import '../providers/health_provider.dart';
+import '../providers/streak_provider.dart';
+import '../providers/notification_provider.dart';
+import '../providers/battle_pass_provider.dart';
+import '../providers/activity_feed_provider.dart';
+import '../widgets/streak_reward_popup.dart';
 import 'home/home_screen.dart';
 import 'challenges/challenges_screen.dart';
 import 'create/create_challenge_screen.dart';
-import 'leaderboard/leaderboard_screen.dart';
+import 'feed/activity_feed_screen.dart';
 import 'profile/profile_screen.dart';
+import 'notifications/notifications_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -25,7 +31,7 @@ class _MainScreenState extends State<MainScreen> {
     HomeScreen(),
     ChallengesScreen(),
     CreateChallengeScreen(),
-    LeaderboardScreen(),
+    ActivityFeedScreen(),
     ProfileScreen(),
   ];
 
@@ -41,12 +47,54 @@ class _MainScreenState extends State<MainScreen> {
     final authProvider = context.read<AuthProvider>();
     final challengeProvider = context.read<ChallengeProvider>();
     final healthProvider = context.read<HealthProvider>();
+    final streakProvider = context.read<StreakProvider>();
+    final notificationProvider = context.read<NotificationProvider>();
+    final battlePassProvider = context.read<BattlePassProvider>();
+    final activityFeedProvider = context.read<ActivityFeedProvider>();
 
     if (authProvider.user != null) {
-      challengeProvider.startListening(authProvider.user!.id);
-    }
+      final userId = authProvider.user!.id;
 
-    healthProvider.requestAuthorization();
+      // Core
+      challengeProvider.startListening(userId);
+      healthProvider.requestAuthorization();
+
+      // New features
+      streakProvider.loadStreak(userId);
+      notificationProvider.initialize(userId);
+      battlePassProvider.loadProgress(userId);
+      activityFeedProvider.startListening();
+
+      // Auto-claim daily streak reward
+      _checkDailyStreak(userId);
+    }
+  }
+
+  void _checkDailyStreak(String userId) async {
+    final streakProvider = context.read<StreakProvider>();
+
+    // Wait for streak data to load
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    if (streakProvider.canClaimToday && mounted) {
+      await streakProvider.claimDailyReward(userId);
+
+      // Show reward popup
+      if (streakProvider.showRewardPopup && streakProvider.lastReward != null && mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => StreakRewardPopup(
+            reward: streakProvider.lastReward!,
+            currentStreak: streakProvider.currentStreak,
+            onDismiss: () {
+              streakProvider.dismissRewardPopup();
+              Navigator.pop(context);
+            },
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -56,8 +104,8 @@ class _MainScreenState extends State<MainScreen> {
         index: _currentIndex,
         children: _screens,
       ),
-      bottomNavigationBar: Consumer<ChallengeProvider>(
-        builder: (context, challengeProvider, _) {
+      bottomNavigationBar: Consumer2<ChallengeProvider, NotificationProvider>(
+        builder: (context, challengeProvider, notificationProvider, _) {
           return NavigationBar(
             selectedIndex: _currentIndex,
             onDestinationSelected: (index) {
@@ -88,9 +136,9 @@ class _MainScreenState extends State<MainScreen> {
                 label: 'Create',
               ),
               const NavigationDestination(
-                icon: Icon(Icons.emoji_events_outlined),
-                selectedIcon: Icon(Icons.emoji_events),
-                label: 'Leaderboard',
+                icon: Icon(Icons.dynamic_feed_outlined),
+                selectedIcon: Icon(Icons.dynamic_feed),
+                label: 'Feed',
               ),
               const NavigationDestination(
                 icon: Icon(Icons.person_outlined),
