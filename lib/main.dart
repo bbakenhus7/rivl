@@ -62,6 +62,8 @@ void main() async {
 class RivlApp extends StatelessWidget {
   const RivlApp({super.key});
 
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -78,6 +80,7 @@ class RivlApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'RIVL',
+        navigatorKey: navigatorKey,
         debugShowCheckedModeBanner: false,
         theme: RivlTheme.lightTheme,
         darkTheme: RivlTheme.darkTheme,
@@ -130,24 +133,25 @@ class WaitlistBanner extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
-              showDialog(
-                context: context,
-                builder: (ctx) => const _WaitlistDialog(),
-              );
+              final navContext = RivlApp.navigatorKey.currentContext;
+              if (navContext != null) {
+                showDialog(
+                  context: navContext,
+                  builder: (ctx) => const _WaitlistDialog(),
+                );
+              }
             },
             style: TextButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: RivlColors.primary,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
             ),
             child: const Text(
               'Join Waitlist',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
           ),
         ],
