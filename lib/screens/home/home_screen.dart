@@ -150,6 +150,50 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
 
+            // Waitlist Banner
+            SliverToBoxAdapter(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.rocket_launch, color: Colors.amber, size: 20),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'RIVL is launching soon! Be the first to compete.',
+                        style: TextStyle(color: Colors.white, fontSize: 13),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        // TODO: Link to waitlist signup
+                      },
+                      style: TextButton.styleFrom(
+                        backgroundColor: Colors.amber,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      child: const Text(
+                        'Join Waitlist',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
             // Content
             SliverPadding(
               padding: const EdgeInsets.all(16),
