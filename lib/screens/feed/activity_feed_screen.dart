@@ -475,144 +475,187 @@ class _SeasonTab extends StatelessWidget {
         }
         final sortedLevels = rewardsByLevel.keys.toList()..sort();
 
-        return CustomScrollView(
-          slivers: [
-            // Season header
-            SliverToBoxAdapter(
-              child: Container(
-                margin: const EdgeInsets.all(16),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: RivlColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      season.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${progress.daysRemaining} days remaining',
-                      style: TextStyle(color: Colors.white.withOpacity(0.8)),
-                    ),
-                    const SizedBox(height: 16),
-                    // Level and XP
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Level ${progress.currentLevel}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
+        // Calculate overall XP progress
+        final totalXP = progress.totalXP;
+        final maxXP = BattlePassSeason.tierXPThresholds.last;
+
+        return ListView(
+          padding: const EdgeInsets.all(0),
+          children: [
+            // Season header card
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: RivlColors.primaryGradient,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            season.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    // XP progress bar
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: LinearProgressIndicator(
-                        value: progress.levelProgress,
-                        minHeight: 10,
-                        backgroundColor: Colors.white.withOpacity(0.2),
-                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.amber),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${progress.daysRemaining} days remaining',
+                            style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13),
+                          ),
+                        ],
                       ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.bolt, color: Colors.amber, size: 18),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${totalXP.clamp(0, maxXP)} / $maxXP XP',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Overall progress bar
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: (totalXP / maxXP).clamp(0.0, 1.0),
+                      minHeight: 8,
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.amber),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${progress.currentXP} / ${progress.xpForNextLevel} XP',
-                      style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Tier ${progress.currentLevel} of 10',
+                        style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+                      ),
+                      Text(
+                        '${((totalXP / maxXP) * 100).clamp(0, 100).toInt()}% Complete',
+                        style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Horizontal battle pass bar
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              height: 72,
+              child: _BattlePassBar(
+                currentXP: totalXP,
+                currentTier: progress.currentLevel,
               ),
             ),
 
             // Premium banner
             if (!provider.isPremiumUnlocked)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: Card(
-                    color: Colors.amber[50],
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.workspace_premium, color: Colors.amber, size: 28),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Premium Pass',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                                ),
-                                Text(
-                                  'Unlock 2x rewards on every level',
-                                  style: TextStyle(color: Colors.grey[700], fontSize: 13),
-                                ),
-                              ],
-                            ),
-                          ),
-                          ElevatedButton(
-                            onPressed: () {
-                              final auth = context.read<AuthProvider>();
-                              provider.unlockPremium(auth.user!.id);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.amber,
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            ),
-                            child: const Text('Unlock'),
-                          ),
-                        ],
-                      ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFF8E1), Color(0xFFFFECB3)],
                     ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.amber.withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.workspace_premium, color: Colors.amber, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Unlock Premium Rewards',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                            Text(
+                              'Get gift cards, electrolytes, gear & more',
+                              style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          final auth = context.read<AuthProvider>();
+                          provider.unlockPremium(auth.user!.id);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        child: const Text('Upgrade', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      ),
+                    ],
                   ),
                 ),
               ),
 
-            // Reward tiers
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final level = sortedLevels[index];
-                    final rewards = rewardsByLevel[level]!;
-                    final isLocked = level > provider.currentLevel;
+            const SizedBox(height: 8),
 
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: _SeasonRewardRow(
-                        level: level,
-                        rewards: rewards,
-                        isLocked: isLocked,
-                        isPremium: provider.isPremiumUnlocked,
-                        isClaimed: (r) => provider.isRewardClaimed(r.level, r.tier),
-                        onClaim: (r) {
-                          final auth = context.read<AuthProvider>();
-                          provider.claimReward(auth.user!.id, r.level, r.tier);
-                        },
-                      ),
-                    );
-                  },
-                  childCount: sortedLevels.length,
-                ),
-              ),
-            ),
+            // Reward tier list
+            ...sortedLevels.map((level) {
+              final rewards = rewardsByLevel[level]!;
+              final isUnlocked = level <= provider.currentLevel;
+              final xpNeeded = BattlePassSeason.xpForTier(level);
+
+              return _TierRewardCard(
+                tier: level,
+                xpNeeded: xpNeeded,
+                currentXP: totalXP,
+                rewards: rewards,
+                isUnlocked: isUnlocked,
+                isPremium: provider.isPremiumUnlocked,
+                isClaimed: (r) => provider.isRewardClaimed(r.level, r.tier),
+                onClaim: (r) {
+                  final auth = context.read<AuthProvider>();
+                  provider.claimReward(auth.user!.id, r.level, r.tier);
+                },
+              );
+            }),
+
+            const SizedBox(height: 24),
           ],
         );
       },
@@ -620,18 +663,162 @@ class _SeasonTab extends StatelessWidget {
   }
 }
 
-class _SeasonRewardRow extends StatelessWidget {
-  final int level;
+/// Horizontal scrollable battle pass progress bar
+class _BattlePassBar extends StatelessWidget {
+  final int currentXP;
+  final int currentTier;
+
+  const _BattlePassBar({required this.currentXP, required this.currentTier});
+
+  @override
+  Widget build(BuildContext context) {
+    final thresholds = BattlePassSeason.tierXPThresholds;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: List.generate(10, (index) {
+          final tier = index + 1;
+          final tierXP = thresholds[tier];
+          final prevXP = thresholds[tier - 1];
+          final isUnlocked = currentXP >= tierXP;
+          final isActive = currentXP >= prevXP && currentXP < tierXP;
+          final segmentProgress = isUnlocked
+              ? 1.0
+              : isActive
+                  ? ((currentXP - prevXP) / (tierXP - prevXP)).clamp(0.0, 1.0)
+                  : 0.0;
+
+          return Row(
+            children: [
+              // Tier node
+              _TierNode(
+                tier: tier,
+                isUnlocked: isUnlocked,
+                isActive: isActive,
+                icon: _tierIcon(tier),
+              ),
+              // Progress connector (except after last)
+              if (tier < 10)
+                SizedBox(
+                  width: 32,
+                  height: 4,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: LinearProgressIndicator(
+                      value: segmentProgress,
+                      backgroundColor: Colors.grey[300],
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        isUnlocked ? RivlColors.success : RivlColors.primary,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
+  IconData _tierIcon(int tier) {
+    switch (tier) {
+      case 1: return Icons.monetization_on;
+      case 2: return Icons.water_drop;
+      case 3: return Icons.blender;
+      case 4: return Icons.eco;
+      case 5: return Icons.card_giftcard;
+      case 6: return Icons.fitness_center;
+      case 7: return Icons.local_drink;
+      case 8: return Icons.card_giftcard;
+      case 9: return Icons.sports_gymnastics;
+      case 10: return Icons.emoji_events;
+      default: return Icons.star;
+    }
+  }
+}
+
+class _TierNode extends StatelessWidget {
+  final int tier;
+  final bool isUnlocked;
+  final bool isActive;
+  final IconData icon;
+
+  const _TierNode({
+    required this.tier,
+    required this.isUnlocked,
+    required this.isActive,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color bgColor;
+    final Color iconColor;
+    final Color borderColor;
+
+    if (isUnlocked) {
+      bgColor = RivlColors.success.withOpacity(0.15);
+      iconColor = RivlColors.success;
+      borderColor = RivlColors.success;
+    } else if (isActive) {
+      bgColor = RivlColors.primary.withOpacity(0.15);
+      iconColor = RivlColors.primary;
+      borderColor = RivlColors.primary;
+    } else {
+      bgColor = Colors.grey[100]!;
+      iconColor = Colors.grey[400]!;
+      borderColor = Colors.grey[300]!;
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: bgColor,
+            shape: BoxShape.circle,
+            border: Border.all(color: borderColor, width: 2.5),
+          ),
+          child: Center(
+            child: isUnlocked
+                ? Icon(Icons.check, color: iconColor, size: 22)
+                : Icon(icon, color: iconColor, size: 20),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '$tier',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isActive || isUnlocked ? FontWeight.bold : FontWeight.normal,
+            color: isActive ? RivlColors.primary : isUnlocked ? RivlColors.success : Colors.grey[500],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Individual tier reward card showing free + premium tracks
+class _TierRewardCard extends StatelessWidget {
+  final int tier;
+  final int xpNeeded;
+  final int currentXP;
   final List<BattlePassReward> rewards;
-  final bool isLocked;
+  final bool isUnlocked;
   final bool isPremium;
   final bool Function(BattlePassReward) isClaimed;
   final Function(BattlePassReward) onClaim;
 
-  const _SeasonRewardRow({
-    required this.level,
+  const _TierRewardCard({
+    required this.tier,
+    required this.xpNeeded,
+    required this.currentXP,
     required this.rewards,
-    required this.isLocked,
+    required this.isUnlocked,
     required this.isPremium,
     required this.isClaimed,
     required this.onClaim,
@@ -639,145 +826,298 @@ class _SeasonRewardRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final freeReward = rewards.where((r) => r.tier == RewardTier.free).toList();
-    final premiumReward = rewards.where((r) => r.tier == RewardTier.premium).toList();
+    final freeRewards = rewards.where((r) => r.tier == RewardTier.free).toList();
+    final premiumRewards = rewards.where((r) => r.tier == RewardTier.premium).toList();
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            // Level badge
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: isLocked ? Colors.grey[300] : RivlColors.primary,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Center(
-                child: Text(
-                  '$level',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: isLocked ? Colors.grey[600] : Colors.white,
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isUnlocked
+              ? RivlColors.success.withOpacity(0.4)
+              : Colors.grey[200]!,
+          width: isUnlocked ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Tier header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isUnlocked
+                  ? RivlColors.success.withOpacity(0.06)
+                  : Colors.grey[50],
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: isUnlocked ? RivlColors.success : Colors.grey[300],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: isUnlocked
+                        ? const Icon(Icons.check, color: Colors.white, size: 20)
+                        : Text(
+                            '$tier',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[600],
+                            ),
+                          ),
                   ),
                 ),
-              ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Tier $tier',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: isUnlocked ? RivlColors.success : null,
+                        ),
+                      ),
+                      Text(
+                        isUnlocked
+                            ? 'Unlocked'
+                            : '${(xpNeeded - currentXP).clamp(0, xpNeeded)} XP to unlock',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isUnlocked ? RivlColors.success : Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isUnlocked
+                        ? RivlColors.success.withOpacity(0.1)
+                        : Colors.grey[200],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${_formatXP(xpNeeded)} XP',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isUnlocked ? RivlColors.success : Colors.grey[600],
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            // Free reward
-            Expanded(
-              child: freeReward.isNotEmpty && freeReward.first.name.isNotEmpty
-                  ? _RewardChip(
-                      reward: freeReward.first,
-                      isLocked: isLocked,
-                      claimed: isClaimed(freeReward.first),
-                      onClaim: () => onClaim(freeReward.first),
-                    )
-                  : const SizedBox.shrink(),
+          ),
+
+          // Rewards row
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                // Free track
+                Expanded(
+                  child: freeRewards.isNotEmpty
+                      ? _RewardItem(
+                          reward: freeRewards.first,
+                          isLocked: !isUnlocked,
+                          claimed: isUnlocked && isClaimed(freeRewards.first),
+                          onClaim: () => onClaim(freeRewards.first),
+                          trackLabel: 'FREE',
+                          trackColor: RivlColors.primary,
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                // Divider
+                Container(
+                  width: 1,
+                  height: 80,
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  color: Colors.grey[200],
+                ),
+                // Premium track
+                Expanded(
+                  child: premiumRewards.isNotEmpty
+                      ? _RewardItem(
+                          reward: premiumRewards.first,
+                          isLocked: !isUnlocked || !isPremium,
+                          claimed: isUnlocked && isPremium && isClaimed(premiumRewards.first),
+                          onClaim: () => onClaim(premiumRewards.first),
+                          trackLabel: 'PREMIUM',
+                          trackColor: Colors.amber,
+                          showLock: !isPremium && isUnlocked,
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            // Premium reward
-            Expanded(
-              child: premiumReward.isNotEmpty && premiumReward.first.name.isNotEmpty
-                  ? _RewardChip(
-                      reward: premiumReward.first,
-                      isLocked: isLocked || !isPremium,
-                      claimed: isClaimed(premiumReward.first),
-                      onClaim: () => onClaim(premiumReward.first),
-                      isPremium: true,
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+
+  String _formatXP(int xp) {
+    if (xp >= 1000) return '${(xp / 1000).toStringAsFixed(xp % 1000 == 0 ? 0 : 1)}K';
+    return '$xp';
+  }
 }
 
-class _RewardChip extends StatelessWidget {
+class _RewardItem extends StatelessWidget {
   final BattlePassReward reward;
   final bool isLocked;
   final bool claimed;
   final VoidCallback onClaim;
-  final bool isPremium;
+  final String trackLabel;
+  final Color trackColor;
+  final bool showLock;
 
-  const _RewardChip({
+  const _RewardItem({
     required this.reward,
     required this.isLocked,
     required this.claimed,
     required this.onClaim,
-    this.isPremium = false,
+    required this.trackLabel,
+    required this.trackColor,
+    this.showLock = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = isPremium ? Colors.amber[50] : Colors.grey[50];
-    final accent = isPremium ? Colors.amber : RivlColors.primary;
-
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isPremium ? Colors.amber.withOpacity(0.5) : Colors.grey[300]!,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(_rewardIcon(reward.type), size: 16, color: isLocked ? Colors.grey : accent),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  reward.name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    color: isLocked ? Colors.grey : null,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Track label
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: trackColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(4),
           ),
-          if (!isLocked)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: claimed
-                  ? Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: RivlColors.success,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'Claimed',
-                        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
-                    )
-                  : SizedBox(
-                      width: double.infinity,
-                      height: 28,
-                      child: ElevatedButton(
-                        onPressed: onClaim,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: accent,
-                          padding: EdgeInsets.zero,
+          child: Text(
+            trackLabel,
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              color: trackColor,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        // Reward icon + name
+        Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: isLocked ? Colors.grey[100] : trackColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Stack(
+                children: [
+                  Center(
+                    child: Icon(
+                      _rewardIcon(reward.type),
+                      size: 18,
+                      color: isLocked ? Colors.grey[400] : trackColor,
+                    ),
+                  ),
+                  if (showLock)
+                    Positioned(
+                      right: -1,
+                      bottom: -1,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
                         ),
-                        child: const Text('Claim', style: TextStyle(fontSize: 11)),
+                        child: Icon(Icons.lock, size: 10, color: Colors.grey[500]),
                       ),
                     ),
+                ],
+              ),
             ),
-        ],
-      ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                reward.name,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  color: isLocked ? Colors.grey[400] : null,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        // Claim button or status
+        if (claimed)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: RivlColors.success.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.check_circle, size: 12, color: RivlColors.success),
+                const SizedBox(width: 4),
+                Text(
+                  'Claimed',
+                  style: TextStyle(
+                    color: RivlColors.success,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else if (!isLocked && !showLock)
+          SizedBox(
+            width: double.infinity,
+            height: 28,
+            child: ElevatedButton(
+              onPressed: onClaim,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: trackColor,
+                foregroundColor: trackColor == Colors.amber ? Colors.black : Colors.white,
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              ),
+              child: const Text('Claim', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+            ),
+          )
+        else
+          Text(
+            showLock ? 'Premium only' : 'Locked',
+            style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+          ),
+      ],
     );
   }
 
@@ -788,13 +1128,17 @@ class _RewardChip extends StatelessWidget {
       case RewardType.premium_days:
         return Icons.workspace_premium;
       case RewardType.avatar:
-        return Icons.face;
+        return Icons.auto_awesome;
       case RewardType.badge:
         return Icons.military_tech;
       case RewardType.boost:
         return Icons.rocket_launch;
       case RewardType.unlock:
-        return Icons.lock_open;
+        return Icons.emoji_events;
+      case RewardType.product:
+        return Icons.inventory_2;
+      case RewardType.giftcard:
+        return Icons.card_giftcard;
     }
   }
 }
