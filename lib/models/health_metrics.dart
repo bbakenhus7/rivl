@@ -1,6 +1,7 @@
 // models/health_metrics.dart
 
 import 'dart:math';
+import 'package:flutter/material.dart';
 import 'challenge_model.dart';
 
 class HealthMetrics {
@@ -220,39 +221,45 @@ class WorkoutData {
     }
   }
 
-  String get icon {
+  IconData get iconData {
     switch (type.toUpperCase()) {
       case 'RUNNING':
-        return '🏃';
+        return Icons.directions_run;
       case 'WALKING':
-        return '🚶';
+        return Icons.directions_walk;
       case 'CYCLING':
-        return '🚴';
+        return Icons.directions_bike;
       case 'SWIMMING':
-        return '🏊';
+        return Icons.pool;
       case 'STRENGTH_TRAINING':
       case 'TRADITIONAL_STRENGTH_TRAINING':
       case 'FUNCTIONAL_STRENGTH_TRAINING':
-        return '💪';
+        return Icons.fitness_center;
       case 'HIIT':
       case 'HIGH_INTENSITY_INTERVAL_TRAINING':
-        return '🔥';
+        return Icons.local_fire_department;
       case 'YOGA':
-        return '🧘';
+        return Icons.self_improvement;
       case 'PILATES':
-        return '🤸';
+        return Icons.accessibility_new;
       case 'ELLIPTICAL':
-        return '🏋️';
+        return Icons.fitness_center;
       case 'ROWING':
-        return '🚣';
+        return Icons.rowing;
       case 'STAIR_CLIMBING':
-        return '🪜';
+        return Icons.stairs;
       case 'HIKING':
-        return '🥾';
+        return Icons.terrain;
       case 'DANCE':
-        return '💃';
+        return Icons.music_note;
+      case 'COOLDOWN':
+        return Icons.ac_unit;
+      case 'CORE_TRAINING':
+        return Icons.sports_martial_arts;
+      case 'FLEXIBILITY':
+        return Icons.sports_gymnastics;
       default:
-        return '🏋️';
+        return Icons.fitness_center;
     }
   }
 

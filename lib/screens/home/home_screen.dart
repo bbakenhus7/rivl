@@ -829,7 +829,7 @@ class _WorkoutTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Center(
-              child: Text(workout.icon, style: const TextStyle(fontSize: 20)),
+              child: Icon(workout.iconData, color: RivlColors.primary, size: 22),
             ),
           ),
           const SizedBox(width: 12),
