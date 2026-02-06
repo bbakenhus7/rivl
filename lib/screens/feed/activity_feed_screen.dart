@@ -29,8 +29,11 @@ class _ActivityFeedScreenState extends State<ActivityFeedScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ActivityFeedProvider>().startListening();
       final auth = context.read<AuthProvider>();
+      final battlePass = context.read<BattlePassProvider>();
       if (auth.user != null) {
-        context.read<BattlePassProvider>().loadProgress(auth.user!.id);
+        battlePass.loadProgress(auth.user!.id);
+      } else {
+        battlePass.ensureDemoData();
       }
     });
   }
