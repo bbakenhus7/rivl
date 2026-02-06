@@ -144,16 +144,14 @@ class WaitlistBanner extends StatelessWidget {
             style: TextButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: RivlColors.primary,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
             ),
             child: const Text(
               'Join Waitlist',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
           ),
         ],
