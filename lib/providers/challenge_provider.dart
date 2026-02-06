@@ -24,7 +24,7 @@ class ChallengeProvider extends ChangeNotifier {
 
   // Create challenge form state
   UserModel? _selectedOpponent;
-  StakeOption _selectedStake = StakeOption.options[3]; // $15 default
+  StakeOption _selectedStake = StakeOption.options[2]; // $25 default
   ChallengeDuration _selectedDuration = ChallengeDuration.oneWeek;
   GoalType _selectedGoalType = GoalType.steps;
 
@@ -159,7 +159,7 @@ class ChallengeProvider extends ChangeNotifier {
 
   void resetCreateForm() {
     _selectedOpponent = null;
-    _selectedStake = StakeOption.options[3];
+    _selectedStake = StakeOption.options[2];
     _selectedDuration = ChallengeDuration.oneWeek;
     _selectedGoalType = GoalType.steps;
     notifyListeners();

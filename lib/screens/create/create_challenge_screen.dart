@@ -206,13 +206,29 @@ class _StakeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Check if selected stake is a custom value (not in preset list)
+    final isCustomSelected = !StakeOption.options
+        .any((o) => o.amount == selectedStake.amount);
+
     return Wrap(
       spacing: 12,
       runSpacing: 12,
       children: StakeOption.options.map((option) {
-        final isSelected = selectedStake.amount == option.amount;
+        final bool isSelected;
+        if (option.isCustom) {
+          isSelected = isCustomSelected;
+        } else {
+          isSelected = selectedStake.amount == option.amount;
+        }
+
         return GestureDetector(
-          onTap: () => onChanged(option),
+          onTap: () {
+            if (option.isCustom) {
+              _showCustomStakeDialog(context);
+            } else {
+              onChanged(option);
+            }
+          },
           child: Container(
             width: (MediaQuery.of(context).size.width - 56) / 3,
             padding: const EdgeInsets.all(16),
@@ -227,7 +243,9 @@ class _StakeSelector extends StatelessWidget {
             child: Column(
               children: [
                 Text(
-                  option.displayAmount,
+                  option.isCustom
+                      ? (isCustomSelected ? '\$${selectedStake.amount.toInt()}' : 'Custom')
+                      : option.displayAmount,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
@@ -236,7 +254,9 @@ class _StakeSelector extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  option.amount == 0 ? 'For fun!' : 'Win ${option.displayPrize}',
+                  option.isCustom
+                      ? (isCustomSelected ? 'Win ${selectedStake.displayPrize}' : 'Set amount')
+                      : (option.amount == 0 ? 'For fun!' : 'Win ${option.displayPrize}'),
                   style: RivlTextStyles.caption,
                 ),
               ],
@@ -244,6 +264,41 @@ class _StakeSelector extends StatelessWidget {
           ),
         );
       }).toList(),
+    );
+  }
+
+  void _showCustomStakeDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Custom Stake'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          decoration: const InputDecoration(
+            prefixText: '\$ ',
+            hintText: 'Enter amount (5-500)',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final value = double.tryParse(controller.text);
+              if (value != null && value >= 5 && value <= 500) {
+                onChanged(StakeOption.custom(value));
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Set'),
+          ),
+        ],
+      ),
     );
   }
 }
