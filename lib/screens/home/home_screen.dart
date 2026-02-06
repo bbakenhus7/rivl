@@ -86,9 +86,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               Consumer<AuthProvider>(
                                 builder: (context, auth, _) {
-                                  final name = auth.user?.displayName.split(' ').first ?? 'there';
                                   return Text(
-                                    'Hey, $name',
+                                    'AI-Powered Fitness Competition',
                                     style: TextStyle(
                                       color: Colors.white.withOpacity(0.9),
                                       fontSize: 14,
