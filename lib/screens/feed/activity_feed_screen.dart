@@ -48,7 +48,7 @@ class _ActivityFeedScreenState extends State<ActivityFeedScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Feed'),
+        title: const Text('RIVL Hub'),
         bottom: TabBar(
           controller: _tabController,
           labelColor: RivlColors.primary,

@@ -138,7 +138,7 @@ class _MainScreenState extends State<MainScreen> {
               const NavigationDestination(
                 icon: Icon(Icons.dynamic_feed_outlined),
                 selectedIcon: Icon(Icons.dynamic_feed),
-                label: 'Feed',
+                label: 'Hub',
               ),
               const NavigationDestination(
                 icon: Icon(Icons.person_outlined),
