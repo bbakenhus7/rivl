@@ -41,6 +41,131 @@ class HealthService {
   }
 
   // ============================================
+  // CHALLENGE PROGRESS (multi-metric)
+  // ============================================
+
+  /// Fetch cumulative progress for a challenge based on its goal type.
+  /// Returns (totalProgress, dailyHistory) as demo data for now.
+  Future<({int total, List<DailySteps> history})> getProgressForChallenge({
+    required GoalType goalType,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final days = endDate.difference(startDate).inDays + 1;
+    final rnd = Random(42);
+
+    switch (goalType) {
+      case GoalType.steps:
+        final history = List.generate(days, (i) {
+          final date = startDate.add(Duration(days: i));
+          return DailySteps(
+            date: date.toIso8601String().split('T').first,
+            steps: 3000 + rnd.nextInt(7000),
+            source: 'demo',
+            syncedAt: DateTime.now(),
+          );
+        });
+        final total = history.fold<int>(0, (sum, d) => sum + d.steps);
+        return (total: total, history: history);
+
+      case GoalType.distance:
+        // Distance in miles (stored as whole int, e.g. 22 = 22 mi)
+        final history = List.generate(days, (i) {
+          final date = startDate.add(Duration(days: i));
+          return DailySteps(
+            date: date.toIso8601String().split('T').first,
+            steps: 2 + rnd.nextInt(5), // 2-6 miles/day
+            source: 'demo',
+            syncedAt: DateTime.now(),
+          );
+        });
+        final total = history.fold<int>(0, (sum, d) => sum + d.steps);
+        return (total: total, history: history);
+
+      case GoalType.sleepDuration:
+        // Sleep stored as total hours (int), e.g. 56 = 56 hrs over challenge
+        final history = List.generate(days, (i) {
+          final date = startDate.add(Duration(days: i));
+          return DailySteps(
+            date: date.toIso8601String().split('T').first,
+            steps: 6 + rnd.nextInt(3), // 6-8 hours/night
+            source: 'demo',
+            syncedAt: DateTime.now(),
+          );
+        });
+        final total = history.fold<int>(0, (sum, d) => sum + d.steps);
+        return (total: total, history: history);
+
+      case GoalType.vo2Max:
+        // VO2 Max stored as x10 int (e.g. 425 = 42.5 mL/kg/min)
+        // For VO2 Max we track the latest reading, not cumulative
+        final latest = 350 + rnd.nextInt(150); // 35.0 - 50.0
+        final history = [
+          DailySteps(
+            date: DateTime.now().toIso8601String().split('T').first,
+            steps: latest,
+            source: 'demo',
+            syncedAt: DateTime.now(),
+          ),
+        ];
+        return (total: latest, history: history);
+
+      case GoalType.milePace:
+        // Pace stored in seconds (e.g. 480 = 8:00 min/mi)
+        // Lower is better — track best (lowest) pace
+        final best = 420 + rnd.nextInt(180); // 7:00 - 10:00
+        final history = [
+          DailySteps(
+            date: DateTime.now().toIso8601String().split('T').first,
+            steps: best,
+            source: 'demo',
+            syncedAt: DateTime.now(),
+          ),
+        ];
+        return (total: best, history: history);
+
+      case GoalType.fiveKPace:
+        // 5K time stored in seconds (e.g. 1500 = 25:00)
+        final best = 1200 + rnd.nextInt(600); // 20:00 - 30:00
+        final history = [
+          DailySteps(
+            date: DateTime.now().toIso8601String().split('T').first,
+            steps: best,
+            source: 'demo',
+            syncedAt: DateTime.now(),
+          ),
+        ];
+        return (total: best, history: history);
+
+      case GoalType.tenKPace:
+        // 10K time stored in seconds (e.g. 3000 = 50:00)
+        final best = 2400 + rnd.nextInt(1200); // 40:00 - 60:00
+        final history = [
+          DailySteps(
+            date: DateTime.now().toIso8601String().split('T').first,
+            steps: best,
+            source: 'demo',
+            syncedAt: DateTime.now(),
+          ),
+        ];
+        return (total: best, history: history);
+
+      case GoalType.rivlHealthScore:
+        // RIVL Health Score 0-100, track latest
+        final latest = 50 + rnd.nextInt(40); // 50-90
+        final history = [
+          DailySteps(
+            date: DateTime.now().toIso8601String().split('T').first,
+            steps: latest,
+            source: 'demo',
+            syncedAt: DateTime.now(),
+          ),
+        ];
+        return (total: latest, history: history);
+    }
+  }
+
+  // ============================================
   // LEGACY METHODS (for backwards compatibility)
   // ============================================
 
