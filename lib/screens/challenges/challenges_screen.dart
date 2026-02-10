@@ -269,7 +269,7 @@ class IllustratedEmptyState extends StatelessWidget {
                 subtitle,
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey[500],
+                  color: context.textSecondary,
                   height: 1.5,
                 ),
                 textAlign: TextAlign.center,

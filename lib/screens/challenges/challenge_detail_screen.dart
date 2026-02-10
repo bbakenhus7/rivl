@@ -217,8 +217,12 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                           shape: BoxShape.circle,
                                           gradient: LinearGradient(
                                             colors: [
-                                              Colors.grey.shade300,
-                                              Colors.grey.shade100,
+                                              Theme.of(context).brightness == Brightness.dark
+                                                  ? Colors.grey.shade700
+                                                  : Colors.grey.shade300,
+                                              Theme.of(context).brightness == Brightness.dark
+                                                  ? Colors.grey.shade800
+                                                  : Colors.grey.shade100,
                                             ],
                                             begin: Alignment.topLeft,
                                             end: Alignment.bottomRight,
@@ -230,7 +234,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                             style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.w900,
-                                              color: Colors.grey.shade600,
+                                              color: context.textSecondary,
                                               letterSpacing: 1,
                                             ),
                                           ),
@@ -372,7 +376,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                     ],
                                   ),
                             color: provider.isSyncing
-                                ? Colors.grey.shade300
+                                ? context.surfaceVariant
                                 : null,
                             borderRadius: BorderRadius.circular(14),
                           ),
@@ -613,8 +617,10 @@ class _TimelineBar extends StatelessWidget {
         const SizedBox(height: 6),
         AnimatedProgress(
           value: progress,
-          color: Colors.grey.shade400,
-          backgroundColor: Colors.grey.shade200,
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey.shade600
+              : Colors.grey.shade400,
+          backgroundColor: context.surfaceVariant,
           height: 6,
           borderRadius: 3,
           duration: const Duration(milliseconds: 800),
@@ -916,7 +922,7 @@ class _QuickRematchCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               'Same settings vs ${opponentName ?? 'opponent'}',
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(color: context.textSecondary),
             ),
             const SizedBox(height: 16),
             Row(

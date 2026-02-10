@@ -49,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: ctx.surfaceVariant,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -73,12 +73,12 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               'RIVL is an AI-powered fitness competition app that turns your health data into real stakes. '
               'Challenge friends to step counts, distance, sleep, and more — with real money on the line.',
-              style: TextStyle(fontSize: 15, color: Colors.grey[700], height: 1.5),
+              style: TextStyle(fontSize: 15, color: ctx.textSecondary, height: 1.5),
             ),
             const SizedBox(height: 12),
             Text(
               'How it works:',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: ctx.textSecondary),
             ),
             const SizedBox(height: 8),
             _InfoBullet(text: 'Connect your wearable (Apple Watch, Fitbit, Garmin, etc.)'),
@@ -103,7 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: RefreshIndicator(
         onRefresh: () async {
           await context.read<HealthProvider>().refreshData();
@@ -396,7 +396,7 @@ class _ScoreCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.surface,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -431,7 +431,7 @@ class _ScoreCard extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 15,
-                    color: Colors.grey[700],
+                    color: context.textSecondary,
                   ),
                 ),
               ),
@@ -513,7 +513,7 @@ class _ActivityBarsCard extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: context.surface,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
@@ -642,7 +642,7 @@ class _ActivityBarsCard extends StatelessWidget {
                         Text(
                           'steps',
                           style: TextStyle(
-                            color: Colors.grey[500],
+                            color: context.textSecondary,
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
@@ -659,6 +659,7 @@ class _ActivityBarsCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _buildRingLegend(
+                    context: context,
                     color: RivlColors.primary,
                     label: 'Steps',
                     value: health.formatSteps(health.todaySteps),
@@ -667,9 +668,10 @@ class _ActivityBarsCard extends StatelessWidget {
                   Container(
                     width: 1,
                     height: 40,
-                    color: Colors.grey[200],
+                    color: context.surfaceVariant,
                   ),
                   _buildRingLegend(
+                    context: context,
                     color: Colors.green,
                     label: 'Calories',
                     value: health.formatCalories(health.activeCalories),
@@ -678,9 +680,10 @@ class _ActivityBarsCard extends StatelessWidget {
                   Container(
                     width: 1,
                     height: 40,
-                    color: Colors.grey[200],
+                    color: context.surfaceVariant,
                   ),
                   _buildRingLegend(
+                    context: context,
                     color: Colors.cyan,
                     label: 'Distance',
                     value: health.formatDistance(health.distance),
@@ -696,6 +699,7 @@ class _ActivityBarsCard extends StatelessWidget {
   }
 
   Widget _buildRingLegend({
+    required BuildContext context,
     required Color color,
     required String label,
     required String value,
@@ -718,7 +722,7 @@ class _ActivityBarsCard extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: Colors.grey[600],
+                color: context.textSecondary,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
@@ -736,7 +740,7 @@ class _ActivityBarsCard extends StatelessWidget {
         Text(
           '/ $goal',
           style: TextStyle(
-            color: Colors.grey[400],
+            color: context.textSecondary,
             fontSize: 11,
           ),
         ),
@@ -833,7 +837,7 @@ class _ActivityBar extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: Colors.grey[700],
+                color: context.textSecondary,
                 fontWeight: FontWeight.w500,
                 fontSize: 14,
               ),
@@ -849,7 +853,7 @@ class _ActivityBar extends StatelessWidget {
             Text(
               ' / $goal',
               style: TextStyle(
-                color: Colors.grey[500],
+                color: context.textSecondary,
                 fontSize: 14,
               ),
             ),
@@ -1028,7 +1032,7 @@ class _MetricTile extends StatelessWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: ctx.surfaceVariant,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1063,7 +1067,7 @@ class _MetricTile extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               description,
-              style: TextStyle(fontSize: 15, color: Colors.grey[700], height: 1.5),
+              style: TextStyle(fontSize: 15, color: ctx.textSecondary, height: 1.5),
             ),
           ],
         ),
@@ -1078,7 +1082,7 @@ class _MetricTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.surface,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
@@ -1107,7 +1111,7 @@ class _MetricTile extends StatelessWidget {
                   child: Text(
                     label,
                     style: TextStyle(
-                      color: Colors.grey[600],
+                      color: context.textSecondary,
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),
@@ -1142,7 +1146,7 @@ class _MetricTile extends StatelessWidget {
                     child: Text(
                       unit,
                       style: TextStyle(
-                        color: Colors.grey[500],
+                        color: context.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
@@ -1173,7 +1177,7 @@ class _WeeklyStepsCard extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: context.surface,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
@@ -1192,7 +1196,7 @@ class _WeeklyStepsCard extends StatelessWidget {
                   const Text('This Week', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   Text(
                     '${health.formatSteps(health.weeklyTotal)} total',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    style: TextStyle(color: context.textSecondary, fontSize: 14),
                   ),
                 ],
               ),
@@ -1242,7 +1246,7 @@ class _WeeklyStepsCard extends StatelessWidget {
                           dayName,
                           style: TextStyle(
                             fontSize: 12,
-                            color: isToday ? RivlColors.primary : Colors.grey[600],
+                            color: isToday ? RivlColors.primary : context.textSecondary,
                             fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
                           ),
                         ),
@@ -1285,7 +1289,7 @@ class _WeeklyStat extends StatelessWidget {
     return Column(
       children: [
         Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+        Text(label, style: TextStyle(color: context.textSecondary, fontSize: 12)),
       ],
     );
   }
@@ -1305,7 +1309,7 @@ class _RecentWorkoutsCard extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: context.surface,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
@@ -1359,14 +1363,14 @@ class _WorkoutTile extends StatelessWidget {
                 Text(workout.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
                 Text(
                   '${workout.formattedDuration} • ${workout.calories} cal',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  style: TextStyle(color: context.textSecondary, fontSize: 13),
                 ),
               ],
             ),
           ),
           Text(
             _formatDate(workout.date),
-            style: TextStyle(color: Colors.grey[500], fontSize: 12),
+            style: TextStyle(color: context.textSecondary, fontSize: 12),
           ),
         ],
       ),
@@ -1407,7 +1411,7 @@ class _InfoBullet extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: TextStyle(fontSize: 14, color: Colors.grey[700], height: 1.4),
+              style: TextStyle(fontSize: 14, color: context.textSecondary, height: 1.4),
             ),
           ),
         ],

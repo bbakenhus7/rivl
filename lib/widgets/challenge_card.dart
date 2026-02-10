@@ -42,7 +42,7 @@ class ChallengeCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: accentColor.withOpacity(isWinning || (isCompleted && didWin) ? 0.3 : 0.08),
@@ -116,20 +116,20 @@ class ChallengeCard extends StatelessWidget {
                                   challenge.statusDisplayName,
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.grey[600],
+                                    color: context.textSecondary,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
                                 if (challenge.status == ChallengeStatus.active) ...[
                                   Text(
                                     '  •  ',
-                                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                                    style: TextStyle(color: context.textSecondary, fontSize: 12),
                                   ),
                                   Text(
                                     challenge.timeRemaining,
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey[500],
+                                      color: context.textSecondary,
                                     ),
                                   ),
                                 ],
@@ -157,7 +157,7 @@ class ChallengeCard extends StatelessWidget {
                               'prize',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.grey[500],
+                                color: context.textSecondary,
                               ),
                             ),
                         ],
@@ -182,7 +182,7 @@ class ChallengeCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: didWin
                             ? RivlColors.success.withOpacity(0.08)
-                            : Colors.grey[100],
+                            : context.surfaceVariant,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -191,7 +191,7 @@ class ChallengeCard extends StatelessWidget {
                           Icon(
                             didWin ? Icons.emoji_events : Icons.close,
                             size: 16,
-                            color: didWin ? RivlColors.success : Colors.grey[600],
+                            color: didWin ? RivlColors.success : context.textSecondary,
                           ),
                           const SizedBox(width: 6),
                           Text(
@@ -199,7 +199,7 @@ class ChallengeCard extends StatelessWidget {
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
-                              color: didWin ? RivlColors.success : Colors.grey[600],
+                              color: didWin ? RivlColors.success : context.textSecondary,
                             ),
                           ),
                         ],
@@ -249,7 +249,7 @@ class _HeadToHeadProgress extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: isWinning ? RivlColors.success : Colors.grey[700],
+                    color: isWinning ? RivlColors.success : context.textSecondary,
                   ),
                 ),
                 if (isWinning) ...[
@@ -265,7 +265,7 @@ class _HeadToHeadProgress extends StatelessWidget {
                 fontWeight: FontWeight.w500,
                 color: !isWinning && challenge.opponentProgress > 0
                     ? Colors.orange[700]
-                    : Colors.grey[600],
+                    : context.textSecondary,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -296,7 +296,7 @@ class _HeadToHeadProgress extends StatelessWidget {
                 ),
                 Expanded(
                   flex: ((1 - youProgress) * 100).toInt().clamp(1, 100),
-                  child: Container(color: Colors.grey[200]),
+                  child: Container(color: context.surfaceVariant),
                 ),
               ],
             ),
@@ -320,7 +320,7 @@ class _HeadToHeadProgress extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: Colors.grey[600],
+                color: context.textSecondary,
               ),
             ),
           ],

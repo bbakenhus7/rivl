@@ -245,9 +245,9 @@ class _QuickStatsRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(child: _QuickStat(value: '${user.wins}', label: 'Wins', color: RivlColors.success)),
-        Container(width: 1, height: 40, color: Colors.grey[200]),
+        Container(width: 1, height: 40, color: context.surfaceVariant),
         Expanded(child: _QuickStat(value: '${user.losses}', label: 'Losses', color: RivlColors.error)),
-        Container(width: 1, height: 40, color: Colors.grey[200]),
+        Container(width: 1, height: 40, color: context.surfaceVariant),
         Expanded(child: _QuickStat(value: user.winPercentage, label: 'Win Rate', color: RivlColors.primary)),
       ],
     );
@@ -279,7 +279,7 @@ class _QuickStat extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w500,
-            color: Colors.grey[600],
+            color: context.textSecondary,
           ),
         ),
       ],
@@ -365,7 +365,7 @@ class _DetailedStats extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 2)),
@@ -442,7 +442,7 @@ class _StatRow extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[700])),
+          child: Text(label, style: TextStyle(fontSize: 14, color: context.textSecondary)),
         ),
         Text(
           value,
@@ -472,7 +472,7 @@ class _AchievementsSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 2)),
@@ -487,7 +487,7 @@ class _AchievementsSection extends StatelessWidget {
               const Text('Achievements', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
               Text(
                 '${achievements.where((a) => a.unlocked).length}/${achievements.length}',
-                style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w500),
+                style: TextStyle(fontSize: 13, color: context.textSecondary, fontWeight: FontWeight.w500),
               ),
             ],
           ),
@@ -527,7 +527,7 @@ class _AchievementBadge extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: unlocked ? Colors.amber.withOpacity(0.1) : Colors.grey[100],
+              color: unlocked ? Colors.amber.withOpacity(0.1) : context.surfaceVariant,
               borderRadius: BorderRadius.circular(14),
               border: unlocked
                   ? Border.all(color: Colors.amber.withOpacity(0.3), width: 1.5)
@@ -536,7 +536,7 @@ class _AchievementBadge extends StatelessWidget {
             child: Icon(
               achievement.icon,
               size: 28,
-              color: unlocked ? Colors.amber[700] : Colors.grey[400],
+              color: unlocked ? Colors.amber[700] : context.textSecondary,
             ),
           ),
           const SizedBox(height: 6),
@@ -545,7 +545,7 @@ class _AchievementBadge extends StatelessWidget {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: unlocked ? Colors.grey[800] : Colors.grey[400],
+              color: unlocked ? context.textPrimary : context.textSecondary,
             ),
             textAlign: TextAlign.center,
             maxLines: 1,
@@ -567,7 +567,7 @@ class _ReferralSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 2)),
@@ -587,14 +587,14 @@ class _ReferralSection extends StatelessWidget {
                 child: const Icon(Icons.people, size: 18, color: RivlColors.primary),
               ),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Refer Friends', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                    const Text('Refer Friends', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                     Text(
                       'Earn \$2 for each friend who joins!',
-                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                      style: TextStyle(color: context.textSecondary, fontSize: 13),
                     ),
                   ],
                 ),
@@ -640,7 +640,7 @@ class _ReferralSection extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('${user.referralCount} referrals', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+              Text('${user.referralCount} referrals', style: TextStyle(color: context.textSecondary, fontSize: 13)),
               Text(
                 '+\$${user.referralEarnings.toStringAsFixed(2)}',
                 style: const TextStyle(fontWeight: FontWeight.bold, color: RivlColors.success, fontSize: 14),
@@ -658,7 +658,7 @@ class _AccountActions extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 2)),
@@ -667,9 +667,9 @@ class _AccountActions extends StatelessWidget {
       child: Column(
         children: [
           _ActionTile(icon: Icons.health_and_safety, label: 'Health App Connection', onTap: () {}),
-          Divider(height: 1, indent: 56, color: Colors.grey[100]),
+          Divider(height: 1, indent: 56, color: context.surfaceVariant),
           _ActionTile(icon: Icons.notifications_outlined, label: 'Notifications', onTap: () {}),
-          Divider(height: 1, indent: 56, color: Colors.grey[100]),
+          Divider(height: 1, indent: 56, color: context.surfaceVariant),
           _ActionTile(icon: Icons.help_outline, label: 'Help & Support', onTap: () {}),
         ],
       ),
@@ -696,14 +696,14 @@ class _ActionTile extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: context.surfaceVariant,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, size: 18, color: Colors.grey[700]),
+              child: Icon(icon, size: 18, color: context.textSecondary),
             ),
             const SizedBox(width: 12),
             Expanded(child: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500))),
-            Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+            Icon(Icons.chevron_right, color: context.textSecondary, size: 20),
           ],
         ),
       ),
@@ -726,7 +726,7 @@ class _SettingsSheet extends StatelessWidget {
             height: 4,
             margin: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
-              color: Colors.grey[300],
+              color: context.surfaceVariant,
               borderRadius: BorderRadius.circular(2),
             ),
           ),

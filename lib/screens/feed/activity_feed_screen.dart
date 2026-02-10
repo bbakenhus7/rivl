@@ -52,7 +52,7 @@ class _ActivityFeedScreenState extends State<ActivityFeedScreen>
         bottom: TabBar(
           controller: _tabController,
           labelColor: RivlColors.primary,
-          unselectedLabelColor: Colors.grey,
+          unselectedLabelColor: context.textSecondary,
           indicatorColor: RivlColors.primary,
           indicatorSize: TabBarIndicatorSize.label,
           tabs: const [
@@ -94,20 +94,20 @@ class _ActivityTab extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.dynamic_feed, size: 64, color: Colors.grey[400]),
+                Icon(Icons.dynamic_feed, size: 64, color: context.textSecondary),
                 const SizedBox(height: 16),
                 Text(
                   'No activity yet',
                   style: TextStyle(
                     fontSize: 18,
-                    color: Colors.grey[600],
+                    color: context.textSecondary,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Challenge someone to get the feed going!',
-                  style: TextStyle(color: Colors.grey[500]),
+                  style: TextStyle(color: context.textSecondary),
                 ),
               ],
             ),
@@ -323,7 +323,7 @@ class _PodiumCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        Text('${entry.wins} wins', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+        Text('${entry.wins} wins', style: TextStyle(fontSize: 11, color: context.textSecondary)),
         const SizedBox(height: 6),
         Container(
           width: isFirst ? 85 : 70,
@@ -375,7 +375,7 @@ class _LeaderboardTile extends StatelessWidget {
                 '#${entry.rank}',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: entry.isCurrentUser ? RivlColors.primary : Colors.grey[600],
+                  color: entry.isCurrentUser ? RivlColors.primary : context.textSecondary,
                 ),
               ),
             ),
@@ -421,7 +421,7 @@ class _LeaderboardTile extends StatelessWidget {
                       ],
                     ],
                   ),
-                  Text('@${entry.username}', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                  Text('@${entry.username}', style: TextStyle(fontSize: 12, color: context.textSecondary)),
                 ],
               ),
             ),
@@ -429,7 +429,7 @@ class _LeaderboardTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text('${entry.wins} wins', style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text('${(entry.winRate * 100).toInt()}%', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                Text('${(entry.winRate * 100).toInt()}%', style: TextStyle(fontSize: 12, color: context.textSecondary)),
               ],
             ),
           ],
@@ -462,9 +462,9 @@ class _SeasonTab extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.military_tech, size: 64, color: Colors.grey[400]),
+                Icon(Icons.military_tech, size: 64, color: context.textSecondary),
                 const SizedBox(height: 16),
-                Text('No season data', style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+                Text('No season data', style: TextStyle(fontSize: 18, color: context.textSecondary)),
               ],
             ),
           );
@@ -612,7 +612,7 @@ class _SeasonTab extends StatelessWidget {
                             ),
                             Text(
                               'Get gift cards, electrolytes, gear & more',
-                              style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                              style: TextStyle(color: context.textSecondary, fontSize: 12),
                             ),
                           ],
                         ),
@@ -710,7 +710,7 @@ class _BattlePassBar extends StatelessWidget {
                     borderRadius: BorderRadius.circular(2),
                     child: LinearProgressIndicator(
                       value: segmentProgress,
-                      backgroundColor: Colors.grey[300],
+                      backgroundColor: context.surfaceVariant,
                       valueColor: AlwaysStoppedAnimation<Color>(
                         isUnlocked ? RivlColors.success : RivlColors.primary,
                       ),
@@ -769,9 +769,9 @@ class _TierNode extends StatelessWidget {
       iconColor = RivlColors.primary;
       borderColor = RivlColors.primary;
     } else {
-      bgColor = Colors.grey[100]!;
-      iconColor = Colors.grey[400]!;
-      borderColor = Colors.grey[300]!;
+      bgColor = context.surfaceVariant;
+      iconColor = context.textSecondary;
+      borderColor = context.surfaceVariant;
     }
 
     return Column(
@@ -797,7 +797,7 @@ class _TierNode extends StatelessWidget {
           style: TextStyle(
             fontSize: 11,
             fontWeight: isActive || isUnlocked ? FontWeight.bold : FontWeight.normal,
-            color: isActive ? RivlColors.primary : isUnlocked ? RivlColors.success : Colors.grey[500],
+            color: isActive ? RivlColors.primary : isUnlocked ? RivlColors.success : context.textSecondary,
           ),
         ),
       ],
@@ -835,12 +835,12 @@ class _TierRewardCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isUnlocked
               ? RivlColors.success.withOpacity(0.4)
-              : Colors.grey[200]!,
+              : context.surfaceVariant,
           width: isUnlocked ? 1.5 : 1,
         ),
         boxShadow: [
@@ -859,7 +859,7 @@ class _TierRewardCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: isUnlocked
                   ? RivlColors.success.withOpacity(0.06)
-                  : Colors.grey[50],
+                  : context.surfaceVariant,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
             ),
             child: Row(
@@ -868,7 +868,7 @@ class _TierRewardCard extends StatelessWidget {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: isUnlocked ? RivlColors.success : Colors.grey[300],
+                    color: isUnlocked ? RivlColors.success : context.surfaceVariant,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Center(
@@ -879,7 +879,7 @@ class _TierRewardCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Colors.grey[600],
+                              color: context.textSecondary,
                             ),
                           ),
                   ),
@@ -903,7 +903,7 @@ class _TierRewardCard extends StatelessWidget {
                             : '${(xpNeeded - currentXP).clamp(0, xpNeeded)} XP to unlock',
                         style: TextStyle(
                           fontSize: 12,
-                          color: isUnlocked ? RivlColors.success : Colors.grey[500],
+                          color: isUnlocked ? RivlColors.success : context.textSecondary,
                         ),
                       ),
                     ],
@@ -914,7 +914,7 @@ class _TierRewardCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: isUnlocked
                         ? RivlColors.success.withOpacity(0.1)
-                        : Colors.grey[200],
+                        : context.surfaceVariant,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -922,7 +922,7 @@ class _TierRewardCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: isUnlocked ? RivlColors.success : Colors.grey[600],
+                      color: isUnlocked ? RivlColors.success : context.textSecondary,
                     ),
                   ),
                 ),
@@ -953,7 +953,7 @@ class _TierRewardCard extends StatelessWidget {
                   width: 1,
                   height: 80,
                   margin: const EdgeInsets.symmetric(horizontal: 8),
-                  color: Colors.grey[200],
+                  color: context.surfaceVariant,
                 ),
                 // Premium track
                 Expanded(
@@ -1032,7 +1032,7 @@ class _RewardItem extends StatelessWidget {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: isLocked ? Colors.grey[100] : trackColor.withOpacity(0.1),
+                color: isLocked ? context.surfaceVariant : trackColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Stack(
@@ -1041,7 +1041,7 @@ class _RewardItem extends StatelessWidget {
                     child: Icon(
                       _rewardIcon(reward.type),
                       size: 18,
-                      color: isLocked ? Colors.grey[400] : trackColor,
+                      color: isLocked ? context.textSecondary : trackColor,
                     ),
                   ),
                   if (showLock)
@@ -1054,7 +1054,7 @@ class _RewardItem extends StatelessWidget {
                           color: Colors.white,
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(Icons.lock, size: 10, color: Colors.grey[500]),
+                        child: Icon(Icons.lock, size: 10, color: context.textSecondary),
                       ),
                     ),
                 ],
@@ -1067,7 +1067,7 @@ class _RewardItem extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 12,
-                  color: isLocked ? Colors.grey[400] : null,
+                  color: isLocked ? context.textSecondary : null,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -1118,7 +1118,7 @@ class _RewardItem extends StatelessWidget {
         else
           Text(
             showLock ? 'Premium only' : 'Locked',
-            style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+            style: TextStyle(fontSize: 11, color: context.textSecondary),
           ),
       ],
     );
@@ -1219,7 +1219,7 @@ class _ActivityFeedTile extends StatelessWidget {
                         ),
                         TextSpan(
                           text: ' ${_actionText(item)}',
-                          style: TextStyle(color: Colors.grey[700]),
+                          style: TextStyle(color: context.textSecondary),
                         ),
                       ],
                     ),
@@ -1249,7 +1249,7 @@ class _ActivityFeedTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     _timeAgo(item.createdAt),
-                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                    style: TextStyle(color: context.textSecondary, fontSize: 12),
                   ),
                 ],
               ),
@@ -1257,7 +1257,7 @@ class _ActivityFeedTile extends StatelessWidget {
             if (item.hasChallenge)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+                child: Icon(Icons.chevron_right, color: context.textSecondary, size: 20),
               ),
           ],
         ),

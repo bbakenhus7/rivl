@@ -1455,7 +1455,7 @@ class _OpponentPickerSheetState extends State<_OpponentPickerSheet> {
                   height: 4,
                   margin: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
-                    color: Colors.grey[400],
+                    color: context.surfaceVariant,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -1523,7 +1523,7 @@ class _OpponentPickerSheetState extends State<_OpponentPickerSheet> {
                               Icon(
                                 Icons.search,
                                 size: 56,
-                                color: Colors.grey[400],
+                                color: context.textSecondary,
                               ),
                               const SizedBox(height: 16),
                               Text(
@@ -1557,7 +1557,7 @@ class _OpponentPickerSheetState extends State<_OpponentPickerSheet> {
                               Icon(
                                 Icons.person_off_outlined,
                                 size: 56,
-                                color: Colors.grey[400],
+                                color: context.textSecondary,
                               ),
                               const SizedBox(height: 16),
                               Text(
