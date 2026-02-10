@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/challenge_provider.dart';
 import '../../models/challenge_model.dart';
 import '../../utils/theme.dart';
+import '../../utils/animations.dart';
 import '../../widgets/challenge_card.dart';
 import 'challenge_detail_screen.dart';
 
@@ -42,10 +43,64 @@ class _ChallengesScreenState extends State<ChallengesScreen> with SingleTickerPr
         title: const Text('Challenges'),
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: 'Active'),
-            Tab(text: 'Pending'),
-            Tab(text: 'History'),
+          tabs: [
+            Tab(
+              child: Consumer<ChallengeProvider>(
+                builder: (context, p, _) => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Active'),
+                    if (p.activeChallenges.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: RivlColors.success.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${p.activeChallenges.length}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: RivlColors.success,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            Tab(
+              child: Consumer<ChallengeProvider>(
+                builder: (context, p, _) => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Pending'),
+                    if (p.pendingChallenges.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${p.pendingChallenges.length}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const Tab(text: 'History'),
           ],
         ),
       ),
@@ -71,71 +126,162 @@ class _ChallengeList extends StatelessWidget {
     return Consumer<ChallengeProvider>(
       builder: (context, provider, _) {
         List<ChallengeModel> challenges;
-        String emptyMessage;
+        String emptyTitle;
+        String emptySubtitle;
         IconData emptyIcon;
+        Color emptyColor;
 
         switch (filter) {
           case ChallengeStatus.active:
             challenges = provider.activeChallenges;
-            emptyMessage = 'No active challenges';
+            emptyTitle = 'No active challenges';
+            emptySubtitle = 'Challenge a friend to get started!\nTap the + button to create one.';
             emptyIcon = Icons.local_fire_department;
+            emptyColor = RivlColors.secondary;
             break;
           case ChallengeStatus.pending:
             challenges = provider.pendingChallenges;
-            emptyMessage = 'No pending invites';
+            emptyTitle = 'No pending invites';
+            emptySubtitle = 'When someone challenges you,\nit will appear here.';
             emptyIcon = Icons.mail_outline;
+            emptyColor = Colors.orange;
             break;
           case ChallengeStatus.completed:
             challenges = provider.completedChallenges;
-            emptyMessage = 'No completed challenges';
-            emptyIcon = Icons.history;
+            emptyTitle = 'No history yet';
+            emptySubtitle = 'Completed challenges and\nyour results will show up here.';
+            emptyIcon = Icons.emoji_events_outlined;
+            emptyColor = Colors.purple;
             break;
           default:
             challenges = [];
-            emptyMessage = 'No challenges';
+            emptyTitle = 'No challenges';
+            emptySubtitle = '';
             emptyIcon = Icons.inbox;
+            emptyColor = Colors.grey;
         }
 
         if (challenges.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(emptyIcon, size: 64, color: Colors.grey[400]),
-                const SizedBox(height: 16),
-                Text(
-                  emptyMessage,
-                  style: RivlTextStyles.bodySecondary,
-                ),
-              ],
-            ),
+          return IllustratedEmptyState(
+            icon: emptyIcon,
+            title: emptyTitle,
+            subtitle: emptySubtitle,
+            accentColor: emptyColor,
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: challenges.length,
-          itemBuilder: (context, index) {
-            final challenge = challenges[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: ChallengeCard(
-                challenge: challenge,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ChallengeDetailScreen(challengeId: challenge.id),
-                    ),
-                  );
-                },
-              ),
-            );
+        return RefreshIndicator(
+          onRefresh: () async {
+            // Trigger refresh
           },
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: challenges.length,
+            itemBuilder: (context, index) {
+              final challenge = challenges[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: StaggeredListAnimation(
+                  index: index,
+                  child: ChallengeCard(
+                    challenge: challenge,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChallengeDetailScreen(challengeId: challenge.id),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
         );
       },
     );
   }
 }
 
-// ChallengeDetailScreen moved to challenge_detail_screen.dart
+/// Illustrated empty state widget for empty lists
+class IllustratedEmptyState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color? accentColor;
+  final Widget? action;
+
+  const IllustratedEmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.accentColor,
+    this.action,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = accentColor ?? RivlColors.primary;
+
+    return Center(
+      child: FadeIn(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Layered icon illustration
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.05),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  Container(
+                    width: 88,
+                    height: 88,
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.08),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  Icon(icon, size: 44, color: color.withOpacity(0.5)),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: context.textSecondary,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (action != null) ...[
+                const SizedBox(height: 24),
+                action!,
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

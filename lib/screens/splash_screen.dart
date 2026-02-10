@@ -15,11 +15,39 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  late Animation<double> _fadeAnim;
+  late Animation<double> _scaleAnim;
+  late Animation<Offset> _slideAnim;
+
   @override
   void initState() {
     super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+
+    _fadeAnim = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _animController, curve: const Interval(0, 0.6, curve: Curves.easeOut)),
+    );
+    _scaleAnim = Tween<double>(begin: 0.8, end: 1).animate(
+      CurvedAnimation(parent: _animController, curve: const Interval(0, 0.6, curve: Curves.easeOutBack)),
+    );
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero).animate(
+      CurvedAnimation(parent: _animController, curve: const Interval(0.2, 0.8, curve: Curves.easeOutCubic)),
+    );
+
+    _animController.forward();
     _checkAuth();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
   }
 
   Future<void> _checkAuth() async {
@@ -74,55 +102,91 @@ class _SplashScreenState extends State<SplashScreen> {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: RivlColors.primaryGradient,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF2277DD),
+              Color(0xFF3399FF),
+              Color(0xFF55AAFF),
+            ],
+          ),
         ),
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Logo
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
+          child: AnimatedBuilder(
+            animation: _animController,
+            builder: (context, child) {
+              return FadeTransition(
+                opacity: _fadeAnim,
+                child: SlideTransition(
+                  position: _slideAnim,
+                  child: ScaleTransition(
+                    scale: _scaleAnim,
+                    child: child,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.local_fire_department,
-                  size: 60,
-                  color: RivlColors.primary,
+              );
+            },
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Logo with glow
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.white.withOpacity(0.3),
+                        blurRadius: 30,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.local_fire_department,
+                    size: 56,
+                    color: RivlColors.primary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              
-              // App name
-              const Text(
-                'RIVL',
-                style: TextStyle(
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 4,
+                const SizedBox(height: 32),
+
+                // App name
+                const Text(
+                  'RIVL',
+                  style: TextStyle(
+                    fontSize: 52,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: 6,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              
-              // Tagline
-              Text(
-                'Challenge Friends. Win Rewards.',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white.withOpacity(0.9),
+                const SizedBox(height: 8),
+
+                // Tagline
+                Text(
+                  'AI-Powered Fitness Competition',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white.withOpacity(0.85),
+                    letterSpacing: 0.5,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 48),
-              
-              // Loading indicator
-              const CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 3,
-              ),
-            ],
+                const SizedBox(height: 48),
+
+                // Loading
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: CircularProgressIndicator(
+                    color: Colors.white.withOpacity(0.8),
+                    strokeWidth: 2.5,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
