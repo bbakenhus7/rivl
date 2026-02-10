@@ -410,12 +410,20 @@ async function completeChallenge(challengeId: string) {
       }
     });
 
+    // Also read progress directly from challenge document (used by newer goal types)
+    const creatorDocProgress = challengeData.creatorProgress || 0;
+    const opponentDocProgress = challengeData.opponentProgress || 0;
+
     // Determine winner based on goal type
     let winnerId = null;
     let winningScore = 0;
     let losingScore = 0;
 
+    // Pace-based goals: lower is better (faster time wins)
+    const lowerIsBetter = ['milePace', 'fiveKPace', 'tenKPace'];
+
     switch (goalType) {
+      // Legacy step-based goal types
       case 'total_steps':
         winnerId = creatorTotal > opponentTotal ? creatorId : opponentId;
         winningScore = Math.max(creatorTotal, opponentTotal);
@@ -434,6 +442,44 @@ async function completeChallenge(challengeId: string) {
         winnerId = creatorMax > opponentMax ? creatorId : opponentId;
         winningScore = Math.max(creatorMax, opponentMax);
         losingScore = Math.min(creatorMax, opponentMax);
+        break;
+
+      // Cumulative goal types (higher is better): steps, distance, sleepDuration
+      case 'steps':
+      case 'distance':
+      case 'sleepDuration':
+      case 'rivlHealthScore':
+      case 'vo2Max':
+        winnerId = creatorDocProgress > opponentDocProgress ? creatorId : opponentId;
+        winningScore = Math.max(creatorDocProgress, opponentDocProgress);
+        losingScore = Math.min(creatorDocProgress, opponentDocProgress);
+        break;
+
+      // Pace-based goal types (lower is better — faster time wins)
+      case 'milePace':
+      case 'fiveKPace':
+      case 'tenKPace':
+        // Lower value = faster = winner
+        // But if someone has 0 progress, they didn't record and should lose
+        if (creatorDocProgress === 0 && opponentDocProgress === 0) {
+          // Both no progress — draw, creator gets tie-breaker
+          winnerId = creatorId;
+        } else if (creatorDocProgress === 0) {
+          winnerId = opponentId;
+        } else if (opponentDocProgress === 0) {
+          winnerId = creatorId;
+        } else {
+          winnerId = creatorDocProgress < opponentDocProgress ? creatorId : opponentId;
+        }
+        winningScore = Math.min(creatorDocProgress || 999999, opponentDocProgress || 999999);
+        losingScore = Math.max(creatorDocProgress, opponentDocProgress);
+        break;
+
+      default:
+        // Fallback: use document progress, higher is better
+        winnerId = creatorDocProgress >= opponentDocProgress ? creatorId : opponentId;
+        winningScore = Math.max(creatorDocProgress, opponentDocProgress);
+        losingScore = Math.min(creatorDocProgress, opponentDocProgress);
         break;
     }
 
@@ -843,10 +889,12 @@ async function performAIAnalysis(params: {
   const thresholds: any = {
     steps: { max: 50000, suspicious: 30000 },
     distance: { max: 50, suspicious: 30 }, // miles
-    milePace: { min: 4, max: 20 }, // min/mile
-    fiveKPace: { min: 15, max: 60 }, // minutes
+    milePace: { min: 240, max: 1200 }, // seconds (4:00 - 20:00 min/mi)
+    fiveKPace: { min: 900, max: 3600 }, // seconds (15:00 - 60:00)
+    tenKPace: { min: 1800, max: 7200 }, // seconds (30:00 - 120:00)
     sleepDuration: { max: 16, suspicious: 12 }, // hours
-    vo2Max: { min: 20, max: 80 }, // ml/kg/min
+    vo2Max: { min: 200, max: 800 }, // x10 (20.0 - 80.0 ml/kg/min)
+    rivlHealthScore: { min: 0, max: 100 },
   };
 
   const limits = thresholds[params.goalType];

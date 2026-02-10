@@ -108,7 +108,16 @@ class ChallengeModel {
   });
 
   // Computed properties
-  bool get isUserWinning => creatorProgress > opponentProgress;
+  bool get isUserWinning {
+    if (goalType.higherIsBetter) {
+      return creatorProgress > opponentProgress;
+    } else {
+      // Pace-based: lower is better, but 0 means no data (losing)
+      if (creatorProgress == 0) return false;
+      if (opponentProgress == 0) return true;
+      return creatorProgress < opponentProgress;
+    }
+  }
   
   double get progressPercentage {
     if (goalValue == 0) return 0;
@@ -459,5 +468,66 @@ extension GoalTypeExtension on GoalType {
   bool get isAvailable {
     // All challenge types are now available
     return true;
+  }
+
+  /// Short unit label for displaying progress values
+  String get unit {
+    switch (this) {
+      case GoalType.steps:
+        return 'steps';
+      case GoalType.distance:
+        return 'mi';
+      case GoalType.milePace:
+        return 'min/mi';
+      case GoalType.fiveKPace:
+        return 'min';
+      case GoalType.tenKPace:
+        return 'min';
+      case GoalType.sleepDuration:
+        return 'hrs';
+      case GoalType.vo2Max:
+        return 'mL/kg/min';
+      case GoalType.rivlHealthScore:
+        return 'pts';
+    }
+  }
+
+  /// Whether higher progress value means winning (false for pace: lower = faster)
+  bool get higherIsBetter {
+    switch (this) {
+      case GoalType.milePace:
+      case GoalType.fiveKPace:
+      case GoalType.tenKPace:
+        return false;
+      default:
+        return true;
+    }
+  }
+
+  /// Format a raw progress int for display
+  String formatProgress(int value) {
+    switch (this) {
+      case GoalType.steps:
+        if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K';
+        return '$value';
+      case GoalType.distance:
+        return '$value';
+      case GoalType.milePace:
+      case GoalType.fiveKPace:
+      case GoalType.tenKPace:
+        final mins = value ~/ 60;
+        final secs = value % 60;
+        return '$mins:${secs.toString().padLeft(2, '0')}';
+      case GoalType.sleepDuration:
+        final h = value ~/ 10;
+        final decimal = value % 10;
+        return '$h.${decimal}';
+      case GoalType.vo2Max:
+        final whole = value ~/ 10;
+        final decimal = value % 10;
+        return '$whole.${decimal}';
+      case GoalType.rivlHealthScore:
+        return '$value';
+    }
   }
 }

@@ -71,13 +71,35 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
           }
 
           // Compute head-to-head bar fractions
-          final maxProgress = (userProgress > rivalProgress)
-              ? userProgress
-              : rivalProgress;
-          final double userBarFraction =
-              maxProgress > 0 ? userProgress / maxProgress : 0.0;
-          final double rivalBarFraction =
-              maxProgress > 0 ? rivalProgress / maxProgress : 0.0;
+          // For pace-based goals (lower = better), invert the bars
+          final double userBarFraction;
+          final double rivalBarFraction;
+          if (challenge.goalType.higherIsBetter) {
+            final maxProgress = (userProgress > rivalProgress)
+                ? userProgress
+                : rivalProgress;
+            userBarFraction =
+                maxProgress > 0 ? userProgress / maxProgress : 0.0;
+            rivalBarFraction =
+                maxProgress > 0 ? rivalProgress / maxProgress : 0.0;
+          } else {
+            // Pace: lower is better, so the lower value gets the longer bar
+            if (userProgress == 0 && rivalProgress == 0) {
+              userBarFraction = 0.0;
+              rivalBarFraction = 0.0;
+            } else {
+              final maxVal = (userProgress > rivalProgress)
+                  ? userProgress
+                  : rivalProgress;
+              // Invert: lower time = longer bar
+              userBarFraction = userProgress > 0
+                  ? (maxVal / userProgress).clamp(0.0, 1.0)
+                  : 0.0;
+              rivalBarFraction = rivalProgress > 0
+                  ? (maxVal / rivalProgress).clamp(0.0, 1.0)
+                  : 0.0;
+            }
+          }
 
           return ConfettiCelebration(
             celebrate: showCelebration,
@@ -166,7 +188,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                       rivalProgress: rivalProgress,
                       userFraction: userBarFraction,
                       rivalFraction: rivalBarFraction,
-                      goalUnit: challenge.goalType.displayName.toLowerCase(),
+                      goalUnit: challenge.goalType.unit,
+                      goalType: challenge.goalType,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -192,15 +215,14 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                   child: _AvatarColumn(
                                     name: challenge.creatorName,
                                     progress: challenge.creatorProgress,
-                                    goalUnit: challenge.goalType.displayName
-                                        .toLowerCase(),
+                                    goalUnit: challenge.goalType.unit,
+                                    goalType: challenge.goalType,
                                     color: RivlColors.primary,
                                     gradientColors: const [
                                       Color(0xFF3399FF),
                                       Color(0xFF66B2FF),
                                     ],
-                                    isLeading: challenge.creatorProgress >
-                                        challenge.opponentProgress,
+                                    isLeading: challenge.isUserWinning,
                                   ),
                                 ),
 
@@ -278,15 +300,15 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                   child: _AvatarColumn(
                                     name: challenge.opponentName ?? 'Opponent',
                                     progress: challenge.opponentProgress,
-                                    goalUnit: challenge.goalType.displayName
-                                        .toLowerCase(),
+                                    goalUnit: challenge.goalType.unit,
+                                    goalType: challenge.goalType,
                                     color: RivlColors.secondary,
                                     gradientColors: const [
                                       Color(0xFFFF6B5B),
                                       Color(0xFFFF9A8B),
                                     ],
-                                    isLeading: challenge.opponentProgress >
-                                        challenge.creatorProgress,
+                                    isLeading: !challenge.isUserWinning &&
+                                        challenge.opponentProgress > 0,
                                   ),
                                 ),
                               ],
@@ -323,7 +345,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                             bgColor: RivlColors.success.withOpacity(0.06),
                             label: 'Goal',
                             value:
-                                '${challenge.goalValue} ${challenge.goalType.displayName.toLowerCase()}',
+                                '${challenge.goalType.formatProgress(challenge.goalValue)} ${challenge.goalType.unit}',
                           ),
                           _DetailSection(
                             icon: Icons.schedule_outlined,
@@ -403,7 +425,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                   Text(
                                     provider.isSyncing
                                         ? 'Syncing...'
-                                        : 'Sync Steps',
+                                        : 'Sync ${challenge.goalType.displayName}',
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.w700,
@@ -467,6 +489,7 @@ class _HeadToHeadBars extends StatelessWidget {
   final double userFraction;
   final double rivalFraction;
   final String goalUnit;
+  final GoalType goalType;
 
   const _HeadToHeadBars({
     required this.userName,
@@ -476,6 +499,7 @@ class _HeadToHeadBars extends StatelessWidget {
     required this.userFraction,
     required this.rivalFraction,
     required this.goalUnit,
+    required this.goalType,
   });
 
   @override
@@ -506,6 +530,7 @@ class _HeadToHeadBars extends StatelessWidget {
               fraction: userFraction,
               color: RivlColors.primary,
               unit: goalUnit,
+              goalType: goalType,
             ),
             const SizedBox(height: 10),
             // Rival bar
@@ -515,6 +540,7 @@ class _HeadToHeadBars extends StatelessWidget {
               fraction: rivalFraction,
               color: RivlColors.secondary,
               unit: goalUnit,
+              goalType: goalType,
             ),
           ],
         ),
@@ -529,6 +555,7 @@ class _ProgressBarRow extends StatelessWidget {
   final double fraction;
   final Color color;
   final String unit;
+  final GoalType goalType;
 
   const _ProgressBarRow({
     required this.label,
@@ -536,6 +563,7 @@ class _ProgressBarRow extends StatelessWidget {
     required this.fraction,
     required this.color,
     required this.unit,
+    required this.goalType,
   });
 
   @override
@@ -553,15 +581,13 @@ class _ProgressBarRow extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            AnimatedCounter(
-              value: value,
-              duration: const Duration(milliseconds: 800),
+            Text(
+              '${goalType.formatProgress(value)} $unit',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: color,
               ),
-              suffix: ' $unit',
             ),
           ],
         ),
@@ -637,6 +663,7 @@ class _AvatarColumn extends StatelessWidget {
   final String name;
   final int progress;
   final String goalUnit;
+  final GoalType goalType;
   final Color color;
   final List<Color> gradientColors;
   final bool isLeading;
@@ -645,6 +672,7 @@ class _AvatarColumn extends StatelessWidget {
     required this.name,
     required this.progress,
     required this.goalUnit,
+    required this.goalType,
     required this.color,
     required this.gradientColors,
     required this.isLeading,
@@ -690,9 +718,8 @@ class _AvatarColumn extends StatelessWidget {
           maxLines: 1,
         ),
         const SizedBox(height: 2),
-        AnimatedCounter(
-          value: progress,
-          duration: const Duration(milliseconds: 800),
+        Text(
+          goalType.formatProgress(progress),
           style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w800,

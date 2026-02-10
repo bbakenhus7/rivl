@@ -303,12 +303,26 @@ class _HeadToHeadProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final youProgress = challenge.goalValue > 0
-        ? (challenge.creatorProgress / challenge.goalValue).clamp(0.0, 1.0)
-        : 0.0;
-    final opponentProgress = challenge.goalValue > 0
-        ? (challenge.opponentProgress / challenge.goalValue).clamp(0.0, 1.0)
-        : 0.0;
+    final double youProgress;
+    final double opponentProgress;
+
+    if (challenge.goalType.higherIsBetter) {
+      youProgress = challenge.goalValue > 0
+          ? (challenge.creatorProgress / challenge.goalValue).clamp(0.0, 1.0)
+          : 0.0;
+      opponentProgress = challenge.goalValue > 0
+          ? (challenge.opponentProgress / challenge.goalValue).clamp(0.0, 1.0)
+          : 0.0;
+    } else {
+      // Pace-based: progress toward goal is inverse (lower value = closer to goal)
+      // Show how close to the goal pace the user is (goal / actual)
+      youProgress = challenge.creatorProgress > 0
+          ? (challenge.goalValue / challenge.creatorProgress).clamp(0.0, 1.0)
+          : 0.0;
+      opponentProgress = challenge.opponentProgress > 0
+          ? (challenge.goalValue / challenge.opponentProgress).clamp(0.0, 1.0)
+          : 0.0;
+    }
 
     return Column(
       children: [
@@ -382,7 +396,7 @@ class _HeadToHeadProgress extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              _formatSteps(challenge.creatorProgress),
+              _formatProgress(challenge.creatorProgress),
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
@@ -390,7 +404,7 @@ class _HeadToHeadProgress extends StatelessWidget {
               ),
             ),
             Text(
-              _formatSteps(challenge.opponentProgress),
+              _formatProgress(challenge.opponentProgress),
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -403,11 +417,8 @@ class _HeadToHeadProgress extends StatelessWidget {
     );
   }
 
-  String _formatSteps(int steps) {
-    if (steps >= 1000) {
-      return '${(steps / 1000).toStringAsFixed(1)}K';
-    }
-    return '$steps';
+  String _formatProgress(int value) {
+    return challenge.goalType.formatProgress(value);
   }
 }
 
@@ -442,16 +453,14 @@ class _DailyGoalHint extends StatelessWidget {
     }
 
     final dailyPace = (stepsNeeded / daysLeft).ceil();
-    final unit = challenge.goalType == GoalType.steps
-        ? 'steps'
-        : challenge.goalType.displayName.toLowerCase();
+    final unit = challenge.goalType.unit;
 
     return Row(
       children: [
         Icon(Icons.trending_flat, size: 14, color: context.textSecondary),
         const SizedBox(width: 6),
         Text(
-          '${_formatNumber(dailyPace)} $unit/day needed  ·  $daysLeft days left',
+          '${challenge.goalType.formatProgress(dailyPace)} $unit/day needed  ·  $daysLeft days left',
           style: TextStyle(
             fontSize: 11,
             color: context.textSecondary,

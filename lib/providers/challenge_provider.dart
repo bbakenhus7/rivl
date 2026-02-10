@@ -232,17 +232,61 @@ class ChallengeProvider extends ChangeNotifier {
         totalPot: 50,
         prizeAmount: 48.50,
         goalType: GoalType.fiveKPace,
-        goalValue: 25,
+        goalValue: 1500, // 25:00 in seconds
         duration: ChallengeDuration.oneWeek,
         startDate: now.subtract(const Duration(days: 21)),
         endDate: now.subtract(const Duration(days: 14)),
-        creatorProgress: 22,
-        opponentProgress: 24,
+        creatorProgress: 1560, // 26:00
+        opponentProgress: 1440, // 24:00
         winnerId: 'demo-opponent-7',
         winnerName: 'Taylor W.',
         resultDeclaredAt: now.subtract(const Duration(days: 14)),
         createdAt: now.subtract(const Duration(days: 21)),
         updatedAt: now.subtract(const Duration(days: 14)),
+      ),
+      // Active: VO2 Max challenge
+      ChallengeModel(
+        id: 'demo-8',
+        creatorId: 'demo-user',
+        opponentId: 'demo-opponent-8',
+        creatorName: 'You',
+        opponentName: 'Olivia P.',
+        type: ChallengeType.headToHead,
+        status: ChallengeStatus.active,
+        stakeAmount: 10,
+        totalPot: 20,
+        prizeAmount: 19.40,
+        goalType: GoalType.vo2Max,
+        goalValue: 450, // 45.0 mL/kg/min
+        duration: ChallengeDuration.oneMonth,
+        startDate: now.subtract(const Duration(days: 10)),
+        endDate: now.add(const Duration(days: 20)),
+        creatorProgress: 422, // 42.2
+        opponentProgress: 398, // 39.8
+        createdAt: now.subtract(const Duration(days: 10)),
+        updatedAt: now,
+      ),
+      // Active: Mile Pace challenge (lower is better)
+      ChallengeModel(
+        id: 'demo-9',
+        creatorId: 'demo-user',
+        opponentId: 'demo-opponent-9',
+        creatorName: 'You',
+        opponentName: 'Ryan C.',
+        type: ChallengeType.headToHead,
+        status: ChallengeStatus.active,
+        stakeAmount: 25,
+        totalPot: 50,
+        prizeAmount: 48.50,
+        goalType: GoalType.milePace,
+        goalValue: 480, // Target: 8:00/mi
+        duration: ChallengeDuration.twoWeeks,
+        startDate: now.subtract(const Duration(days: 3)),
+        endDate: now.add(const Duration(days: 11)),
+        creatorProgress: 462, // 7:42/mi
+        opponentProgress: 498, // 8:18/mi
+        createdAt: now.subtract(const Duration(days: 3)),
+        updatedAt: now,
       ),
     ];
     notifyListeners();
@@ -343,15 +387,15 @@ class ChallengeProvider extends ChangeNotifier {
       case GoalType.distance:
         return _selectedDuration.days * 5; // 5 miles per day
       case GoalType.milePace:
-        return 8; // Target 8 min/mile pace
+        return 480; // Target 8:00 min/mile (stored in seconds)
       case GoalType.fiveKPace:
-        return 25; // Target 25 min 5K time
+        return 1500; // Target 25:00 5K time (stored in seconds)
       case GoalType.tenKPace:
-        return 50; // Target 50 min 10K time
+        return 3000; // Target 50:00 10K time (stored in seconds)
       case GoalType.sleepDuration:
         return _selectedDuration.days * 8; // 8 hours per night
       case GoalType.vo2Max:
-        return 45; // Target VO2 max of 45
+        return 450; // Target VO2 max of 45.0 (stored as x10)
       case GoalType.rivlHealthScore:
         return 75; // Target average RIVL Health Score of 75/100
     }
@@ -454,26 +498,25 @@ class ChallengeProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final stepHistory = await _healthService.getStepsForChallenge(
-        challenge.startDate!,
-        challenge.endDate ?? DateTime.now(),
+      final result = await _healthService.getProgressForChallenge(
+        goalType: challenge.goalType,
+        startDate: challenge.startDate!,
+        endDate: challenge.endDate ?? DateTime.now(),
       );
-
-      final totalSteps = stepHistory.fold<int>(0, (sum, day) => sum + day.steps);
 
       await _firebaseService.syncSteps(
         challengeId: challenge.id,
-        steps: totalSteps,
-        stepHistory: stepHistory,
+        steps: result.total,
+        stepHistory: result.history,
       );
 
       _isSyncing = false;
-      _successMessage = 'Steps synced successfully';
+      _successMessage = '${challenge.goalType.displayName} synced successfully';
       notifyListeners();
       return true;
     } catch (e) {
       _isSyncing = false;
-      _errorMessage = 'Failed to sync steps';
+      _errorMessage = 'Failed to sync ${challenge.goalType.displayName.toLowerCase()}';
       notifyListeners();
       return false;
     }

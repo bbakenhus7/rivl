@@ -1299,7 +1299,7 @@ class _GoalPreviewCard extends StatelessWidget {
       case GoalType.sleepDuration:
         return '${duration.days * 8}';
       case GoalType.vo2Max:
-        return '45';
+        return '45.0';
       case GoalType.rivlHealthScore:
         return '75';
     }
@@ -1320,31 +1320,14 @@ class _GoalPreviewCard extends StatelessWidget {
       case GoalType.sleepDuration:
         return '8';
       case GoalType.vo2Max:
-        return '45';
+        return '45.0';
       case GoalType.rivlHealthScore:
         return '75';
     }
   }
 
   String _getUnit() {
-    switch (goalType) {
-      case GoalType.steps:
-        return 'steps';
-      case GoalType.distance:
-        return 'mi';
-      case GoalType.milePace:
-        return 'min/mi';
-      case GoalType.fiveKPace:
-        return 'min';
-      case GoalType.tenKPace:
-        return 'min';
-      case GoalType.sleepDuration:
-        return 'hrs';
-      case GoalType.vo2Max:
-        return 'mL/kg/min';
-      case GoalType.rivlHealthScore:
-        return 'pts';
-    }
+    return goalType.unit;
   }
 
   ({String label, Color color}) _getDifficulty() {
