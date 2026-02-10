@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:math';
 import '../../providers/auth_provider.dart';
 import '../../providers/challenge_provider.dart';
 import '../../providers/health_provider.dart';
@@ -10,6 +11,7 @@ import '../../providers/notification_provider.dart';
 import '../../models/challenge_model.dart';
 import '../../models/health_metrics.dart';
 import '../../utils/theme.dart';
+import '../../utils/animations.dart';
 import '../../widgets/challenge_card.dart';
 import '../challenges/challenge_detail_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -228,61 +230,79 @@ class _HomeScreenState extends State<HomeScreen> {
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   // Recovery & Strain Cards
-                  const _RecoveryStrainRow(),
+                  StaggeredListAnimation(
+                    index: 0,
+                    child: const _RecoveryStrainRow(),
+                  ),
                   const SizedBox(height: 16),
 
-                  // Main Activity Bars Card
-                  const _ActivityBarsCard(),
+                  // Hero Activity Rings Card
+                  StaggeredListAnimation(
+                    index: 1,
+                    child: const _ActivityBarsCard(),
+                  ),
                   const SizedBox(height: 16),
 
                   // Health Metrics Grid
-                  const _HealthMetricsGrid(),
+                  StaggeredListAnimation(
+                    index: 2,
+                    child: const _HealthMetricsGrid(),
+                  ),
                   const SizedBox(height: 16),
 
                   // Weekly Steps Chart
-                  const _WeeklyStepsCard(),
+                  StaggeredListAnimation(
+                    index: 3,
+                    child: const _WeeklyStepsCard(),
+                  ),
                   const SizedBox(height: 16),
 
                   // Recent Workouts
-                  const _RecentWorkoutsCard(),
+                  StaggeredListAnimation(
+                    index: 4,
+                    child: const _RecentWorkoutsCard(),
+                  ),
                   const SizedBox(height: 16),
 
                   // Active Challenges
-                  Consumer<ChallengeProvider>(
-                    builder: (context, provider, _) {
-                      if (provider.activeChallenges.isEmpty) {
-                        return const SizedBox.shrink();
-                      }
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Active Challenges', style: RivlTextStyles.heading3),
-                              TextButton(onPressed: () {}, child: const Text('See All')),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          ...provider.activeChallenges.take(2).map((challenge) {
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: ChallengeCard(
-                                challenge: challenge,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => ChallengeDetailScreen(challengeId: challenge.id),
-                                    ),
-                                  );
-                                },
-                              ),
-                            );
-                          }),
-                        ],
-                      );
-                    },
+                  FadeIn(
+                    delay: const Duration(milliseconds: 300),
+                    child: Consumer<ChallengeProvider>(
+                      builder: (context, provider, _) {
+                        if (provider.activeChallenges.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Active Challenges', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                TextButton(onPressed: () {}, child: const Text('See All')),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            ...provider.activeChallenges.take(2).map((challenge) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: ChallengeCard(
+                                  challenge: challenge,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => ChallengeDetailScreen(challengeId: challenge.id),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              );
+                            }),
+                          ],
+                        );
+                      },
+                    ),
                   ),
                   const SizedBox(height: 24),
                 ]),
@@ -353,6 +373,7 @@ class _RecoveryStrainRow extends StatelessWidget {
   }
 }
 
+// Robinhood-style bold score card with AnimatedCounter
 class _ScoreCard extends StatelessWidget {
   final String title;
   final int score;
@@ -373,15 +394,20 @@ class _ScoreCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: color.withOpacity(0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -390,95 +416,277 @@ class _ScoreCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, color: color, size: 20),
-              const SizedBox(width: 8),
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '$score',
-                style: TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                  color: color,
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    color: Colors.grey[700],
+                  ),
                 ),
               ),
-              if (maxScore != 100)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6, left: 2),
-                  child: Text('/$maxScore', style: TextStyle(color: Colors.grey[500], fontSize: 14)),
-                ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(status, style: TextStyle(color: color, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 16),
+          AnimatedCounter(
+            value: score,
+            duration: const Duration(milliseconds: 800),
+            style: TextStyle(
+              fontSize: 48,
+              fontWeight: FontWeight.w800,
+              color: color,
+              height: 1.0,
+              letterSpacing: -1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              status,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-// Activity Bars Card (horizontal progress bars)
+// Hero Activity Rings Card (circular rings replacing linear bars)
 class _ActivityBarsCard extends StatelessWidget {
   const _ActivityBarsCard();
+
+  String _getMotivationalMessage(double stepsProgress) {
+    if (stepsProgress >= 1.0) return 'Goal smashed!';
+    if (stepsProgress >= 0.75) return 'Almost there!';
+    if (stepsProgress >= 0.5) return 'Crushing it!';
+    if (stepsProgress >= 0.25) return 'Great start!';
+    return "Let's get moving!";
+  }
+
+  Color _getMotivationalColor(double stepsProgress) {
+    if (stepsProgress >= 1.0) return RivlColors.success;
+    if (stepsProgress >= 0.75) return Colors.orange;
+    if (stepsProgress >= 0.5) return RivlColors.primary;
+    if (stepsProgress >= 0.25) return Colors.lightGreen;
+    return Colors.grey;
+  }
+
+  IconData _getMotivationalIcon(double stepsProgress) {
+    if (stepsProgress >= 1.0) return Icons.emoji_events;
+    if (stepsProgress >= 0.75) return Icons.trending_up;
+    if (stepsProgress >= 0.5) return Icons.bolt;
+    if (stepsProgress >= 0.25) return Icons.thumb_up_alt_outlined;
+    return Icons.directions_walk;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<HealthProvider>(
       builder: (context, health, _) {
+        final stepsProgress = health.metrics.stepsProgress;
+        final caloriesProgress = health.metrics.caloriesProgress;
+        final distanceProgress = health.metrics.distanceProgress;
+        final motivationalMsg = _getMotivationalMessage(stepsProgress);
+        final motivationalColor = _getMotivationalColor(stepsProgress);
+        final motivationalIcon = _getMotivationalIcon(stepsProgress);
+
         return Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Today\'s Activity',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              // Title row with motivational badge
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Today's Activity",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                  FadeIn(
+                    delay: const Duration(milliseconds: 600),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: motivationalColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(motivationalIcon, color: motivationalColor, size: 16),
+                          const SizedBox(width: 4),
+                          Text(
+                            motivationalMsg,
+                            style: TextStyle(
+                              color: motivationalColor,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
-              // Steps Bar
-              _ActivityBar(
-                icon: Icons.directions_walk,
-                label: 'Steps',
-                value: health.formatSteps(health.todaySteps),
-                goal: '${health.dailyGoal ~/ 1000}K',
-                progress: health.metrics.stepsProgress,
-                color: RivlColors.primary,
+              const SizedBox(height: 28),
+
+              // Concentric Activity Rings
+              SizedBox(
+                width: 190,
+                height: 190,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Outer ring - Steps (blue)
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: stepsProgress.clamp(0.0, 1.0)),
+                      duration: const Duration(milliseconds: 1200),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, _) {
+                        return SizedBox(
+                          width: 190,
+                          height: 190,
+                          child: CustomPaint(
+                            painter: _ActivityRingPainter(
+                              progress: value,
+                              color: RivlColors.primary,
+                              strokeWidth: 14,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    // Middle ring - Calories (green)
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: caloriesProgress.clamp(0.0, 1.0)),
+                      duration: const Duration(milliseconds: 1200),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, _) {
+                        return SizedBox(
+                          width: 144,
+                          height: 144,
+                          child: CustomPaint(
+                            painter: _ActivityRingPainter(
+                              progress: value,
+                              color: Colors.green,
+                              strokeWidth: 14,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    // Inner ring - Distance (cyan)
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: distanceProgress.clamp(0.0, 1.0)),
+                      duration: const Duration(milliseconds: 1200),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, _) {
+                        return SizedBox(
+                          width: 98,
+                          height: 98,
+                          child: CustomPaint(
+                            painter: _ActivityRingPainter(
+                              progress: value,
+                              color: Colors.cyan,
+                              strokeWidth: 14,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    // Center: animated step count
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedCounter(
+                          value: health.todaySteps,
+                          duration: const Duration(milliseconds: 1000),
+                          style: const TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        Text(
+                          'steps',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
-              // Calories Bar
-              _ActivityBar(
-                icon: Icons.local_fire_department,
-                label: 'Calories',
-                value: health.formatCalories(health.activeCalories),
-                goal: '${health.metrics.caloriesGoal}',
-                progress: health.metrics.caloriesProgress,
-                color: Colors.green,
-              ),
-              const SizedBox(height: 16),
-              // Distance Bar
-              _ActivityBar(
-                icon: Icons.place,
-                label: 'Distance',
-                value: health.formatDistance(health.distance),
-                goal: '${health.metrics.distanceGoal.toInt()} mi',
-                progress: health.metrics.distanceProgress,
-                color: Colors.cyan,
+              const SizedBox(height: 28),
+
+              // Ring legend row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildRingLegend(
+                    color: RivlColors.primary,
+                    label: 'Steps',
+                    value: health.formatSteps(health.todaySteps),
+                    goal: '${health.dailyGoal ~/ 1000}K',
+                  ),
+                  Container(
+                    width: 1,
+                    height: 40,
+                    color: Colors.grey[200],
+                  ),
+                  _buildRingLegend(
+                    color: Colors.green,
+                    label: 'Calories',
+                    value: health.formatCalories(health.activeCalories),
+                    goal: '${health.metrics.caloriesGoal}',
+                  ),
+                  Container(
+                    width: 1,
+                    height: 40,
+                    color: Colors.grey[200],
+                  ),
+                  _buildRingLegend(
+                    color: Colors.cyan,
+                    label: 'Distance',
+                    value: health.formatDistance(health.distance),
+                    goal: '${health.metrics.distanceGoal.toInt()} mi',
+                  ),
+                ],
               ),
             ],
           ),
@@ -486,8 +694,109 @@ class _ActivityBarsCard extends StatelessWidget {
       },
     );
   }
+
+  Widget _buildRingLegend({
+    required Color color,
+    required String label,
+    required String value,
+    required String goal,
+  }) {
+    return Column(
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
+          ),
+        ),
+        Text(
+          '/ $goal',
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: 11,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
+// Custom painter for circular activity rings
+class _ActivityRingPainter extends CustomPainter {
+  final double progress;
+  final Color color;
+  final double strokeWidth;
+
+  _ActivityRingPainter({
+    required this.progress,
+    required this.color,
+    this.strokeWidth = 12,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - strokeWidth) / 2;
+
+    // Background ring
+    final bgPaint = Paint()
+      ..color = color.withOpacity(0.12)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawCircle(center, radius, bgPaint);
+
+    // Progress arc
+    if (progress > 0) {
+      final progressPaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round;
+
+      final sweepAngle = 2 * pi * progress.clamp(0.0, 1.0);
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        -pi / 2, // Start from top
+        sweepAngle,
+        false,
+        progressPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ActivityRingPainter oldDelegate) {
+    return oldDelegate.progress != progress || oldDelegate.color != color;
+  }
+}
+
+// Original _ActivityBar kept for compatibility
 class _ActivityBar extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -582,7 +891,7 @@ class _ActivityBar extends StatelessWidget {
   }
 }
 
-// Health Metrics Grid
+// Health Metrics Grid with larger tiles
 class _HealthMetricsGrid extends StatelessWidget {
   const _HealthMetricsGrid();
 
@@ -593,7 +902,7 @@ class _HealthMetricsGrid extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Health Metrics', style: RivlTextStyles.heading3),
+            const Text('Health Metrics', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             GridView.count(
               shrinkWrap: true,
@@ -601,55 +910,77 @@ class _HealthMetricsGrid extends StatelessWidget {
               crossAxisCount: 2,
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
-              childAspectRatio: 1.5,
+              childAspectRatio: 1.3,
               children: [
-                _MetricTile(
-                  icon: Icons.favorite,
-                  label: 'Heart Rate',
-                  value: health.heartRate > 0 ? '${health.heartRate}' : '--',
-                  unit: 'bpm',
-                  color: Colors.red,
-                  description: 'Heart rate measures how many times your heart beats per minute. Tracking it during exercise shows how hard your cardiovascular system is working, and monitoring trends over time can reveal improvements in fitness or flag potential health concerns early.',
+                FadeIn(
+                  delay: const Duration(milliseconds: 100),
+                  child: _MetricTile(
+                    icon: Icons.favorite,
+                    label: 'Heart Rate',
+                    value: health.heartRate > 0 ? '${health.heartRate}' : '--',
+                    unit: 'bpm',
+                    color: Colors.red,
+                    numericValue: health.heartRate > 0 ? health.heartRate : null,
+                    description: 'Heart rate measures how many times your heart beats per minute. Tracking it during exercise shows how hard your cardiovascular system is working, and monitoring trends over time can reveal improvements in fitness or flag potential health concerns early.',
+                  ),
                 ),
-                _MetricTile(
-                  icon: Icons.bedtime,
-                  label: 'Sleep',
-                  value: health.sleepHours > 0 ? health.formatSleep(health.sleepHours) : '--',
-                  unit: '',
-                  color: Colors.indigo,
-                  description: 'Sleep is when your body recovers, builds muscle, and consolidates memory. Getting 7-9 hours of quality sleep each night improves athletic performance, mental clarity, and immune function. Poor sleep undermines even the best training.',
+                FadeIn(
+                  delay: const Duration(milliseconds: 150),
+                  child: _MetricTile(
+                    icon: Icons.bedtime,
+                    label: 'Sleep',
+                    value: health.sleepHours > 0 ? health.formatSleep(health.sleepHours) : '--',
+                    unit: '',
+                    color: Colors.indigo,
+                    description: 'Sleep is when your body recovers, builds muscle, and consolidates memory. Getting 7-9 hours of quality sleep each night improves athletic performance, mental clarity, and immune function. Poor sleep undermines even the best training.',
+                  ),
                 ),
-                _MetricTile(
-                  icon: Icons.show_chart,
-                  label: 'HRV',
-                  value: health.hrv > 0 ? health.formatHRV(health.hrv) : '--',
-                  unit: 'ms',
-                  color: Colors.purple,
-                  description: 'Heart Rate Variability (HRV) measures the variation in time between heartbeats. A higher HRV generally indicates better cardiovascular fitness and recovery. It\'s one of the best indicators of how ready your body is to perform and whether you\'re overtraining.',
+                FadeIn(
+                  delay: const Duration(milliseconds: 200),
+                  child: _MetricTile(
+                    icon: Icons.show_chart,
+                    label: 'HRV',
+                    value: health.hrv > 0 ? health.formatHRV(health.hrv) : '--',
+                    unit: 'ms',
+                    color: Colors.purple,
+                    numericValue: health.hrv > 0 ? health.hrv.round() : null,
+                    description: 'Heart Rate Variability (HRV) measures the variation in time between heartbeats. A higher HRV generally indicates better cardiovascular fitness and recovery. It\'s one of the best indicators of how ready your body is to perform and whether you\'re overtraining.',
+                  ),
                 ),
-                _MetricTile(
-                  icon: Icons.monitor_heart,
-                  label: 'Resting HR',
-                  value: health.restingHeartRate > 0 ? '${health.restingHeartRate}' : '--',
-                  unit: 'bpm',
-                  color: Colors.pink,
-                  description: 'Resting heart rate is your heart rate when you\'re completely at rest. A lower resting heart rate typically means your heart is more efficient. Athletes often have resting rates between 40-60 bpm. Tracking it over time shows your cardiovascular fitness improving.',
+                FadeIn(
+                  delay: const Duration(milliseconds: 250),
+                  child: _MetricTile(
+                    icon: Icons.monitor_heart,
+                    label: 'Resting HR',
+                    value: health.restingHeartRate > 0 ? '${health.restingHeartRate}' : '--',
+                    unit: 'bpm',
+                    color: Colors.pink,
+                    numericValue: health.restingHeartRate > 0 ? health.restingHeartRate : null,
+                    description: 'Resting heart rate is your heart rate when you\'re completely at rest. A lower resting heart rate typically means your heart is more efficient. Athletes often have resting rates between 40-60 bpm. Tracking it over time shows your cardiovascular fitness improving.',
+                  ),
                 ),
-                _MetricTile(
-                  icon: Icons.air,
-                  label: 'Blood Oxygen',
-                  value: health.bloodOxygen > 0 ? health.formatBloodOxygen(health.bloodOxygen) : '--',
-                  unit: '',
-                  color: Colors.teal,
-                  description: 'Blood oxygen (SpO2) measures the percentage of oxygen your red blood cells are carrying. Normal levels are 95-100%. Tracking it helps monitor respiratory health, sleep quality, and how well your body delivers oxygen to muscles during intense exercise.',
+                FadeIn(
+                  delay: const Duration(milliseconds: 300),
+                  child: _MetricTile(
+                    icon: Icons.air,
+                    label: 'Blood Oxygen',
+                    value: health.bloodOxygen > 0 ? health.formatBloodOxygen(health.bloodOxygen) : '--',
+                    unit: '',
+                    color: Colors.teal,
+                    description: 'Blood oxygen (SpO2) measures the percentage of oxygen your red blood cells are carrying. Normal levels are 95-100%. Tracking it helps monitor respiratory health, sleep quality, and how well your body delivers oxygen to muscles during intense exercise.',
+                  ),
                 ),
-                _MetricTile(
-                  icon: Icons.speed,
-                  label: 'VO2 Max',
-                  value: health.vo2Max > 0 ? health.formatVO2Max(health.vo2Max) : '--',
-                  unit: 'ml/kg/min',
-                  color: Colors.orange,
-                  description: 'VO2 Max is the maximum amount of oxygen your body can use during intense exercise. It\'s considered the gold standard measure of aerobic fitness. Higher VO2 Max values are linked to better endurance, longer lifespan, and reduced risk of chronic disease.',
+                FadeIn(
+                  delay: const Duration(milliseconds: 350),
+                  child: _MetricTile(
+                    icon: Icons.speed,
+                    label: 'VO2 Max',
+                    value: health.vo2Max > 0 ? health.formatVO2Max(health.vo2Max) : '--',
+                    unit: 'ml/kg/min',
+                    color: Colors.orange,
+                    numericValue: health.vo2Max > 0 ? health.vo2Max.round() : null,
+                    description: 'VO2 Max is the maximum amount of oxygen your body can use during intense exercise. It\'s considered the gold standard measure of aerobic fitness. Higher VO2 Max values are linked to better endurance, longer lifespan, and reduced risk of chronic disease.',
+                  ),
                 ),
               ],
             ),
@@ -660,6 +991,7 @@ class _HealthMetricsGrid extends StatelessWidget {
   }
 }
 
+// Larger, more tappable metric tile with optional AnimatedCounter
 class _MetricTile extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -667,6 +999,7 @@ class _MetricTile extends StatelessWidget {
   final String unit;
   final Color color;
   final String description;
+  final int? numericValue;
 
   const _MetricTile({
     required this.icon,
@@ -675,6 +1008,7 @@ class _MetricTile extends StatelessWidget {
     required this.unit,
     required this.color,
     required this.description,
+    this.numericValue,
   });
 
   void _showDetail(BuildContext context) {
@@ -742,15 +1076,15 @@ class _MetricTile extends StatelessWidget {
     return GestureDetector(
       onTap: () => _showDetail(context),
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
@@ -761,18 +1095,22 @@ class _MetricTile extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(icon, color: color, size: 16),
+                  child: Icon(icon, color: color, size: 18),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     label,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -781,14 +1119,34 @@ class _MetricTile extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  value,
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
+                if (numericValue != null && value != '--')
+                  AnimatedCounter(
+                    value: numericValue!,
+                    duration: const Duration(milliseconds: 700),
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  )
+                else
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 if (unit.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(left: 4, bottom: 2),
-                    child: Text(unit, style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+                    padding: const EdgeInsets.only(left: 4, bottom: 3),
+                    child: Text(
+                      unit,
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -799,7 +1157,7 @@ class _MetricTile extends StatelessWidget {
   }
 }
 
-// Weekly Steps Chart
+// Weekly Steps Chart with wider bars and rounded caps
 class _WeeklyStepsCard extends StatelessWidget {
   const _WeeklyStepsCard();
 
@@ -840,26 +1198,44 @@ class _WeeklyStepsCard extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               SizedBox(
-                height: 120,
+                height: 130,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: List.generate(7, (index) {
                     final daySteps = index < steps.length ? steps[index].steps : 0;
-                    final height = maxSteps > 0 ? (daySteps / maxSteps * 80).clamp(8.0, 80.0) : 8.0;
+                    final barHeight = maxSteps > 0 ? (daySteps / maxSteps * 90).clamp(8.0, 90.0) : 8.0;
                     final isToday = index == steps.length - 1;
                     final dayName = _getDayName(index, steps.length);
 
                     return Column(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Container(
-                          width: 32,
-                          height: height,
-                          decoration: BoxDecoration(
-                            color: isToday ? RivlColors.primary : RivlColors.primary.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
+                        TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0.0, end: barHeight),
+                          duration: Duration(milliseconds: 600 + (index * 80)),
+                          curve: Curves.easeOutCubic,
+                          builder: (context, animatedHeight, _) {
+                            return Container(
+                              width: 40,
+                              height: animatedHeight,
+                              decoration: BoxDecoration(
+                                color: isToday
+                                    ? RivlColors.primary
+                                    : RivlColors.primary.withOpacity(0.25),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: isToday
+                                    ? [
+                                        BoxShadow(
+                                          color: RivlColors.primary.withOpacity(0.3),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 8),
                         Text(
