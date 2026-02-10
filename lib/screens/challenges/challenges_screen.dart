@@ -179,6 +179,7 @@ class _ChallengeList extends StatelessWidget {
             itemCount: challenges.length,
             itemBuilder: (context, index) {
               final challenge = challenges[index];
+              final isPending = filter == ChallengeStatus.pending;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: StaggeredListAnimation(
@@ -193,6 +194,12 @@ class _ChallengeList extends StatelessWidget {
                         ),
                       );
                     },
+                    onAccept: isPending
+                        ? () => provider.acceptChallenge(challenge.id)
+                        : null,
+                    onDecline: isPending
+                        ? () => provider.declineChallenge(challenge.id)
+                        : null,
                   ),
                 ),
               );

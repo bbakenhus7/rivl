@@ -3,10 +3,10 @@
 import 'package:flutter/material.dart';
 
 class RivlColors {
-  // Primary colors
-  static const Color primary = Color(0xFF3399FF);
-  static const Color primaryDark = Color(0xFF2277DD);
-  static const Color primaryLight = Color(0xFF66B2FF);
+  // Primary colors (purple-indigo)
+  static const Color primary = Color(0xFF6C5CE7);
+  static const Color primaryDark = Color(0xFF5A4BD6);
+  static const Color primaryLight = Color(0xFF8B7CF6);
 
   // Secondary colors
   static const Color secondary = Color(0xFFFF6B5B);

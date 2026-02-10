@@ -14,6 +14,7 @@ class ChallengeProvider extends ChangeNotifier {
   List<ChallengeModel> _challenges = [];
   List<Map<String, dynamic>> _leaderboard = [];
   List<UserModel> _searchResults = [];
+  List<UserModel> _demoOpponents = [];
   
   bool _isLoading = false;
   bool _isCreating = false;
@@ -41,6 +42,7 @@ class ChallengeProvider extends ChangeNotifier {
   
   List<Map<String, dynamic>> get leaderboard => _leaderboard;
   List<UserModel> get searchResults => _searchResults;
+  List<UserModel> get demoOpponents => _demoOpponents;
   
   bool get isLoading => _isLoading;
   bool get isCreating => _isCreating;
@@ -241,6 +243,70 @@ class ChallengeProvider extends ChangeNotifier {
         resultDeclaredAt: now.subtract(const Duration(days: 14)),
         createdAt: now.subtract(const Duration(days: 21)),
         updatedAt: now.subtract(const Duration(days: 14)),
+      ),
+    ];
+    notifyListeners();
+  }
+
+  /// Load demo opponents for the create challenge flow
+  void loadDemoOpponents() {
+    if (_demoOpponents.isNotEmpty) return;
+
+    final now = DateTime.now();
+    _demoOpponents = [
+      UserModel(
+        id: 'demo-opponent-jake',
+        email: 'jake@rivl.app',
+        displayName: 'Jake Morrison',
+        username: 'jake_runs',
+        totalChallenges: 28,
+        wins: 18,
+        losses: 10,
+        winRate: 0.64,
+        totalSteps: 890000,
+        totalEarnings: 320.00,
+        currentStreak: 5,
+        longestStreak: 14,
+        referralCode: 'JAKE2024',
+        createdAt: now.subtract(const Duration(days: 120)),
+        updatedAt: now,
+        lastActiveAt: now.subtract(const Duration(hours: 2)),
+      ),
+      UserModel(
+        id: 'demo-opponent-sarah',
+        email: 'sarah@rivl.app',
+        displayName: 'Sarah Kim',
+        username: 'sarah_fitness',
+        totalChallenges: 35,
+        wins: 24,
+        losses: 11,
+        winRate: 0.69,
+        totalSteps: 1100000,
+        totalEarnings: 510.00,
+        currentStreak: 12,
+        longestStreak: 30,
+        referralCode: 'SARAH2024',
+        createdAt: now.subtract(const Duration(days: 200)),
+        updatedAt: now,
+        lastActiveAt: now.subtract(const Duration(minutes: 45)),
+      ),
+      UserModel(
+        id: 'demo-opponent-mike',
+        email: 'mike@rivl.app',
+        displayName: 'Mike Reynolds',
+        username: 'mike_steps',
+        totalChallenges: 19,
+        wins: 10,
+        losses: 9,
+        winRate: 0.53,
+        totalSteps: 620000,
+        totalEarnings: 175.00,
+        currentStreak: 3,
+        longestStreak: 8,
+        referralCode: 'MIKE2024',
+        createdAt: now.subtract(const Duration(days: 60)),
+        updatedAt: now,
+        lastActiveAt: now.subtract(const Duration(hours: 6)),
       ),
     ];
     notifyListeners();

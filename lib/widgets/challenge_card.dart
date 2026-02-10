@@ -8,11 +8,15 @@ import '../utils/animations.dart';
 class ChallengeCard extends StatelessWidget {
   final ChallengeModel challenge;
   final VoidCallback? onTap;
+  final VoidCallback? onAccept;
+  final VoidCallback? onDecline;
 
   const ChallengeCard({
     super.key,
     required this.challenge,
     this.onTap,
+    this.onAccept,
+    this.onDecline,
   });
 
   @override
@@ -172,6 +176,76 @@ class ChallengeCard extends StatelessWidget {
                     accentColor: accentColor,
                     isWinning: isWinning,
                   ),
+
+                  // Pending challenge actions (Accept / Decline inline)
+                  if (challenge.status == ChallengeStatus.pending &&
+                      (onAccept != null || onDecline != null)) ...[
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        if (onDecline != null)
+                          Expanded(
+                            child: ScaleOnTap(
+                              onTap: onDecline,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: context.textSecondary.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    'Decline',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                      color: context.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (onAccept != null && onDecline != null)
+                          const SizedBox(width: 10),
+                        if (onAccept != null)
+                          Expanded(
+                            flex: 2,
+                            child: ScaleOnTap(
+                              onTap: onAccept,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [RivlColors.primary, RivlColors.primaryLight],
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Center(
+                                  child: Text(
+                                    'Accept Challenge',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+
+                  // Daily goal breakdown for active challenges
+                  if (challenge.status == ChallengeStatus.active &&
+                      challenge.endDate != null) ...[
+                    const SizedBox(height: 10),
+                    _DailyGoalHint(challenge: challenge),
+                  ],
 
                   // Win/loss result badge for completed
                   if (isCompleted) ...[
@@ -334,5 +408,62 @@ class _HeadToHeadProgress extends StatelessWidget {
       return '${(steps / 1000).toStringAsFixed(1)}K';
     }
     return '$steps';
+  }
+}
+
+/// Shows a small hint about daily pace needed to win
+class _DailyGoalHint extends StatelessWidget {
+  final ChallengeModel challenge;
+
+  const _DailyGoalHint({required this.challenge});
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = challenge.endDate!.difference(DateTime.now());
+    if (remaining.isNegative || remaining.inDays == 0) return const SizedBox.shrink();
+
+    final daysLeft = remaining.inDays.clamp(1, 999);
+    final stepsNeeded = challenge.goalValue - challenge.creatorProgress;
+    if (stepsNeeded <= 0) {
+      return Row(
+        children: [
+          Icon(Icons.check_circle, size: 14, color: RivlColors.success),
+          const SizedBox(width: 6),
+          Text(
+            'Goal reached!',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: RivlColors.success,
+            ),
+          ),
+        ],
+      );
+    }
+
+    final dailyPace = (stepsNeeded / daysLeft).ceil();
+    final unit = challenge.goalType == GoalType.steps
+        ? 'steps'
+        : challenge.goalType.displayName.toLowerCase();
+
+    return Row(
+      children: [
+        Icon(Icons.trending_flat, size: 14, color: context.textSecondary),
+        const SizedBox(width: 6),
+        Text(
+          '${_formatNumber(dailyPace)} $unit/day needed  ·  $daysLeft days left',
+          style: TextStyle(
+            fontSize: 11,
+            color: context.textSecondary,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatNumber(int n) {
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
+    return '$n';
   }
 }

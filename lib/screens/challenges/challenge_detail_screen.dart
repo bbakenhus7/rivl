@@ -1115,3 +1115,4 @@ class _QuickRematchCard extends StatelessWidget {
     return null;
   }
 }
+
