@@ -347,10 +347,28 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                   ),
                   const SizedBox(height: 24),
 
+                  // -- Anti-cheat trust scores --
+                  if (challenge.status == ChallengeStatus.active ||
+                      challenge.status == ChallengeStatus.completed)
+                    SlideIn(
+                      delay: const Duration(milliseconds: 380),
+                      child: _TrustScoreCard(
+                        creatorName: challenge.creatorName,
+                        opponentName:
+                            challenge.opponentName ?? 'Opponent',
+                        creatorScore: challenge.creatorAntiCheatScore,
+                        opponentScore: challenge.opponentAntiCheatScore,
+                        flagged: challenge.flagged,
+                      ),
+                    ),
+                  if (challenge.status == ChallengeStatus.active ||
+                      challenge.status == ChallengeStatus.completed)
+                    const SizedBox(height: 20),
+
                   // -- Sync button --
                   if (challenge.status == ChallengeStatus.active)
                     SlideIn(
-                      delay: const Duration(milliseconds: 400),
+                      delay: const Duration(milliseconds: 440),
                       child: ScaleOnTap(
                         onTap: provider.isSyncing
                             ? null
@@ -432,7 +450,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                   if (challenge.status == ChallengeStatus.completed) ...[
                     const SizedBox(height: 16),
                     SlideIn(
-                      delay: const Duration(milliseconds: 400),
+                      delay: const Duration(milliseconds: 460),
                       child: _QuickRematchCard(challenge: challenge),
                     ),
                   ],
@@ -1113,5 +1131,155 @@ class _QuickRematchCard extends StatelessWidget {
       if (match.isNotEmpty) return match.first;
     }
     return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Anti-cheat trust score card
+// ---------------------------------------------------------------------------
+class _TrustScoreCard extends StatelessWidget {
+  final String creatorName;
+  final String opponentName;
+  final double creatorScore;
+  final double opponentScore;
+  final bool flagged;
+
+  const _TrustScoreCard({
+    required this.creatorName,
+    required this.opponentName,
+    required this.creatorScore,
+    required this.opponentScore,
+    required this.flagged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 1,
+      shadowColor: Colors.black.withOpacity(0.05),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  flagged ? Icons.warning_amber : Icons.verified_user,
+                  size: 18,
+                  color: flagged ? RivlColors.warning : RivlColors.success,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Fair Play',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: context.textSecondary,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const Spacer(),
+                if (flagged)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: RivlColors.warning.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'Under Review',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: RivlColors.warning,
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: RivlColors.success.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'Verified',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: RivlColors.success,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            _TrustBar(
+              name: creatorName,
+              score: creatorScore,
+            ),
+            const SizedBox(height: 10),
+            _TrustBar(
+              name: opponentName,
+              score: opponentScore,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TrustBar extends StatelessWidget {
+  final String name;
+  final double score;
+
+  const _TrustBar({required this.name, required this.score});
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = (score * 100).toInt();
+    final color = pct >= 90
+        ? RivlColors.success
+        : pct >= 70
+            ? Colors.orange
+            : RivlColors.error;
+
+    return Row(
+      children: [
+        SizedBox(
+          width: 80,
+          child: Text(
+            name,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: AnimatedProgress(
+            value: score,
+            color: color,
+            backgroundColor: color.withOpacity(0.12),
+            height: 8,
+            borderRadius: 4,
+            duration: const Duration(milliseconds: 800),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          '$pct%',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
+      ],
+    );
   }
 }

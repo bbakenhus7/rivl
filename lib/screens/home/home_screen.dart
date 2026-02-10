@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/challenge_provider.dart';
 import '../../providers/health_provider.dart';
 import '../../providers/streak_provider.dart';
+import '../../providers/wallet_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../models/challenge_model.dart';
 import '../../models/health_metrics.dart';
@@ -229,37 +230,113 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.all(16),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  // Recovery & Strain Cards
+                  // Quick Glance: Earnings + Active Pot + Win Streak
                   StaggeredListAnimation(
                     index: 0,
+                    child: const _QuickGlanceRow(),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Pending challenges banner (action required)
+                  Consumer<ChallengeProvider>(
+                    builder: (context, provider, _) {
+                      final pending = provider.pendingChallenges;
+                      if (pending.isEmpty) return const SizedBox.shrink();
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          FadeIn(
+                            child: Row(
+                              children: [
+                                Icon(Icons.notifications_active, size: 18, color: Colors.orange),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Action Required',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.orange[700],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '${pending.length}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.orange,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          ...pending.take(2).map((challenge) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: FadeIn(
+                                delay: const Duration(milliseconds: 100),
+                                child: ChallengeCard(
+                                  challenge: challenge,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            ChallengeDetailScreen(challengeId: challenge.id),
+                                      ),
+                                    );
+                                  },
+                                  onAccept: () => provider.acceptChallenge(challenge.id),
+                                  onDecline: () => provider.declineChallenge(challenge.id),
+                                ),
+                              ),
+                            );
+                          }),
+                          const SizedBox(height: 8),
+                        ],
+                      );
+                    },
+                  ),
+
+                  // Recovery & Strain Cards
+                  StaggeredListAnimation(
+                    index: 1,
                     child: const _RecoveryStrainRow(),
                   ),
                   const SizedBox(height: 16),
 
                   // Hero Activity Rings Card
                   StaggeredListAnimation(
-                    index: 1,
+                    index: 2,
                     child: const _ActivityBarsCard(),
                   ),
                   const SizedBox(height: 16),
 
                   // Health Metrics Grid
                   StaggeredListAnimation(
-                    index: 2,
+                    index: 3,
                     child: const _HealthMetricsGrid(),
                   ),
                   const SizedBox(height: 16),
 
                   // Weekly Steps Chart
                   StaggeredListAnimation(
-                    index: 3,
+                    index: 4,
                     child: const _WeeklyStepsCard(),
                   ),
                   const SizedBox(height: 16),
 
                   // Recent Workouts
                   StaggeredListAnimation(
-                    index: 4,
+                    index: 5,
                     child: const _RecentWorkoutsCard(),
                   ),
                   const SizedBox(height: 16),
@@ -1383,6 +1460,116 @@ class _WorkoutTile extends StatelessWidget {
     if (diff == 0) return 'Today';
     if (diff == 1) return 'Yesterday';
     return '${diff}d ago';
+  }
+}
+
+/// Top-of-page glance row: Earnings, Active Pot, Win Streak
+class _QuickGlanceRow extends StatelessWidget {
+  const _QuickGlanceRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer3<WalletProvider, ChallengeProvider, StreakProvider>(
+      builder: (context, wallet, challenges, streak, _) {
+        // Calculate total active pot (sum of prize amounts from active challenges)
+        final activePot = challenges.activeChallenges.fold<double>(
+          0,
+          (sum, c) => sum + c.prizeAmount,
+        );
+
+        return Row(
+          children: [
+            Expanded(
+              child: _GlanceStat(
+                icon: Icons.account_balance_wallet,
+                label: 'Balance',
+                value: '\$${wallet.balance.toStringAsFixed(0)}',
+                color: RivlColors.success,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _GlanceStat(
+                icon: Icons.local_fire_department,
+                label: 'At Stake',
+                value: activePot > 0 ? '\$${activePot.toStringAsFixed(0)}' : '--',
+                color: RivlColors.secondary,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _GlanceStat(
+                icon: Icons.whatshot,
+                label: 'Streak',
+                value: '${streak.currentStreak}d',
+                color: Colors.orange,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _GlanceStat extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _GlanceStat({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      decoration: BoxDecoration(
+        color: context.surface,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: context.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: color,
+              height: 1,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

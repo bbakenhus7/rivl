@@ -1130,10 +1130,247 @@ class _StepDurationAndType extends StatelessWidget {
               onGoalTypeSelected: onGoalTypeSelected,
             ),
           ),
+          const SizedBox(height: 24),
+
+          // Goal preview card
+          SlideIn(
+            delay: const Duration(milliseconds: 450),
+            child: _GoalPreviewCard(
+              goalType: selectedGoalType,
+              duration: selectedDuration,
+            ),
+          ),
           const SizedBox(height: 16),
         ],
       ),
     );
+  }
+}
+
+/// Shows the auto-calculated goal with daily breakdown and difficulty estimate
+class _GoalPreviewCard extends StatelessWidget {
+  final GoalType goalType;
+  final ChallengeDuration duration;
+
+  const _GoalPreviewCard({
+    required this.goalType,
+    required this.duration,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final totalGoal = _calculateGoal();
+    final dailyGoal = _calculateDailyGoal();
+    final unit = _getUnit();
+    final difficulty = _getDifficulty();
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            RivlColors.primary.withOpacity(0.06),
+            RivlColors.primary.withOpacity(0.02),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: RivlColors.primary.withOpacity(0.15),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.flag_outlined, size: 18, color: RivlColors.primary),
+              const SizedBox(width: 8),
+              Text(
+                'Challenge Goal',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: RivlColors.primary,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: difficulty.color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  difficulty.label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: difficulty.color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Total Goal',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$totalGoal $unit',
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 36,
+                color: context.surfaceVariant,
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Daily Pace',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: context.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$dailyGoal $unit/day',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: RivlColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '${duration.displayName} · ${goalType.description}',
+            style: TextStyle(
+              fontSize: 12,
+              color: context.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _calculateGoal() {
+    switch (goalType) {
+      case GoalType.steps:
+        return _formatNumber(duration.days * 10000);
+      case GoalType.distance:
+        return '${duration.days * 5}';
+      case GoalType.milePace:
+        return '8:00';
+      case GoalType.fiveKPace:
+        return '25:00';
+      case GoalType.tenKPace:
+        return '50:00';
+      case GoalType.sleepDuration:
+        return '${duration.days * 8}';
+      case GoalType.vo2Max:
+        return '45';
+      case GoalType.rivlHealthScore:
+        return '75';
+    }
+  }
+
+  String _calculateDailyGoal() {
+    switch (goalType) {
+      case GoalType.steps:
+        return _formatNumber(10000);
+      case GoalType.distance:
+        return '5';
+      case GoalType.milePace:
+        return '8:00';
+      case GoalType.fiveKPace:
+        return '25:00';
+      case GoalType.tenKPace:
+        return '50:00';
+      case GoalType.sleepDuration:
+        return '8';
+      case GoalType.vo2Max:
+        return '45';
+      case GoalType.rivlHealthScore:
+        return '75';
+    }
+  }
+
+  String _getUnit() {
+    switch (goalType) {
+      case GoalType.steps:
+        return 'steps';
+      case GoalType.distance:
+        return 'mi';
+      case GoalType.milePace:
+        return 'min/mi';
+      case GoalType.fiveKPace:
+        return 'min';
+      case GoalType.tenKPace:
+        return 'min';
+      case GoalType.sleepDuration:
+        return 'hrs';
+      case GoalType.vo2Max:
+        return 'mL/kg/min';
+      case GoalType.rivlHealthScore:
+        return 'pts';
+    }
+  }
+
+  ({String label, Color color}) _getDifficulty() {
+    switch (goalType) {
+      case GoalType.steps:
+        return (label: 'Moderate', color: Colors.orange);
+      case GoalType.distance:
+        return (label: 'Moderate', color: Colors.orange);
+      case GoalType.milePace:
+        return (label: 'Hard', color: RivlColors.error);
+      case GoalType.fiveKPace:
+        return (label: 'Moderate', color: Colors.orange);
+      case GoalType.tenKPace:
+        return (label: 'Hard', color: RivlColors.error);
+      case GoalType.sleepDuration:
+        return (label: 'Easy', color: RivlColors.success);
+      case GoalType.vo2Max:
+        return (label: 'Hard', color: RivlColors.error);
+      case GoalType.rivlHealthScore:
+        return (label: 'Moderate', color: Colors.orange);
+    }
+  }
+
+  String _formatNumber(int n) {
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(0)}K';
+    return '$n';
   }
 }
 
