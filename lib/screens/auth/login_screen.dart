@@ -7,6 +7,7 @@ import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
+import '../main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -45,10 +46,16 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await context.read<AuthProvider>().signIn(
+      final success = await context.read<AuthProvider>().signIn(
         _emailController.text.trim(),
         _passwordController.text,
       );
+      if (success && mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const MainScreen()),
+        );
+        return;
+      }
     } catch (e) {
       setState(() {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
