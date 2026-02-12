@@ -23,15 +23,19 @@ class HealthService {
       (defaultTargetPlatform == TargetPlatform.iOS ||
        defaultTargetPlatform == TargetPlatform.android);
 
-  // All HealthKit / Health Connect data types we need to read.
+  // HealthKit / Health Connect data types we need to read.
   // Note: VO2 max is not yet supported by the health package.
-  static const List<HealthDataType> _readTypes = [
+  // DISTANCE_DELTA is Android-only; use DISTANCE_WALKING_RUNNING on iOS.
+  static List<HealthDataType> get _readTypes => [
     HealthDataType.STEPS,
     HealthDataType.HEART_RATE,
     HealthDataType.RESTING_HEART_RATE,
     HealthDataType.HEART_RATE_VARIABILITY_SDNN,
     HealthDataType.ACTIVE_ENERGY_BURNED,
-    HealthDataType.DISTANCE_DELTA,
+    if (defaultTargetPlatform == TargetPlatform.iOS)
+      HealthDataType.DISTANCE_WALKING_RUNNING
+    else
+      HealthDataType.DISTANCE_DELTA,
     HealthDataType.SLEEP_ASLEEP,
     HealthDataType.SLEEP_DEEP,
     HealthDataType.SLEEP_REM,
@@ -123,7 +127,10 @@ class HealthService {
       final activeCalories = _sumValues(dataPoints, HealthDataType.ACTIVE_ENERGY_BURNED, midnight, now).toInt();
 
       // Distance: sum today's distance delta, convert meters to miles
-      final distanceMeters = _sumValues(dataPoints, HealthDataType.DISTANCE_DELTA, midnight, now);
+      final distanceType = defaultTargetPlatform == TargetPlatform.iOS
+          ? HealthDataType.DISTANCE_WALKING_RUNNING
+          : HealthDataType.DISTANCE_DELTA;
+      final distanceMeters = _sumValues(dataPoints, distanceType, midnight, now);
       final distanceMiles = distanceMeters * 0.000621371;
 
       // Sleep: sum all sleep stages from the past 24 hours
@@ -447,7 +454,9 @@ class HealthService {
           : dayStart.add(const Duration(days: 1));
 
       final dataPoints = await _health.getHealthDataFromTypes(
-        types: [HealthDataType.DISTANCE_DELTA],
+        types: [defaultTargetPlatform == TargetPlatform.iOS
+            ? HealthDataType.DISTANCE_WALKING_RUNNING
+            : HealthDataType.DISTANCE_DELTA],
         startTime: dayStart,
         endTime: dayEnd,
       );

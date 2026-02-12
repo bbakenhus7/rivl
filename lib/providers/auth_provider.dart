@@ -74,7 +74,7 @@ class AuthProvider extends ChangeNotifier {
       return false;
     } catch (e) {
       _state = AuthState.error;
-      _errorMessage = 'An error occurred. Please try again.';
+      _errorMessage = 'Error: $e';
       notifyListeners();
       return false;
     }
@@ -182,15 +182,7 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Check username availability
-      final isAvailable = await _firebaseService.isUsernameAvailable(username);
-      if (!isAvailable) {
-        _state = AuthState.unauthenticated;
-        _errorMessage = 'Username is already taken';
-        notifyListeners();
-        return false;
-      }
-
+      // Create account first (username check requires auth)
       await _firebaseService.signUpWithEmail(
         email,
         password,
@@ -205,7 +197,7 @@ class AuthProvider extends ChangeNotifier {
       return false;
     } catch (e) {
       _state = AuthState.error;
-      _errorMessage = 'An error occurred. Please try again.';
+      _errorMessage = 'Error: $e';
       notifyListeners();
       return false;
     }
@@ -329,7 +321,7 @@ class AuthProvider extends ChangeNotifier {
         _errorMessage = 'Password is too weak. Please use a stronger password.';
         break;
       default:
-        _errorMessage = 'An error occurred. Please try again.';
+        _errorMessage = 'Error: $e';
     }
     
     notifyListeners();
