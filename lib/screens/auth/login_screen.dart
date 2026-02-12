@@ -45,6 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
+<<<<<<< HEAD
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.signIn(
       _emailController.text.trim(),
@@ -58,6 +59,20 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute(builder: (_) => const MainScreen()),
       );
     } else {
+=======
+    try {
+      final success = await context.read<AuthProvider>().signIn(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+      if (success && mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const MainScreen()),
+        );
+        return;
+      }
+    } catch (e) {
+>>>>>>> origin/main
       setState(() {
         _isLoading = false;
         _errorMessage = authProvider.errorMessage ?? 'Login failed. Please try again.';
