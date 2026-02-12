@@ -1,5 +1,6 @@
 // providers/health_provider.dart
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../services/health_service.dart';
 import '../models/challenge_model.dart';
@@ -12,6 +13,12 @@ class HealthProvider extends ChangeNotifier {
   bool _isLoading = false;
   HealthMetrics _metrics = HealthMetrics.demo();
   String? _errorMessage;
+
+  /// True when the platform supports health data (iOS / Android, not web).
+  bool get isHealthSupported =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.iOS ||
+       defaultTargetPlatform == TargetPlatform.android);
 
   // Getters
   bool get isAuthorized => _isAuthorized;
@@ -53,6 +60,14 @@ class HealthProvider extends ChangeNotifier {
   // ============================================
 
   Future<bool> requestAuthorization() async {
+    if (!isHealthSupported) {
+      // On unsupported platforms, stay on demo data without error.
+      _isAuthorized = false;
+      _metrics = HealthMetrics.demo();
+      notifyListeners();
+      return false;
+    }
+
     _isLoading = true;
     notifyListeners();
 
