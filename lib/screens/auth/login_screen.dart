@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
+import '../main_screen.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
 
@@ -44,19 +45,23 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
-    try {
-      await context.read<AuthProvider>().signIn(
-        _emailController.text.trim(),
-        _passwordController.text,
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.signIn(
+      _emailController.text.trim(),
+      _passwordController.text,
+    );
+
+    if (!mounted) return;
+
+    if (success) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const MainScreen()),
       );
-    } catch (e) {
+    } else {
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _isLoading = false;
+        _errorMessage = authProvider.errorMessage ?? 'Login failed. Please try again.';
       });
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
     }
   }
 
