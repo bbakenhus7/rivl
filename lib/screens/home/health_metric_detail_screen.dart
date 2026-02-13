@@ -403,7 +403,6 @@ class _HealthMetricDetailScreenState extends State<HealthMetricDetailScreen> {
             handleBuiltInTouches: true,
             touchTooltipData: LineTouchTooltipData(
               getTooltipColor: (_) => context.surface,
-              tooltipRoundedRadius: 12,
               tooltipPadding: const EdgeInsets.symmetric(
                   horizontal: 12, vertical: 8),
               getTooltipItems: (spots) {
