@@ -614,12 +614,17 @@ class _UserProfileSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.all(16),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.8,
+      ),
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      clipBehavior: Clip.antiAlias,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
         children: [
           // Handle
           Container(
@@ -734,10 +739,12 @@ class _UserProfileSheet extends StatelessWidget {
                       child: const Text('Challenge'),
                     ),
                   ),
+                SizedBox(height: MediaQuery.of(context).padding.bottom),
               ],
             ),
           ),
         ],
+        ),
       ),
     );
   }

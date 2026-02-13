@@ -202,6 +202,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showSettings(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (_) => const _SettingsSheet(),
     );
   }
@@ -717,9 +721,13 @@ class _SettingsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(8, 16, 8, 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.75,
+      ),
+      padding: const EdgeInsets.fromLTRB(8, 16, 8, 0),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 40,
@@ -759,7 +767,9 @@ class _SettingsSheet extends StatelessWidget {
               await context.read<AuthProvider>().signOut();
             },
           ),
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
         ],
+        ),
       ),
     );
   }
