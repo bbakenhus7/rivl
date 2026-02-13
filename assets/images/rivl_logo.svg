@@ -1,12 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480">
   <defs>
     <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#6C5CE7"/>
-      <stop offset="100%" style="stop-color:#8B7CF6"/>
+      <stop offset="0%" style="stop-color:#8B7CF6"/>
+      <stop offset="100%" style="stop-color:#6C5CE7"/>
     </linearGradient>
   </defs>
-  <!-- Shield / geometric flame shape -->
-  <path d="M256 48 L432 140 L432 300 Q432 420 256 472 Q80 420 80 300 L80 140 Z" fill="url(#purpleGrad)"/>
-  <!-- Inner angular R / lightning bolt cut -->
-  <path d="M200 140 L320 140 L300 220 L340 220 L220 380 L250 260 L190 260 Z" fill="#FFFFFF"/>
+  <!-- Main body - lighter purple gradient -->
+  <path d="M148,0 L400,0 L200,200 L304,304 L200,408 L96,304 L200,200 Z" fill="url(#purpleGrad)"/>
+  <!-- Bottom tail - darker purple -->
+  <path d="M200,408 L96,304 L0,400 L96,480 Z" fill="#5A4BD6"/>
 </svg>
