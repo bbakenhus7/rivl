@@ -32,11 +32,63 @@ class RivlColors {
   static const Color error = Color(0xFFF44336);
   static const Color info = Color(0xFF2196F3);
 
-  // Gradient
+  // Gradients
   static const LinearGradient primaryGradient = LinearGradient(
     colors: [primary, primaryLight],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient primaryDeepGradient = LinearGradient(
+    colors: [Color(0xFF5A4BD6), Color(0xFF6C5CE7), Color(0xFF8B7CF6)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient successGradient = LinearGradient(
+    colors: [Color(0xFF43A047), Color(0xFF66BB6A)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient warmGradient = LinearGradient(
+    colors: [Color(0xFFFF6B5B), Color(0xFFFF8A65)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient coolGradient = LinearGradient(
+    colors: [Color(0xFF5C6BC0), Color(0xFF42A5F5)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  /// Subtle surface gradient for card backgrounds (light mode)
+  static const LinearGradient cardGradient = LinearGradient(
+    colors: [Color(0xFFFFFFFF), Color(0xFFF5F3FF)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  /// Subtle surface gradient for card backgrounds (dark mode)
+  static const LinearGradient cardGradientDark = LinearGradient(
+    colors: [Color(0xFF1E1E2E), Color(0xFF252540)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  /// Scaffold background gradient (light mode) - very subtle
+  static const LinearGradient scaffoldGradient = LinearGradient(
+    colors: [Color(0xFFF8F9FA), Color(0xFFF0EDFF)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+
+  /// Scaffold background gradient (dark mode)
+  static const LinearGradient scaffoldGradientDark = LinearGradient(
+    colors: [Color(0xFF121212), Color(0xFF1A1528)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
   );
 }
 

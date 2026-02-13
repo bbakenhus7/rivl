@@ -51,11 +51,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 flexibleSpace: FlexibleSpaceBar(
                   background: Container(
                     decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFF2277DD), Color(0xFF3399FF), Color(0xFF55AAFF)],
-                      ),
+                      gradient: RivlColors.primaryDeepGradient,
                     ),
                     child: SafeArea(
                       child: Column(

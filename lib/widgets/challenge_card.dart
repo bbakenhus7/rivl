@@ -46,7 +46,11 @@ class ChallengeCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: context.surface,
+          gradient: LinearGradient(
+            colors: [context.surface, accentColor.withOpacity(0.03)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: accentColor.withOpacity(isWinning || (isCompleted && didWin) ? 0.3 : 0.08),
@@ -62,11 +66,15 @@ class ChallengeCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // Colored accent bar at top (like Robinhood position cards)
+            // Gradient accent bar at top
             Container(
               height: 3,
               decoration: BoxDecoration(
-                color: accentColor,
+                gradient: LinearGradient(
+                  colors: [accentColor, accentColor.withOpacity(0.5)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               ),
             ),

@@ -143,11 +143,35 @@ class _MainScreenState extends State<MainScreen> {
       ),
       bottomNavigationBar: Consumer2<ChallengeProvider, NotificationProvider>(
         builder: (context, challengeProvider, notificationProvider, _) {
-          return NavigationBar(
-            selectedIndex: _currentIndex,
-            onDestinationSelected: (index) {
-              setState(() => _currentIndex = index);
-            },
+          return Container(
+            decoration: BoxDecoration(
+              gradient: Theme.of(context).brightness == Brightness.light
+                  ? const LinearGradient(
+                      colors: [Color(0xFFFFFFFF), Color(0xFFFAF9FF)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    )
+                  : const LinearGradient(
+                      colors: [Color(0xFF1E1E2E), Color(0xFF1A1528)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+              boxShadow: [
+                BoxShadow(
+                  color: RivlColors.primary.withOpacity(0.06),
+                  blurRadius: 12,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: NavigationBar(
+              selectedIndex: _currentIndex,
+              onDestinationSelected: (index) {
+                setState(() => _currentIndex = index);
+              },
+              surfaceTintColor: Colors.transparent,
+              backgroundColor: Colors.transparent,
+              shadowColor: Colors.transparent,
             destinations: [
               const NavigationDestination(
                 icon: Icon(Icons.home_outlined),
@@ -183,6 +207,7 @@ class _MainScreenState extends State<MainScreen> {
                 label: 'Profile',
               ),
             ],
+            ),
           );
         },
       ),
