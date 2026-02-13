@@ -240,8 +240,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                     goalType: challenge.goalType,
                                     color: RivlColors.primary,
                                     gradientColors: const [
-                                      Color(0xFF3399FF),
-                                      Color(0xFF66B2FF),
+                                      RivlColors.primary,
+                                      RivlColors.primaryLight,
                                     ],
                                     isLeading: challenge.isUserWinning,
                                   ),

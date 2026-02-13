@@ -302,7 +302,17 @@ class _StatsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [context.surface, RivlColors.primary.withOpacity(0.03)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -541,7 +551,6 @@ class _BankAccountCard extends StatelessWidget {
             ? const Icon(Icons.check_circle, color: RivlColors.success)
             : TextButton(
                 onPressed: () {
-                  // TODO: Implement Plaid/Stripe bank linking
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Bank linking coming soon!'),
