@@ -233,14 +233,49 @@ class BattlePassSeason {
 
 /// XP sources and amounts
 class XPSource {
+  // Core activities
   static const int CHALLENGE_WIN = 100;
   static const int CHALLENGE_COMPLETE = 50;
   static const int CHALLENGE_PARTICIPATION = 25;
+  static const int CHALLENGE_CREATED = 15;
+  static const int CHALLENGE_ACCEPTED = 15;
+
+  // Daily engagement
   static const int DAILY_LOGIN = 10;
-  static const int STREAK_BONUS = 20; // Per streak day
+  static const int STREAK_BONUS = 20; // Per streak day (capped at 7)
+  static const int HEALTH_SYNC = 5;   // First health data sync each day
+
+  // Social & growth
   static const int REFERRAL = 75;
+  static const int PROFILE_COMPLETED = 50;
+
+  // Milestones
   static const int ACHIEVEMENT_UNLOCK = 50;
+  static const int FIRST_CHALLENGE = 50;
+  static const int FIRST_WIN = 100;
+  static const int TEN_CHALLENGES = 75;
+  static const int STEPS_GOAL_HIT = 15;   // Hit daily 10K steps goal
+
+  // Premium & sponsored
   static const int SPONSORED_CHALLENGE_WIN = 150;
+
+  // Activity descriptions for XP history
+  static const Map<String, String> descriptions = {
+    'daily_login': 'Daily login bonus',
+    'streak_bonus': 'Streak bonus',
+    'challenge_created': 'Created a challenge',
+    'challenge_accepted': 'Accepted a challenge',
+    'challenge_win': 'Won a challenge',
+    'challenge_complete': 'Completed a challenge',
+    'health_sync': 'Health data synced',
+    'referral': 'Referred a friend',
+    'profile_completed': 'Completed profile',
+    'first_challenge': 'First challenge milestone',
+    'first_win': 'First win milestone',
+    'ten_challenges': '10 challenges milestone',
+    'steps_goal': 'Hit 10K steps goal',
+    'sponsored_win': 'Won sponsored challenge',
+  };
 
   static int calculateChallengeXP({
     required bool won,

@@ -20,8 +20,8 @@ class _BattlePassScreenState extends State<BattlePassScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = context.read<AuthProvider>();
-      if (authProvider.currentUser != null) {
-        context.read<BattlePassProvider>().loadProgress(authProvider.currentUser!.id);
+      if (authProvider.user != null) {
+        context.read<BattlePassProvider>().loadProgress(authProvider.user!.id);
       }
     });
   }
@@ -61,7 +61,7 @@ class _BattlePassScreenState extends State<BattlePassScreen> {
     return SliverAppBar(
       expandedHeight: 200,
       pinned: true,
-      backgroundColor: AppTheme.primaryColor,
+      backgroundColor: RivlColors.primary,
       flexibleSpace: FlexibleSpaceBar(
         title: Text('Season ${progress.season}'),
         background: Container(
@@ -70,8 +70,8 @@ class _BattlePassScreenState extends State<BattlePassScreen> {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                AppTheme.primaryColor,
-                AppTheme.primaryColor.withOpacity(0.8),
+                RivlColors.primary,
+                RivlColors.primary.withOpacity(0.8),
               ],
             ),
           ),
@@ -140,7 +140,7 @@ class _BattlePassScreenState extends State<BattlePassScreen> {
                     value: progress.levelProgress,
                     minHeight: 12,
                     backgroundColor: Colors.grey[200],
-                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                    valueColor: AlwaysStoppedAnimation<Color>(RivlColors.primary),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -280,7 +280,7 @@ class _BattlePassScreenState extends State<BattlePassScreen> {
             onPressed: () async {
               Navigator.pop(context);
               final authProvider = context.read<AuthProvider>();
-              await provider.unlockPremium(authProvider.currentUser!.id);
+              await provider.unlockPremium(authProvider.user!.id);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Premium Pass unlocked!')),
               );
@@ -295,7 +295,7 @@ class _BattlePassScreenState extends State<BattlePassScreen> {
   void _claimReward(BattlePassProvider provider, BattlePassReward reward) async {
     final authProvider = context.read<AuthProvider>();
     final success = await provider.claimReward(
-      authProvider.currentUser!.id,
+      authProvider.user!.id,
       reward.level,
       reward.tier,
     );
@@ -333,12 +333,12 @@ class _XPInfoChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppTheme.primaryColor.withOpacity(0.1),
+          color: RivlColors.primary.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           children: [
-            Icon(icon, color: AppTheme.primaryColor, size: 20),
+            Icon(icon, color: RivlColors.primary, size: 20),
             const SizedBox(width: 8),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -417,7 +417,7 @@ class _LevelRewardCard extends StatelessWidget {
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: isLocked ? Colors.grey[300] : AppTheme.primaryColor,
+                color: isLocked ? Colors.grey[300] : RivlColors.primary,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
@@ -497,7 +497,7 @@ class _RewardItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bgColor = isPremium ? Colors.amber[50] : Colors.grey[50];
-    final accentColor = isPremium ? Colors.amber : AppTheme.primaryColor;
+    final accentColor = isPremium ? Colors.amber : RivlColors.primary;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -585,6 +585,10 @@ class _RewardItem extends StatelessWidget {
         return Icons.rocket_launch;
       case RewardType.unlock:
         return Icons.lock_open;
+      case RewardType.product:
+        return Icons.redeem;
+      case RewardType.giftcard:
+        return Icons.card_giftcard;
     }
   }
 }

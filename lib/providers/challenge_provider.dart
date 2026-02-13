@@ -11,6 +11,10 @@ class ChallengeProvider extends ChangeNotifier {
   final FirebaseService _firebaseService = FirebaseService();
   final HealthService _healthService = HealthService();
 
+  /// Callback invoked when the user earns XP from challenge activity.
+  /// Set this from the widget tree where BattlePassProvider is accessible.
+  void Function(int xp, String source)? onXPEarned;
+
   List<ChallengeModel> _challenges = [];
   List<Map<String, dynamic>> _leaderboard = [];
   List<UserModel> _searchResults = [];
@@ -435,6 +439,7 @@ class ChallengeProvider extends ChangeNotifier {
       );
 
       _successMessage = 'Challenge sent to ${_selectedOpponent!.displayName}!';
+      onXPEarned?.call(15, 'challenge_created'); // XPSource.CHALLENGE_CREATED
       resetCreateForm();
 
       _isCreating = false;
@@ -488,6 +493,7 @@ class ChallengeProvider extends ChangeNotifier {
     try {
       await _firebaseService.acceptChallenge(challengeId);
       _successMessage = 'Challenge accepted! Good luck!';
+      onXPEarned?.call(15, 'challenge_accepted'); // XPSource.CHALLENGE_ACCEPTED
       _isLoading = false;
       notifyListeners();
       return true;

@@ -9,6 +9,10 @@ import '../models/health_metrics.dart';
 class HealthProvider extends ChangeNotifier {
   final HealthService _healthService = HealthService();
 
+  /// Callback invoked when the user earns XP from health activity.
+  void Function(int xp, String source)? onXPEarned;
+  DateTime? _lastHealthXPDate; // Track daily health sync XP
+
   bool _isAuthorized = false;
   bool _isLoading = false;
   HealthMetrics _metrics = HealthMetrics.demo();
@@ -112,6 +116,20 @@ class HealthProvider extends ChangeNotifier {
 
     try {
       _metrics = await _healthService.getHealthMetrics();
+
+      // Award daily health sync XP (once per day)
+      final today = DateTime.now();
+      if (_lastHealthXPDate == null ||
+          _lastHealthXPDate!.day != today.day ||
+          _lastHealthXPDate!.month != today.month) {
+        _lastHealthXPDate = today;
+        onXPEarned?.call(5, 'health_sync');
+
+        // Award bonus XP if daily steps goal reached
+        if (_metrics.stepsGoalReached) {
+          onXPEarned?.call(15, 'steps_goal');
+        }
+      }
     } catch (e) {
       _errorMessage = 'Failed to fetch health data';
       _metrics = HealthMetrics.demo();

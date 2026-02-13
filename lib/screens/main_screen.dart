@@ -10,6 +10,7 @@ import '../providers/streak_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/battle_pass_provider.dart';
 import '../providers/activity_feed_provider.dart';
+import '../models/battle_pass_model.dart';
 import '../widgets/streak_reward_popup.dart';
 import 'home/home_screen.dart';
 import 'challenges/challenges_screen.dart';
@@ -62,6 +63,14 @@ class _MainScreenState extends State<MainScreen> {
       healthProvider.requestAuthorization();
       walletProvider.initialize(userId);
 
+      // Wire XP awards into battle pass from all providers
+      challengeProvider.onXPEarned = (xp, source) {
+        battlePassProvider.addXP(userId, xp, source);
+      };
+      healthProvider.onXPEarned = (xp, source) {
+        battlePassProvider.addXP(userId, xp, source);
+      };
+
       // New features
       streakProvider.loadStreak(userId);
       notificationProvider.initialize(userId);
@@ -82,12 +91,30 @@ class _MainScreenState extends State<MainScreen> {
 
   void _checkDailyStreak(String userId) async {
     final streakProvider = context.read<StreakProvider>();
+    final battlePassProvider = context.read<BattlePassProvider>();
 
-    // Wait for streak data to load
+    // Wait for streak and battle pass data to load
     await Future.delayed(const Duration(milliseconds: 500));
 
     if (streakProvider.canClaimToday && mounted) {
       await streakProvider.claimDailyReward(userId);
+
+      // Award daily login XP
+      await battlePassProvider.addXP(
+        userId,
+        XPSource.DAILY_LOGIN,
+        'daily_login',
+      );
+
+      // Award streak bonus XP (scales with streak, capped at 7 days)
+      final streakDays = streakProvider.currentStreak.clamp(1, 7);
+      if (streakDays > 1) {
+        await battlePassProvider.addXP(
+          userId,
+          XPSource.STREAK_BONUS * (streakDays - 1),
+          'streak_bonus',
+        );
+      }
 
       // Show reward popup
       if (streakProvider.showRewardPopup && streakProvider.lastReward != null && mounted) {
