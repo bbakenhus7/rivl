@@ -156,10 +156,11 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ],
           ),
-          child: const Icon(
-            Icons.local_fire_department,
-            size: 40,
+          padding: const EdgeInsets.all(12),
+          child: Image.asset(
+            'assets/images/rivl_logo.png',
             color: Colors.white,
+            colorBlendMode: BlendMode.srcIn,
           ),
         ),
         const SizedBox(height: 24),

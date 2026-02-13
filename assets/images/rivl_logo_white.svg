@@ -1,6 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480">
-  <!-- Main body - white -->
-  <path d="M148,0 L400,0 L200,200 L304,304 L200,408 L96,304 L200,200 Z" fill="#FFFFFF"/>
-  <!-- Bottom tail - white with slight transparency for depth -->
-  <path d="M200,408 L96,304 L0,400 L96,480 Z" fill="#FFFFFF" opacity="0.7"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <path fill-rule="evenodd" d="
+    M 80 448 V 64 H 292
+    C 408 64, 440 120, 440 192
+    C 440 268, 396 308, 312 316
+    L 432 448 H 340 L 228 324 H 164 V 448 Z
+    M 164 140 H 278
+    C 348 140, 364 168, 364 196
+    C 364 224, 348 252, 278 252 H 164 Z
+  " fill="#FFFFFF"/>
 </svg>
