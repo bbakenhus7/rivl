@@ -65,7 +65,7 @@ class BattlePassProvider with ChangeNotifier {
     }
   }
 
-  /// Load demo battle pass data for preview
+  /// Load fresh battle pass data (0 XP, level 1)
   void _loadDemoData(String userId) {
     _currentSeason = _generateQuarterlySeason();
     final now = DateTime.now();
@@ -76,9 +76,9 @@ class BattlePassProvider with ChangeNotifier {
     _progress = BattlePassProgress(
       userId: userId,
       season: quarter,
-      currentLevel: 4,
-      currentXP: 320,
-      totalXP: 1320,
+      currentLevel: 1,
+      currentXP: 0,
+      totalXP: 0,
       isPremiumUnlocked: false,
       claimedRewards: const [],
       seasonStartDate: seasonStart,

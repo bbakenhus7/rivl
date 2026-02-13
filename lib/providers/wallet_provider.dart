@@ -96,7 +96,7 @@ class WalletProvider extends ChangeNotifier {
 
     try {
       final transaction = await _walletService.initiateDeposit(
-        userId: _wallet!.odId,
+        userId: _wallet!.userId,
         amount: amount,
       );
 
@@ -129,7 +129,7 @@ class WalletProvider extends ChangeNotifier {
 
     try {
       final transaction = await _walletService.initiateWithdrawal(
-        userId: _wallet!.odId,
+        userId: _wallet!.userId,
         amount: amount,
         method: method,
       );
@@ -157,7 +157,7 @@ class WalletProvider extends ChangeNotifier {
     if (_wallet == null) return;
 
     try {
-      _transactions = await _walletService.getTransactions(_wallet!.odId);
+      _transactions = await _walletService.getTransactions(_wallet!.userId);
       notifyListeners();
     } catch (e) {
       // Silently handle refresh errors

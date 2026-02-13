@@ -11,6 +11,10 @@ class ChallengeProvider extends ChangeNotifier {
   final FirebaseService _firebaseService = FirebaseService();
   final HealthService _healthService = HealthService();
 
+  /// Callback invoked when the user earns XP from challenge activity.
+  /// Set this from the widget tree where BattlePassProvider is accessible.
+  void Function(int xp, String source)? onXPEarned;
+
   List<ChallengeModel> _challenges = [];
   List<Map<String, dynamic>> _leaderboard = [];
   List<UserModel> _searchResults = [];
@@ -401,11 +405,22 @@ class ChallengeProvider extends ChangeNotifier {
     }
   }
 
-  Future<String?> createChallenge() async {
+  Future<String?> createChallenge({double? walletBalance}) async {
     if (_selectedOpponent == null) {
       _errorMessage = 'Please select an opponent';
       notifyListeners();
       return null;
+    }
+
+    // Validate wallet balance for paid challenges
+    if (_selectedStake.amount > 0) {
+      final balance = walletBalance ?? 0.0;
+      if (balance < _selectedStake.amount) {
+        _errorMessage =
+            'Insufficient balance. You need \$${_selectedStake.amount.toStringAsFixed(0)} to enter this challenge.';
+        notifyListeners();
+        return null;
+      }
     }
 
     _isCreating = true;
@@ -424,14 +439,17 @@ class ChallengeProvider extends ChangeNotifier {
       );
 
       _successMessage = 'Challenge sent to ${_selectedOpponent!.displayName}!';
+      onXPEarned?.call(15, 'challenge_created'); // XPSource.CHALLENGE_CREATED
       resetCreateForm();
-      
+
       _isCreating = false;
       notifyListeners();
       return challengeId;
     } catch (e) {
       _isCreating = false;
-      _errorMessage = 'Failed to create challenge. Please try again.';
+      _errorMessage = e.toString().contains('Exception:')
+          ? e.toString().replaceFirst('Exception: ', '')
+          : 'Failed to create challenge. Please try again.';
       notifyListeners();
       return null;
     }
@@ -449,7 +467,27 @@ class ChallengeProvider extends ChangeNotifier {
   // CHALLENGE ACTIONS
   // ============================================
 
-  Future<bool> acceptChallenge(String challengeId) async {
+  Future<bool> acceptChallenge(String challengeId, {double? walletBalance}) async {
+    // Validate that the challenge is still pending before accepting
+    final challenge = _challenges.where((c) => c.id == challengeId).toList();
+    if (challenge.isNotEmpty) {
+      if (challenge.first.status != ChallengeStatus.pending) {
+        _errorMessage = 'This challenge is no longer available';
+        notifyListeners();
+        return false;
+      }
+      // Validate wallet balance for paid challenges
+      if (challenge.first.stakeAmount > 0) {
+        final balance = walletBalance ?? 0.0;
+        if (balance < challenge.first.stakeAmount) {
+          _errorMessage =
+              'Insufficient balance. You need \$${challenge.first.stakeAmount.toStringAsFixed(0)} to accept this challenge.';
+          notifyListeners();
+          return false;
+        }
+      }
+    }
+
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -457,6 +495,7 @@ class ChallengeProvider extends ChangeNotifier {
     try {
       await _firebaseService.acceptChallenge(challengeId);
       _successMessage = 'Challenge accepted! Good luck!';
+      onXPEarned?.call(15, 'challenge_accepted'); // XPSource.CHALLENGE_ACCEPTED
       _isLoading = false;
       notifyListeners();
       return true;

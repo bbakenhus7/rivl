@@ -5,10 +5,12 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/challenge_provider.dart';
 import '../providers/health_provider.dart';
+import '../providers/wallet_provider.dart';
 import '../providers/streak_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/battle_pass_provider.dart';
 import '../providers/activity_feed_provider.dart';
+import '../models/battle_pass_model.dart';
 import '../widgets/streak_reward_popup.dart';
 import 'home/home_screen.dart';
 import 'challenges/challenges_screen.dart';
@@ -47,6 +49,7 @@ class _MainScreenState extends State<MainScreen> {
     final authProvider = context.read<AuthProvider>();
     final challengeProvider = context.read<ChallengeProvider>();
     final healthProvider = context.read<HealthProvider>();
+    final walletProvider = context.read<WalletProvider>();
     final streakProvider = context.read<StreakProvider>();
     final notificationProvider = context.read<NotificationProvider>();
     final battlePassProvider = context.read<BattlePassProvider>();
@@ -58,6 +61,15 @@ class _MainScreenState extends State<MainScreen> {
       // Core
       challengeProvider.startListening(userId);
       healthProvider.requestAuthorization();
+      walletProvider.initialize(userId);
+
+      // Wire XP awards into battle pass from all providers
+      challengeProvider.onXPEarned = (xp, source) {
+        battlePassProvider.addXP(userId, xp, source);
+      };
+      healthProvider.onXPEarned = (xp, source) {
+        battlePassProvider.addXP(userId, xp, source);
+      };
 
       // New features
       streakProvider.loadStreak(userId);
@@ -65,19 +77,44 @@ class _MainScreenState extends State<MainScreen> {
       battlePassProvider.loadProgress(userId);
       activityFeedProvider.startListening();
 
+      // Start periodic health data refresh
+      healthProvider.startAutoRefresh();
+
       // Auto-claim daily streak reward
       _checkDailyStreak(userId);
+    } else {
+      // Load demo data for unauthenticated users so UI isn't empty
+      challengeProvider.loadDemoChallenges();
+      challengeProvider.loadDemoOpponents();
     }
   }
 
   void _checkDailyStreak(String userId) async {
     final streakProvider = context.read<StreakProvider>();
+    final battlePassProvider = context.read<BattlePassProvider>();
 
-    // Wait for streak data to load
+    // Wait for streak and battle pass data to load
     await Future.delayed(const Duration(milliseconds: 500));
 
     if (streakProvider.canClaimToday && mounted) {
       await streakProvider.claimDailyReward(userId);
+
+      // Award daily login XP
+      await battlePassProvider.addXP(
+        userId,
+        XPSource.DAILY_LOGIN,
+        'daily_login',
+      );
+
+      // Award streak bonus XP (scales with streak, capped at 7 days)
+      final streakDays = streakProvider.currentStreak.clamp(1, 7);
+      if (streakDays > 1) {
+        await battlePassProvider.addXP(
+          userId,
+          XPSource.STREAK_BONUS * (streakDays - 1),
+          'streak_bonus',
+        );
+      }
 
       // Show reward popup
       if (streakProvider.showRewardPopup && streakProvider.lastReward != null && mounted) {
@@ -106,11 +143,35 @@ class _MainScreenState extends State<MainScreen> {
       ),
       bottomNavigationBar: Consumer2<ChallengeProvider, NotificationProvider>(
         builder: (context, challengeProvider, notificationProvider, _) {
-          return NavigationBar(
-            selectedIndex: _currentIndex,
-            onDestinationSelected: (index) {
-              setState(() => _currentIndex = index);
-            },
+          return Container(
+            decoration: BoxDecoration(
+              gradient: Theme.of(context).brightness == Brightness.light
+                  ? const LinearGradient(
+                      colors: [Color(0xFFFFFFFF), Color(0xFFFAF9FF)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    )
+                  : const LinearGradient(
+                      colors: [Color(0xFF1E1E2E), Color(0xFF1A1528)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+              boxShadow: [
+                BoxShadow(
+                  color: RivlColors.primary.withOpacity(0.06),
+                  blurRadius: 12,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: NavigationBar(
+              selectedIndex: _currentIndex,
+              onDestinationSelected: (index) {
+                setState(() => _currentIndex = index);
+              },
+              surfaceTintColor: Colors.transparent,
+              backgroundColor: Colors.transparent,
+              shadowColor: Colors.transparent,
             destinations: [
               const NavigationDestination(
                 icon: Icon(Icons.home_outlined),
@@ -146,6 +207,7 @@ class _MainScreenState extends State<MainScreen> {
                 label: 'Profile',
               ),
             ],
+            ),
           );
         },
       ),

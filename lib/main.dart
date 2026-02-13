@@ -113,9 +113,7 @@ class WaitlistBanner extends StatelessWidget {
         right: 16,
       ),
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF3399FF), Color(0xFF1A6FD4)],
-        ),
+        gradient: RivlColors.primaryGradient,
       ),
       child: Row(
         children: [

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/challenge_provider.dart';
+import '../../providers/wallet_provider.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../../models/challenge_model.dart';
@@ -33,10 +34,30 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
       ),
       body: Consumer<ChallengeProvider>(
         builder: (context, provider, _) {
-          final challenge = provider.challenges.firstWhere(
+          final matches = provider.challenges.where(
             (c) => c.id == widget.challengeId,
-            orElse: () => throw Exception('Challenge not found'),
           );
+          if (matches.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 48, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Challenge not found',
+                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Go Back'),
+                  ),
+                ],
+              ),
+            );
+          }
+          final challenge = matches.first;
 
           final isCreator = challenge.creatorId == currentUserId;
           final userProgress = isCreator
@@ -219,8 +240,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                     goalType: challenge.goalType,
                                     color: RivlColors.primary,
                                     gradientColors: const [
-                                      Color(0xFF3399FF),
-                                      Color(0xFF66B2FF),
+                                      RivlColors.primary,
+                                      RivlColors.primaryLight,
                                     ],
                                     isLeading: challenge.isUserWinning,
                                   ),
@@ -1058,7 +1079,8 @@ class _QuickRematchCard extends StatelessWidget {
     provider.setSelectedStake(stakeMatch);
 
     // Create the challenge
-    final challengeId = await provider.createChallenge();
+    final walletBalance = context.read<WalletProvider>().balance;
+    final challengeId = await provider.createChallenge(walletBalance: walletBalance);
     if (challengeId != null && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1116,7 +1138,8 @@ class _QuickRematchCard extends StatelessWidget {
     );
     provider.setSelectedStake(stakeMatch);
 
-    final challengeId = await provider.createChallenge();
+    final walletBalance = context.read<WalletProvider>().balance;
+    final challengeId = await provider.createChallenge(walletBalance: walletBalance);
     if (challengeId != null && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

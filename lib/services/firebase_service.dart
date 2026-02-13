@@ -64,6 +64,38 @@ class FirebaseService {
     return credential;
   }
 
+  /// Create a Firestore user profile after social sign-in (Apple / Google).
+  Future<void> createSocialUser({
+    required String uid,
+    required String email,
+    required String displayName,
+  }) async {
+    final username = displayName
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
+
+    var finalUsername = username.isEmpty ? 'user_${uid.substring(0, 6)}' : username;
+    final isAvailable = await isUsernameAvailable(finalUsername);
+    if (!isAvailable) {
+      finalUsername = '${finalUsername}_${Random().nextInt(9999)}';
+    }
+
+    final user = UserModel(
+      id: uid,
+      email: email,
+      displayName: displayName,
+      username: finalUsername,
+      referralCode: _generateReferralCode(),
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      lastActiveAt: DateTime.now(),
+    );
+
+    await _db.collection('users').doc(uid).set(user.toFirestore());
+  }
+
   Future<void> signOut() async {
     await _auth.signOut();
   }

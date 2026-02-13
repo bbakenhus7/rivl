@@ -2,6 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../models/user_model.dart';
 import '../services/firebase_service.dart';
 
@@ -84,35 +86,100 @@ class AuthProvider extends ChangeNotifier {
   // SOCIAL SIGN IN
   // ============================================
 
-  Future<void> signInWithApple() async {
+  Future<bool> signInWithApple() async {
     _state = AuthState.loading;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      // TODO: Implement Apple Sign-In with firebase_auth
-      throw Exception('Apple Sign-In is not yet implemented');
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final oauthCredential = OAuthProvider('apple.com').credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
+
+      final userCredential =
+          await FirebaseAuth.instance.signInWithCredential(oauthCredential);
+
+      // Create profile in Firestore if this is a new user
+      if (userCredential.additionalUserInfo?.isNewUser ?? false) {
+        final firebaseUser = userCredential.user!;
+        final displayName = [
+          appleCredential.givenName,
+          appleCredential.familyName,
+        ].where((n) => n != null && n.isNotEmpty).join(' ');
+
+        await _firebaseService.createSocialUser(
+          uid: firebaseUser.uid,
+          email: firebaseUser.email ?? '',
+          displayName:
+              displayName.isNotEmpty ? displayName : 'RIVL User',
+        );
+      }
+
+      return true;
+    } on SignInWithAppleAuthorizationException catch (e) {
+      _state = AuthState.unauthenticated;
+      if (e.code == AuthorizationErrorCode.canceled) {
+        _errorMessage = null; // user cancelled, no error needed
+      } else {
+        _errorMessage = 'Apple Sign-In failed. Please try again.';
+      }
+      notifyListeners();
+      return false;
     } catch (e) {
       _state = AuthState.error;
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = 'Apple Sign-In failed. Please try again.';
       notifyListeners();
-      rethrow;
+      return false;
     }
   }
 
-  Future<void> signInWithGoogle() async {
+  Future<bool> signInWithGoogle() async {
     _state = AuthState.loading;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      // TODO: Implement Google Sign-In with firebase_auth
-      throw Exception('Google Sign-In is not yet implemented');
+      final googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        // User cancelled the sign-in
+        _state = AuthState.unauthenticated;
+        notifyListeners();
+        return false;
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+
+      // Create profile in Firestore if this is a new user
+      if (userCredential.additionalUserInfo?.isNewUser ?? false) {
+        final firebaseUser = userCredential.user!;
+        await _firebaseService.createSocialUser(
+          uid: firebaseUser.uid,
+          email: firebaseUser.email ?? '',
+          displayName: firebaseUser.displayName ?? 'RIVL User',
+        );
+      }
+
+      return true;
     } catch (e) {
       _state = AuthState.error;
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = 'Google Sign-In failed. Please try again.';
       notifyListeners();
-      rethrow;
+      return false;
     }
   }
 

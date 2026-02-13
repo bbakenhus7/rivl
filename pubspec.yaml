@@ -54,6 +54,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/
   # Note: assets and fonts entries removed temporarily to allow web/desktop builds
   # Re-add the following if you restore the `assets/` and `assets/fonts/` folders:
   # assets:

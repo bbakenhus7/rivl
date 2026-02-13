@@ -120,18 +120,26 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   void _showDepositSheet(BuildContext context) {
+    final walletProvider = context.read<WalletProvider>();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const _DepositSheet(),
+      builder: (_) => ChangeNotifierProvider.value(
+        value: walletProvider,
+        child: const _DepositSheet(),
+      ),
     );
   }
 
   void _showWithdrawSheet(BuildContext context) {
+    final walletProvider = context.read<WalletProvider>();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const _WithdrawSheet(),
+      builder: (_) => ChangeNotifierProvider.value(
+        value: walletProvider,
+        child: const _WithdrawSheet(),
+      ),
     );
   }
 
@@ -294,7 +302,17 @@ class _StatsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [context.surface, RivlColors.primary.withOpacity(0.03)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -533,7 +551,6 @@ class _BankAccountCard extends StatelessWidget {
             ? const Icon(Icons.check_circle, color: RivlColors.success)
             : TextButton(
                 onPressed: () {
-                  // TODO: Implement Plaid/Stripe bank linking
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Bank linking coming soon!'),
@@ -570,8 +587,8 @@ class _DepositSheetState extends State<_DepositSheet> {
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: Container(
-        padding: const EdgeInsets.all(24),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -705,8 +722,8 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
       ),
       child: Consumer<WalletProvider>(
         builder: (context, provider, _) {
-          return Container(
-            padding: const EdgeInsets.all(24),
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,

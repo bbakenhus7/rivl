@@ -16,6 +16,7 @@ import '../../utils/animations.dart';
 import '../../widgets/challenge_card.dart';
 import '../challenges/challenge_detail_screen.dart';
 import '../notifications/notifications_screen.dart';
+import 'health_metric_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -36,66 +37,74 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showAppInfo(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: ctx.surfaceVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.65,
+        maxChildSize: 0.85,
+        minChildSize: 0.4,
+        expand: false,
+        builder: (ctx, scrollController) => SingleChildScrollView(
+          controller: scrollController,
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
-                    gradient: RivlColors.primaryGradient,
-                    borderRadius: BorderRadius.circular(12),
+                    color: ctx.surfaceVariant,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  child: const Icon(Icons.local_fire_department, color: Colors.white, size: 24),
                 ),
-                const SizedBox(width: 12),
-                const Text('What is RIVL?', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'RIVL is an AI-powered fitness competition app that turns your health data into real stakes. '
-              'Challenge friends to step counts, distance, sleep, and more — with real money on the line.',
-              style: TextStyle(fontSize: 15, color: ctx.textSecondary, height: 1.5),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'How it works:',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: ctx.textSecondary),
-            ),
-            const SizedBox(height: 8),
-            _InfoBullet(text: 'Connect your wearable (Apple Watch, Fitbit, Garmin, etc.)'),
-            _InfoBullet(text: 'Challenge a friend and set a stake amount'),
-            _InfoBullet(text: 'Compete on steps, distance, sleep, VO2 max, and more'),
-            _InfoBullet(text: 'Winner takes the pot — AI anti-cheat keeps it fair'),
-            _InfoBullet(text: 'Earn XP and unlock rewards through the Season Pass'),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Got it'),
               ),
-            ),
-          ],
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: RivlColors.primaryGradient,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.local_fire_department, color: Colors.white, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text('What is RIVL?', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'RIVL is an AI-powered fitness competition app that turns your health data into real stakes. '
+                'Challenge friends to step counts, distance, sleep, and more — with real money on the line.',
+                style: TextStyle(fontSize: 15, color: ctx.textSecondary, height: 1.5),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'How it works:',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: ctx.textSecondary),
+              ),
+              const SizedBox(height: 8),
+              _InfoBullet(text: 'Connect your wearable (Apple Watch, Fitbit, Garmin, etc.)'),
+              _InfoBullet(text: 'Challenge a friend and set a stake amount'),
+              _InfoBullet(text: 'Compete on steps, distance, sleep, VO2 max, and more'),
+              _InfoBullet(text: 'Winner takes the pot — AI anti-cheat keeps it fair'),
+              _InfoBullet(text: 'Earn XP and unlock rewards through the Season Pass'),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Got it'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -117,11 +126,11 @@ class _HomeScreenState extends State<HomeScreen> {
               expandedHeight: 120,
               floating: true,
               pinned: true,
-              backgroundColor: RivlColors.primary,
+              backgroundColor: RivlColors.primaryDark,
               flexibleSpace: FlexibleSpaceBar(
                 background: Container(
                   decoration: const BoxDecoration(
-                    gradient: RivlColors.primaryGradient,
+                    gradient: RivlColors.primaryDeepGradient,
                   ),
                   child: SafeArea(
                     child: Padding(
@@ -130,15 +139,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           // RIVL Logo
                           Container(
-                            padding: const EdgeInsets.all(8),
+                            width: 44,
+                            height: 44,
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(
-                              Icons.local_fire_department,
-                              color: RivlColors.primary,
-                              size: 28,
+                            padding: const EdgeInsets.all(4),
+                            child: Image.asset(
+                              'assets/images/rivl_logo.png',
+                              fit: BoxFit.contain,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -471,9 +481,7 @@ class _ScoreCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: context.surface,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -488,19 +496,34 @@ class _ScoreCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [context.surface, color.withOpacity(0.04)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [color.withOpacity(0.18), color.withOpacity(0.08)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, color: color, size: 20),
+                  ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -543,6 +566,8 @@ class _ScoreCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+        ),
       ),
     );
   }
@@ -590,11 +615,15 @@ class _ActivityBarsCard extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: context.surface,
+            gradient: LinearGradient(
+              colors: [context.surface, RivlColors.primary.withOpacity(0.03)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: RivlColors.primary.withOpacity(0.06),
                 blurRadius: 16,
                 offset: const Offset(0, 6),
               ),
@@ -1001,6 +1030,7 @@ class _HealthMetricsGrid extends StatelessWidget {
                     value: health.heartRate > 0 ? '${health.heartRate}' : '--',
                     unit: 'bpm',
                     color: Colors.red,
+                    metricType: HealthMetricType.heartRate,
                     numericValue: health.heartRate > 0 ? health.heartRate : null,
                     description: 'Heart rate measures how many times your heart beats per minute. Tracking it during exercise shows how hard your cardiovascular system is working, and monitoring trends over time can reveal improvements in fitness or flag potential health concerns early.',
                   ),
@@ -1013,6 +1043,7 @@ class _HealthMetricsGrid extends StatelessWidget {
                     value: health.sleepHours > 0 ? health.formatSleep(health.sleepHours) : '--',
                     unit: '',
                     color: Colors.indigo,
+                    metricType: HealthMetricType.sleep,
                     description: 'Sleep is when your body recovers, builds muscle, and consolidates memory. Getting 7-9 hours of quality sleep each night improves athletic performance, mental clarity, and immune function. Poor sleep undermines even the best training.',
                   ),
                 ),
@@ -1024,6 +1055,7 @@ class _HealthMetricsGrid extends StatelessWidget {
                     value: health.hrv > 0 ? health.formatHRV(health.hrv) : '--',
                     unit: 'ms',
                     color: Colors.purple,
+                    metricType: HealthMetricType.hrv,
                     numericValue: health.hrv > 0 ? health.hrv.round() : null,
                     description: 'Heart Rate Variability (HRV) measures the variation in time between heartbeats. A higher HRV generally indicates better cardiovascular fitness and recovery. It\'s one of the best indicators of how ready your body is to perform and whether you\'re overtraining.',
                   ),
@@ -1036,6 +1068,7 @@ class _HealthMetricsGrid extends StatelessWidget {
                     value: health.restingHeartRate > 0 ? '${health.restingHeartRate}' : '--',
                     unit: 'bpm',
                     color: Colors.pink,
+                    metricType: HealthMetricType.restingHeartRate,
                     numericValue: health.restingHeartRate > 0 ? health.restingHeartRate : null,
                     description: 'Resting heart rate is your heart rate when you\'re completely at rest. A lower resting heart rate typically means your heart is more efficient. Athletes often have resting rates between 40-60 bpm. Tracking it over time shows your cardiovascular fitness improving.',
                   ),
@@ -1048,6 +1081,7 @@ class _HealthMetricsGrid extends StatelessWidget {
                     value: health.bloodOxygen > 0 ? health.formatBloodOxygen(health.bloodOxygen) : '--',
                     unit: '',
                     color: Colors.teal,
+                    metricType: HealthMetricType.bloodOxygen,
                     description: 'Blood oxygen (SpO2) measures the percentage of oxygen your red blood cells are carrying. Normal levels are 95-100%. Tracking it helps monitor respiratory health, sleep quality, and how well your body delivers oxygen to muscles during intense exercise.',
                   ),
                 ),
@@ -1059,6 +1093,7 @@ class _HealthMetricsGrid extends StatelessWidget {
                     value: health.vo2Max > 0 ? health.formatVO2Max(health.vo2Max) : '--',
                     unit: 'ml/kg/min',
                     color: Colors.orange,
+                    metricType: HealthMetricType.vo2Max,
                     numericValue: health.vo2Max > 0 ? health.vo2Max.round() : null,
                     description: 'VO2 Max is the maximum amount of oxygen your body can use during intense exercise. It\'s considered the gold standard measure of aerobic fitness. Higher VO2 Max values are linked to better endurance, longer lifespan, and reduced risk of chronic disease.',
                   ),
@@ -1081,6 +1116,7 @@ class _MetricTile extends StatelessWidget {
   final Color color;
   final String description;
   final int? numericValue;
+  final HealthMetricType metricType;
 
   const _MetricTile({
     required this.icon,
@@ -1089,64 +1125,22 @@ class _MetricTile extends StatelessWidget {
     required this.unit,
     required this.color,
     required this.description,
+    required this.metricType,
     this.numericValue,
   });
 
   void _showDetail(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: ctx.surfaceVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: color, size: 24),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(label, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      if (value != '--')
-                        Text(
-                          '$value${unit.isNotEmpty ? ' $unit' : ''}',
-                          style: TextStyle(fontSize: 14, color: color, fontWeight: FontWeight.w600),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              description,
-              style: TextStyle(fontSize: 15, color: ctx.textSecondary, height: 1.5),
-            ),
-          ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => HealthMetricDetailScreen(
+          metricType: metricType,
+          icon: icon,
+          label: label,
+          currentValue: value,
+          unit: unit,
+          color: color,
+          description: description,
         ),
       ),
     );
@@ -1159,11 +1153,15 @@ class _MetricTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: context.surface,
+          gradient: LinearGradient(
+            colors: [context.surface, color.withOpacity(0.04)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: color.withOpacity(0.06),
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -1178,7 +1176,11 @@ class _MetricTile extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    gradient: LinearGradient(
+                      colors: [color.withOpacity(0.15), color.withOpacity(0.06)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, color: color, size: 18),
@@ -1194,6 +1196,11 @@ class _MetricTile extends StatelessWidget {
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
+                ),
+                Icon(
+                  Icons.chevron_right,
+                  size: 16,
+                  color: context.textSecondary.withOpacity(0.5),
                 ),
               ],
             ),
@@ -1254,11 +1261,15 @@ class _WeeklyStepsCard extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: context.surface,
+            gradient: LinearGradient(
+              colors: [context.surface, RivlColors.primary.withOpacity(0.03)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: RivlColors.primary.withOpacity(0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -1386,11 +1397,15 @@ class _RecentWorkoutsCard extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: context.surface,
+            gradient: LinearGradient(
+              colors: [context.surface, RivlColors.primary.withOpacity(0.03)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: RivlColors.primary.withOpacity(0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -1530,11 +1545,15 @@ class _GlanceStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
       decoration: BoxDecoration(
-        color: context.surface,
+        gradient: LinearGradient(
+          colors: [context.surface, color.withOpacity(0.05)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: color.withOpacity(0.06),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
