@@ -401,11 +401,22 @@ class ChallengeProvider extends ChangeNotifier {
     }
   }
 
-  Future<String?> createChallenge() async {
+  Future<String?> createChallenge({double? walletBalance}) async {
     if (_selectedOpponent == null) {
       _errorMessage = 'Please select an opponent';
       notifyListeners();
       return null;
+    }
+
+    // Validate wallet balance for paid challenges
+    if (_selectedStake.amount > 0) {
+      final balance = walletBalance ?? 0.0;
+      if (balance < _selectedStake.amount) {
+        _errorMessage =
+            'Insufficient balance. You need \$${_selectedStake.amount.toStringAsFixed(0)} to enter this challenge.';
+        notifyListeners();
+        return null;
+      }
     }
 
     _isCreating = true;
@@ -425,7 +436,7 @@ class ChallengeProvider extends ChangeNotifier {
 
       _successMessage = 'Challenge sent to ${_selectedOpponent!.displayName}!';
       resetCreateForm();
-      
+
       _isCreating = false;
       notifyListeners();
       return challengeId;
@@ -449,7 +460,27 @@ class ChallengeProvider extends ChangeNotifier {
   // CHALLENGE ACTIONS
   // ============================================
 
-  Future<bool> acceptChallenge(String challengeId) async {
+  Future<bool> acceptChallenge(String challengeId, {double? walletBalance}) async {
+    // Validate that the challenge is still pending before accepting
+    final challenge = _challenges.where((c) => c.id == challengeId).toList();
+    if (challenge.isNotEmpty) {
+      if (challenge.first.status != ChallengeStatus.pending) {
+        _errorMessage = 'This challenge is no longer available';
+        notifyListeners();
+        return false;
+      }
+      // Validate wallet balance for paid challenges
+      if (challenge.first.stakeAmount > 0) {
+        final balance = walletBalance ?? 0.0;
+        if (balance < challenge.first.stakeAmount) {
+          _errorMessage =
+              'Insufficient balance. You need \$${challenge.first.stakeAmount.toStringAsFixed(0)} to accept this challenge.';
+          notifyListeners();
+          return false;
+        }
+      }
+    }
+
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();

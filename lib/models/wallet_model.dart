@@ -26,7 +26,9 @@ enum WithdrawalMethod {
 
 class WalletModel {
   final String id;
-  final String odId;
+  final String userId;
+  @Deprecated('Use userId instead')
+  String get odId => userId;
   final double balance;            // Available balance
   final double pendingBalance;     // Funds in pending transactions
   final double lifetimeDeposits;
@@ -41,7 +43,7 @@ class WalletModel {
 
   WalletModel({
     required this.id,
-    required this.odId,
+    required this.userId,
     this.balance = 0.0,
     this.pendingBalance = 0.0,
     this.lifetimeDeposits = 0.0,
@@ -65,7 +67,7 @@ class WalletModel {
     final data = doc.data() as Map<String, dynamic>;
     return WalletModel(
       id: doc.id,
-      odId: data['userId'] ?? '',
+      userId: data['userId'] ?? doc.id,
       balance: (data['balance'] ?? 0).toDouble(),
       pendingBalance: (data['pendingBalance'] ?? 0).toDouble(),
       lifetimeDeposits: (data['lifetimeDeposits'] ?? 0).toDouble(),
@@ -82,7 +84,7 @@ class WalletModel {
 
   Map<String, dynamic> toFirestore() {
     return {
-      'userId': odId,
+      'userId': userId,
       'balance': balance,
       'pendingBalance': pendingBalance,
       'lifetimeDeposits': lifetimeDeposits,
@@ -110,7 +112,7 @@ class WalletModel {
   }) {
     return WalletModel(
       id: id,
-      odId: odId,
+      userId: userId,
       balance: balance ?? this.balance,
       pendingBalance: pendingBalance ?? this.pendingBalance,
       lifetimeDeposits: lifetimeDeposits ?? this.lifetimeDeposits,
@@ -128,7 +130,7 @@ class WalletModel {
 
 class WalletTransaction {
   final String id;
-  final String odId;
+  final String userId;
   final TransactionType type;
   final TransactionStatus status;
   final double amount;
@@ -140,9 +142,12 @@ class WalletTransaction {
   final DateTime createdAt;
   final DateTime? completedAt;
 
+  @Deprecated('Use userId instead')
+  String get odId => userId;
+
   WalletTransaction({
     required this.id,
-    required this.odId,
+    required this.userId,
     required this.type,
     required this.status,
     required this.amount,
@@ -189,7 +194,7 @@ class WalletTransaction {
     final data = doc.data() as Map<String, dynamic>;
     return WalletTransaction(
       id: doc.id,
-      odId: data['userId'] ?? '',
+      userId: data['userId'] ?? '',
       type: TransactionType.values.firstWhere(
         (e) => e.name == data['type'],
         orElse: () => TransactionType.deposit,
@@ -211,7 +216,7 @@ class WalletTransaction {
 
   Map<String, dynamic> toFirestore() {
     return {
-      'userId': odId,
+      'userId': userId,
       'type': type.name,
       'status': status.name,
       'amount': amount,

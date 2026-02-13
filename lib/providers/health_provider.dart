@@ -126,6 +126,22 @@ class HealthProvider extends ChangeNotifier {
 
     try {
       final steps = await _healthService.getTodaySteps();
+      // Update the cached metrics so the UI reflects the latest value
+      _metrics = HealthMetrics(
+        steps: steps,
+        heartRate: _metrics.heartRate,
+        restingHeartRate: _metrics.restingHeartRate,
+        hrv: _metrics.hrv,
+        activeCalories: _metrics.activeCalories,
+        distance: _metrics.distance,
+        sleepHours: _metrics.sleepHours,
+        vo2Max: _metrics.vo2Max,
+        respiratoryRate: _metrics.respiratoryRate,
+        bloodOxygen: _metrics.bloodOxygen,
+        weeklySteps: _metrics.weeklySteps,
+        recentWorkouts: _metrics.recentWorkouts,
+        lastUpdated: DateTime.now(),
+      );
       notifyListeners();
       return steps;
     } catch (e) {
@@ -139,7 +155,22 @@ class HealthProvider extends ChangeNotifier {
       if (!_isAuthorized) return [];
     }
 
-    return await _healthService.getStepsForChallenge(start, end);
+    try {
+      return await _healthService.getStepsForChallenge(start, end);
+    } catch (e) {
+      debugPrint('HealthProvider: getStepsForChallenge error: $e');
+      return [];
+    }
+  }
+
+  /// Start periodic background refresh (call once from MainScreen).
+  void startAutoRefresh() {
+    // Refresh health data every 5 minutes while the app is open
+    Future.delayed(const Duration(minutes: 5), () {
+      if (_isAuthorized) {
+        refreshData().then((_) => startAutoRefresh());
+      }
+    });
   }
 
   // ============================================

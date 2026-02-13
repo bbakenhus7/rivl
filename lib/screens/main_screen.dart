@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/challenge_provider.dart';
 import '../providers/health_provider.dart';
+import '../providers/wallet_provider.dart';
 import '../providers/streak_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/battle_pass_provider.dart';
@@ -47,6 +48,7 @@ class _MainScreenState extends State<MainScreen> {
     final authProvider = context.read<AuthProvider>();
     final challengeProvider = context.read<ChallengeProvider>();
     final healthProvider = context.read<HealthProvider>();
+    final walletProvider = context.read<WalletProvider>();
     final streakProvider = context.read<StreakProvider>();
     final notificationProvider = context.read<NotificationProvider>();
     final battlePassProvider = context.read<BattlePassProvider>();
@@ -58,6 +60,7 @@ class _MainScreenState extends State<MainScreen> {
       // Core
       challengeProvider.startListening(userId);
       healthProvider.requestAuthorization();
+      walletProvider.initialize(userId);
 
       // New features
       streakProvider.loadStreak(userId);
@@ -65,8 +68,15 @@ class _MainScreenState extends State<MainScreen> {
       battlePassProvider.loadProgress(userId);
       activityFeedProvider.startListening();
 
+      // Start periodic health data refresh
+      healthProvider.startAutoRefresh();
+
       // Auto-claim daily streak reward
       _checkDailyStreak(userId);
+    } else {
+      // Load demo data for unauthenticated users so UI isn't empty
+      challengeProvider.loadDemoChallenges();
+      challengeProvider.loadDemoOpponents();
     }
   }
 

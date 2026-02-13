@@ -426,13 +426,33 @@ class _LoginScreenState extends State<LoginScreen> {
             icon: Icons.apple,
             label: 'Apple',
             onPressed: () async {
-              setState(() => _isLoading = true);
+              setState(() {
+                _isLoading = true;
+                _errorMessage = null;
+              });
               try {
-                await context.read<AuthProvider>().signInWithApple();
+                final success =
+                    await context.read<AuthProvider>().signInWithApple();
+                if (success && mounted) {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => const MainScreen()),
+                  );
+                  return;
+                }
+                // Show error from provider if sign-in failed
+                if (mounted) {
+                  final err = context.read<AuthProvider>().errorMessage;
+                  if (err != null) {
+                    setState(() => _errorMessage = err);
+                  }
+                }
               } catch (e) {
-                setState(() {
-                  _errorMessage = e.toString().replaceAll('Exception: ', '');
-                });
+                if (mounted) {
+                  setState(() {
+                    _errorMessage =
+                        e.toString().replaceAll('Exception: ', '');
+                  });
+                }
               } finally {
                 if (mounted) setState(() => _isLoading = false);
               }
@@ -445,13 +465,32 @@ class _LoginScreenState extends State<LoginScreen> {
             icon: Icons.g_mobiledata,
             label: 'Google',
             onPressed: () async {
-              setState(() => _isLoading = true);
+              setState(() {
+                _isLoading = true;
+                _errorMessage = null;
+              });
               try {
-                await context.read<AuthProvider>().signInWithGoogle();
+                final success =
+                    await context.read<AuthProvider>().signInWithGoogle();
+                if (success && mounted) {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => const MainScreen()),
+                  );
+                  return;
+                }
+                if (mounted) {
+                  final err = context.read<AuthProvider>().errorMessage;
+                  if (err != null) {
+                    setState(() => _errorMessage = err);
+                  }
+                }
               } catch (e) {
-                setState(() {
-                  _errorMessage = e.toString().replaceAll('Exception: ', '');
-                });
+                if (mounted) {
+                  setState(() {
+                    _errorMessage =
+                        e.toString().replaceAll('Exception: ', '');
+                  });
+                }
               } finally {
                 if (mounted) setState(() => _isLoading = false);
               }

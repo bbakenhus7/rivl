@@ -33,10 +33,30 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
       ),
       body: Consumer<ChallengeProvider>(
         builder: (context, provider, _) {
-          final challenge = provider.challenges.firstWhere(
+          final matches = provider.challenges.where(
             (c) => c.id == widget.challengeId,
-            orElse: () => throw Exception('Challenge not found'),
           );
+          if (matches.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 48, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Challenge not found',
+                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Go Back'),
+                  ),
+                ],
+              ),
+            );
+          }
+          final challenge = matches.first;
 
           final isCreator = challenge.creatorId == currentUserId;
           final userProgress = isCreator

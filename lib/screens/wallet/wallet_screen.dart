@@ -120,18 +120,26 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   void _showDepositSheet(BuildContext context) {
+    final walletProvider = context.read<WalletProvider>();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const _DepositSheet(),
+      builder: (_) => ChangeNotifierProvider.value(
+        value: walletProvider,
+        child: const _DepositSheet(),
+      ),
     );
   }
 
   void _showWithdrawSheet(BuildContext context) {
+    final walletProvider = context.read<WalletProvider>();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const _WithdrawSheet(),
+      builder: (_) => ChangeNotifierProvider.value(
+        value: walletProvider,
+        child: const _WithdrawSheet(),
+      ),
     );
   }
 

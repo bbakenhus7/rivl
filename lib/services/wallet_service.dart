@@ -40,7 +40,7 @@ class WalletService {
     // Create new wallet
     final wallet = WalletModel(
       id: userId,
-      odId: userId,
+      userId: userId,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -115,7 +115,7 @@ class WalletService {
 
       return WalletTransaction(
         id: transactionId,
-        odId: userId,
+        userId: userId,
         type: TransactionType.deposit,
         status: TransactionStatus.completed,
         amount: amount,
@@ -205,7 +205,7 @@ class WalletService {
     // Create pending transaction
     final transaction = WalletTransaction(
       id: '',
-      odId: userId,
+      userId: userId,
       type: TransactionType.withdrawal,
       status: TransactionStatus.processing,
       amount: amount,
@@ -233,7 +233,7 @@ class WalletService {
 
     return WalletTransaction(
       id: docRef.id,
-      odId: userId,
+      userId: userId,
       type: TransactionType.withdrawal,
       status: TransactionStatus.processing,
       amount: amount,
@@ -284,11 +284,11 @@ class WalletService {
 
   /// Deduct stake for challenge entry
   Future<bool> deductStake({
-    required String odId,
+    required String userId,
     required String challengeId,
     required double amount,
   }) async {
-    final wallet = await getOrCreateWallet(odId);
+    final wallet = await getOrCreateWallet(userId);
 
     if (wallet.balance < amount) {
       return false; // Insufficient balance
@@ -296,7 +296,7 @@ class WalletService {
 
     final transaction = WalletTransaction(
       id: '',
-      odId: odId,
+      userId: userId,
       type: TransactionType.stakeDebit,
       status: TransactionStatus.completed,
       amount: amount,
@@ -309,11 +309,11 @@ class WalletService {
 
     await _db
         .collection('wallets')
-        .doc(odId)
+        .doc(userId)
         .collection('transactions')
         .add(transaction.toFirestore());
 
-    await _db.collection('wallets').doc(odId).update({
+    await _db.collection('wallets').doc(userId).update({
       'balance': FieldValue.increment(-amount),
       'lifetimeLosses': FieldValue.increment(amount),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -324,13 +324,13 @@ class WalletService {
 
   /// Credit winnings from challenge
   Future<void> creditWinnings({
-    required String odId,
+    required String userId,
     required String challengeId,
     required double amount,
   }) async {
     final transaction = WalletTransaction(
       id: '',
-      odId: odId,
+      userId: userId,
       type: TransactionType.winnings,
       status: TransactionStatus.completed,
       amount: amount,
@@ -343,11 +343,11 @@ class WalletService {
 
     await _db
         .collection('wallets')
-        .doc(odId)
+        .doc(userId)
         .collection('transactions')
         .add(transaction.toFirestore());
 
-    await _db.collection('wallets').doc(odId).update({
+    await _db.collection('wallets').doc(userId).update({
       'balance': FieldValue.increment(amount),
       'lifetimeWinnings': FieldValue.increment(amount),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -356,13 +356,13 @@ class WalletService {
 
   /// Refund stake for cancelled challenge
   Future<void> refundStake({
-    required String odId,
+    required String userId,
     required String challengeId,
     required double amount,
   }) async {
     final transaction = WalletTransaction(
       id: '',
-      odId: odId,
+      userId: userId,
       type: TransactionType.refund,
       status: TransactionStatus.completed,
       amount: amount,
@@ -375,11 +375,11 @@ class WalletService {
 
     await _db
         .collection('wallets')
-        .doc(odId)
+        .doc(userId)
         .collection('transactions')
         .add(transaction.toFirestore());
 
-    await _db.collection('wallets').doc(odId).update({
+    await _db.collection('wallets').doc(userId).update({
       'balance': FieldValue.increment(amount),
       'lifetimeLosses': FieldValue.increment(-amount),
       'updatedAt': FieldValue.serverTimestamp(),
