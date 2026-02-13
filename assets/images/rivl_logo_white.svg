@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Shield / geometric flame shape - white version for dark backgrounds -->
+  <path d="M256 48 L432 140 L432 300 Q432 420 256 472 Q80 420 80 300 L80 140 Z" fill="#FFFFFF"/>
+  <!-- Inner angular R / lightning bolt cut -->
+  <path d="M200 140 L320 140 L300 220 L340 220 L220 380 L250 260 L190 260 Z" fill="#6C5CE7"/>
+</svg>

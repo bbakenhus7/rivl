@@ -139,15 +139,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           // RIVL Logo
                           Container(
-                            padding: const EdgeInsets.all(8),
+                            width: 44,
+                            height: 44,
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(
-                              Icons.local_fire_department,
-                              color: RivlColors.primary,
-                              size: 28,
+                            padding: const EdgeInsets.all(4),
+                            child: Image.asset(
+                              'assets/images/rivl_logo.png',
+                              fit: BoxFit.contain,
                             ),
                           ),
                           const SizedBox(width: 12),
