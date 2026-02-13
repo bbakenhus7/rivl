@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/challenge_provider.dart';
+import '../../providers/wallet_provider.dart';
 import '../../models/challenge_model.dart';
 import '../../models/user_model.dart';
 import '../../utils/theme.dart';
@@ -66,7 +67,8 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
   }
 
   Future<void> _sendChallenge(ChallengeProvider provider) async {
-    final challengeId = await provider.createChallenge();
+    final walletBalance = context.read<WalletProvider>().balance;
+    final challengeId = await provider.createChallenge(walletBalance: walletBalance);
     if (challengeId != null && mounted) {
       setState(() => _challengeSent = true);
       await Future.delayed(const Duration(milliseconds: 2500));

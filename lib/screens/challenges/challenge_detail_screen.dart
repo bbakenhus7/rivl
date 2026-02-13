@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/challenge_provider.dart';
+import '../../providers/wallet_provider.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../../models/challenge_model.dart';
@@ -1078,7 +1079,8 @@ class _QuickRematchCard extends StatelessWidget {
     provider.setSelectedStake(stakeMatch);
 
     // Create the challenge
-    final challengeId = await provider.createChallenge();
+    final walletBalance = context.read<WalletProvider>().balance;
+    final challengeId = await provider.createChallenge(walletBalance: walletBalance);
     if (challengeId != null && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1136,7 +1138,8 @@ class _QuickRematchCard extends StatelessWidget {
     );
     provider.setSelectedStake(stakeMatch);
 
-    final challengeId = await provider.createChallenge();
+    final walletBalance = context.read<WalletProvider>().balance;
+    final challengeId = await provider.createChallenge(walletBalance: walletBalance);
     if (challengeId != null && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

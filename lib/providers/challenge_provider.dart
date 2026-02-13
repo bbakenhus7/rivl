@@ -447,7 +447,9 @@ class ChallengeProvider extends ChangeNotifier {
       return challengeId;
     } catch (e) {
       _isCreating = false;
-      _errorMessage = 'Failed to create challenge. Please try again.';
+      _errorMessage = e.toString().contains('Exception:')
+          ? e.toString().replaceFirst('Exception: ', '')
+          : 'Failed to create challenge. Please try again.';
       notifyListeners();
       return null;
     }
