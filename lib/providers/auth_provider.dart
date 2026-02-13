@@ -3,7 +3,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../models/user_model.dart';
 import '../services/firebase_service.dart';
@@ -149,30 +148,14 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final UserCredential userCredential;
+      final googleProvider = GoogleAuthProvider();
 
       if (kIsWeb) {
-        // Web: use Firebase popup-based sign-in (no GoogleSignIn plugin)
-        final googleProvider = GoogleAuthProvider();
         userCredential =
             await FirebaseAuth.instance.signInWithPopup(googleProvider);
       } else {
-        // Mobile: use google_sign_in plugin
-        final googleUser = await GoogleSignIn().signIn();
-        if (googleUser == null) {
-          // User cancelled the sign-in
-          _state = AuthState.unauthenticated;
-          notifyListeners();
-          return false;
-        }
-
-        final googleAuth = await googleUser.authentication;
-        final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-
         userCredential =
-            await FirebaseAuth.instance.signInWithCredential(credential);
+            await FirebaseAuth.instance.signInWithProvider(googleProvider);
       }
 
       // Create profile in Firestore if this is a new user

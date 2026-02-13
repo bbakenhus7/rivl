@@ -28,14 +28,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Dashboard'),
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: RivlColors.primary,
       ),
       body: _screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppTheme.primaryColor,
+        selectedItemColor: RivlColors.primary,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.security),
@@ -233,7 +233,7 @@ class _FlaggedChallengeCard extends StatelessWidget {
                 ElevatedButton(
                   onPressed: () => _viewDetails(context, challenge),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
+                    backgroundColor: RivlColors.primary,
                   ),
                   child: const Text('Review'),
                 ),
@@ -695,7 +695,7 @@ class ChallengeReviewScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Challenge Review'),
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: RivlColors.primary,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
