@@ -16,6 +16,7 @@ import '../../utils/animations.dart';
 import '../../widgets/challenge_card.dart';
 import '../challenges/challenge_detail_screen.dart';
 import '../notifications/notifications_screen.dart';
+import 'health_metric_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -1001,6 +1002,7 @@ class _HealthMetricsGrid extends StatelessWidget {
                     value: health.heartRate > 0 ? '${health.heartRate}' : '--',
                     unit: 'bpm',
                     color: Colors.red,
+                    metricType: HealthMetricType.heartRate,
                     numericValue: health.heartRate > 0 ? health.heartRate : null,
                     description: 'Heart rate measures how many times your heart beats per minute. Tracking it during exercise shows how hard your cardiovascular system is working, and monitoring trends over time can reveal improvements in fitness or flag potential health concerns early.',
                   ),
@@ -1013,6 +1015,7 @@ class _HealthMetricsGrid extends StatelessWidget {
                     value: health.sleepHours > 0 ? health.formatSleep(health.sleepHours) : '--',
                     unit: '',
                     color: Colors.indigo,
+                    metricType: HealthMetricType.sleep,
                     description: 'Sleep is when your body recovers, builds muscle, and consolidates memory. Getting 7-9 hours of quality sleep each night improves athletic performance, mental clarity, and immune function. Poor sleep undermines even the best training.',
                   ),
                 ),
@@ -1024,6 +1027,7 @@ class _HealthMetricsGrid extends StatelessWidget {
                     value: health.hrv > 0 ? health.formatHRV(health.hrv) : '--',
                     unit: 'ms',
                     color: Colors.purple,
+                    metricType: HealthMetricType.hrv,
                     numericValue: health.hrv > 0 ? health.hrv.round() : null,
                     description: 'Heart Rate Variability (HRV) measures the variation in time between heartbeats. A higher HRV generally indicates better cardiovascular fitness and recovery. It\'s one of the best indicators of how ready your body is to perform and whether you\'re overtraining.',
                   ),
@@ -1036,6 +1040,7 @@ class _HealthMetricsGrid extends StatelessWidget {
                     value: health.restingHeartRate > 0 ? '${health.restingHeartRate}' : '--',
                     unit: 'bpm',
                     color: Colors.pink,
+                    metricType: HealthMetricType.restingHeartRate,
                     numericValue: health.restingHeartRate > 0 ? health.restingHeartRate : null,
                     description: 'Resting heart rate is your heart rate when you\'re completely at rest. A lower resting heart rate typically means your heart is more efficient. Athletes often have resting rates between 40-60 bpm. Tracking it over time shows your cardiovascular fitness improving.',
                   ),
@@ -1048,6 +1053,7 @@ class _HealthMetricsGrid extends StatelessWidget {
                     value: health.bloodOxygen > 0 ? health.formatBloodOxygen(health.bloodOxygen) : '--',
                     unit: '',
                     color: Colors.teal,
+                    metricType: HealthMetricType.bloodOxygen,
                     description: 'Blood oxygen (SpO2) measures the percentage of oxygen your red blood cells are carrying. Normal levels are 95-100%. Tracking it helps monitor respiratory health, sleep quality, and how well your body delivers oxygen to muscles during intense exercise.',
                   ),
                 ),
@@ -1059,6 +1065,7 @@ class _HealthMetricsGrid extends StatelessWidget {
                     value: health.vo2Max > 0 ? health.formatVO2Max(health.vo2Max) : '--',
                     unit: 'ml/kg/min',
                     color: Colors.orange,
+                    metricType: HealthMetricType.vo2Max,
                     numericValue: health.vo2Max > 0 ? health.vo2Max.round() : null,
                     description: 'VO2 Max is the maximum amount of oxygen your body can use during intense exercise. It\'s considered the gold standard measure of aerobic fitness. Higher VO2 Max values are linked to better endurance, longer lifespan, and reduced risk of chronic disease.',
                   ),
@@ -1081,6 +1088,7 @@ class _MetricTile extends StatelessWidget {
   final Color color;
   final String description;
   final int? numericValue;
+  final HealthMetricType metricType;
 
   const _MetricTile({
     required this.icon,
@@ -1089,64 +1097,22 @@ class _MetricTile extends StatelessWidget {
     required this.unit,
     required this.color,
     required this.description,
+    required this.metricType,
     this.numericValue,
   });
 
   void _showDetail(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: ctx.surfaceVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: color, size: 24),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(label, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      if (value != '--')
-                        Text(
-                          '$value${unit.isNotEmpty ? ' $unit' : ''}',
-                          style: TextStyle(fontSize: 14, color: color, fontWeight: FontWeight.w600),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              description,
-              style: TextStyle(fontSize: 15, color: ctx.textSecondary, height: 1.5),
-            ),
-          ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => HealthMetricDetailScreen(
+          metricType: metricType,
+          icon: icon,
+          label: label,
+          currentValue: value,
+          unit: unit,
+          color: color,
+          description: description,
         ),
       ),
     );
@@ -1194,6 +1160,11 @@ class _MetricTile extends StatelessWidget {
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
+                ),
+                Icon(
+                  Icons.chevron_right,
+                  size: 16,
+                  color: context.textSecondary.withOpacity(0.5),
                 ),
               ],
             ),
