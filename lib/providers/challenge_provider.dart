@@ -565,6 +565,7 @@ class ChallengeProvider extends ChangeNotifier {
             goalValue: suggestedGoalValue,
             duration: _selectedDuration,
             participants: allParticipants,
+            participantIds: allParticipants.map((p) => p.userId).toList(),
             maxParticipants: _groupSize,
             minParticipants: 3,
             payoutStructure: _selectedPayoutStructure,

@@ -9,6 +9,7 @@ import '../../providers/health_provider.dart';
 import '../../providers/streak_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../providers/notification_provider.dart';
+import '../../widgets/add_funds_sheet.dart';
 import '../../providers/theme_provider.dart';
 import '../../models/challenge_model.dart';
 import '../../models/health_metrics.dart';
@@ -17,6 +18,7 @@ import '../../utils/animations.dart';
 import '../../widgets/rivl_logo.dart';
 import '../../widgets/challenge_card.dart';
 import '../challenges/challenge_detail_screen.dart';
+import '../main_screen.dart';
 import '../notifications/notifications_screen.dart';
 import 'health_metric_detail_screen.dart';
 
@@ -400,8 +402,48 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                     );
                                   },
-                                  onAccept: () => provider.acceptChallenge(challenge.id),
-                                  onDecline: () => provider.declineChallenge(challenge.id),
+                                  onAccept: () async {
+                                    var walletBalance = context.read<WalletProvider>().balance;
+                                    if (challenge.stakeAmount > 0 && walletBalance < challenge.stakeAmount) {
+                                      final funded = await showAddFundsSheet(
+                                        context,
+                                        stakeAmount: challenge.stakeAmount,
+                                        currentBalance: walletBalance,
+                                      );
+                                      if (!funded || !context.mounted) return;
+                                      walletBalance = context.read<WalletProvider>().balance;
+                                    }
+                                    final success = await provider.acceptChallenge(
+                                      challenge.id,
+                                      walletBalance: walletBalance,
+                                    );
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(success
+                                            ? 'Challenge accepted! Good luck!'
+                                            : provider.errorMessage ?? 'Failed to accept challenge'),
+                                        backgroundColor: success ? RivlColors.success : RivlColors.error,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      ),
+                                    );
+                                    provider.clearMessages();
+                                  },
+                                  onDecline: () async {
+                                    final success = await provider.declineChallenge(challenge.id);
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(success
+                                            ? 'Challenge declined'
+                                            : provider.errorMessage ?? 'Failed to decline challenge'),
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      ),
+                                    );
+                                    provider.clearMessages();
+                                  },
                                 ),
                               ),
                             );
@@ -469,7 +511,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text('Active Challenges', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                TextButton(onPressed: () {}, child: const Text('See All')),
+                                TextButton(
+                                  onPressed: () => MainScreen.onTabSelected?.call(1),
+                                  child: const Text('See All'),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 12),

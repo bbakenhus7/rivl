@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/health_provider.dart';
 import '../../providers/wallet_provider.dart';
@@ -1342,6 +1343,7 @@ class _ReferralSection extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.copy_rounded, size: 20),
                   onPressed: () {
+                    Clipboard.setData(ClipboardData(text: user.referralCode));
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Code copied!')),
                     );
@@ -1349,7 +1351,15 @@ class _ReferralSection extends StatelessWidget {
                 ),
                 IconButton(
                   icon: const Icon(Icons.share_rounded, size: 20),
-                  onPressed: () {},
+                  onPressed: () {
+                    SharePlus.instance.share(
+                      ShareParams(
+                        text: 'Join me on RIVL and compete in fitness challenges! '
+                            'Use my referral code ${user.referralCode} to sign up. '
+                            'https://rivl.app/refer/${user.referralCode}',
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

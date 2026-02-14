@@ -237,6 +237,7 @@ class FirebaseService {
       goalValue: goalValue,
       duration: duration,
       participants: allParticipants,
+      participantIds: allParticipants.map((p) => p.userId).toList(),
       maxParticipants: maxParticipants,
       minParticipants: minParticipants,
       payoutStructure: payoutStructure,
@@ -261,19 +262,18 @@ class FirebaseService {
   }
 
   Stream<List<ChallengeModel>> userChallengesStream(String userId) {
-    // Head-to-head challenges (creator or opponent)
-    final h2hStream = _db
+    // All challenges where user is creator, opponent, or group participant
+    return _db
         .collection('challenges')
         .where(Filter.or(
           Filter('creatorId', isEqualTo: userId),
           Filter('opponentId', isEqualTo: userId),
+          Filter('participantIds', arrayContains: userId),
         ))
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) =>
             snapshot.docs.map((doc) => ChallengeModel.fromFirestore(doc)).toList());
-
-    return h2hStream;
   }
 
   Future<ChallengeModel?> getChallenge(String challengeId) async {

@@ -53,6 +53,7 @@ class ChallengeModel {
   
   // Group challenge fields
   final List<GroupParticipant> participants;
+  final List<String> participantIds; // Flat list of user IDs for Firestore arrayContains queries
   final int maxParticipants;
   final int minParticipants;
   final GroupPayoutStructure? payoutStructure;
@@ -99,6 +100,7 @@ class ChallengeModel {
     this.creatorStepHistory = const [],
     this.opponentStepHistory = const [],
     this.participants = const [],
+    this.participantIds = const [],
     this.maxParticipants = 2,
     this.minParticipants = 2,
     this.payoutStructure,
@@ -233,6 +235,9 @@ class ChallengeModel {
       participants: (data['participants'] as List<dynamic>?)
           ?.map((e) => GroupParticipant.fromMap(e as Map<String, dynamic>))
           .toList() ?? [],
+      participantIds: (data['participantIds'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ?? [],
       maxParticipants: data['maxParticipants'] ?? 2,
       minParticipants: data['minParticipants'] ?? 2,
       payoutStructure: data['payoutStructure'] != null
@@ -285,6 +290,8 @@ class ChallengeModel {
       'opponentStepHistory': opponentStepHistory.map((e) => e.toMap()).toList(),
       if (participants.isNotEmpty)
         'participants': participants.map((e) => e.toMap()).toList(),
+      if (participantIds.isNotEmpty)
+        'participantIds': participantIds,
       if (maxParticipants > 2) 'maxParticipants': maxParticipants,
       if (minParticipants > 2) 'minParticipants': minParticipants,
       if (payoutStructure != null)
