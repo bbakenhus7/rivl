@@ -33,6 +33,13 @@ class UserModel {
   final int referralCount;
   final double referralEarnings;
   
+  // Personal Attributes
+  final double? weightLbs;
+  final double? heightInches;
+  final int? pullUpsPR;
+  final int? benchPressPR;
+  final int? squatPR;
+
   // Settings
   final bool notificationsEnabled;
   final bool healthConnected;
@@ -72,6 +79,11 @@ class UserModel {
     this.referredBy,
     this.referralCount = 0,
     this.referralEarnings = 0,
+    this.weightLbs,
+    this.heightInches,
+    this.pullUpsPR,
+    this.benchPressPR,
+    this.squatPR,
     this.notificationsEnabled = true,
     this.healthConnected = false,
     this.fcmToken,
@@ -82,6 +94,11 @@ class UserModel {
     this.isPremium = false,
     this.accountStatus = 'active',
   });
+
+  double? get bmi {
+    if (weightLbs == null || heightInches == null || heightInches == 0) return null;
+    return (weightLbs! / (heightInches! * heightInches!) * 703);
+  }
 
   String get winPercentage {
     if (totalChallenges == 0) return '0%';
@@ -144,6 +161,11 @@ class UserModel {
       referredBy: data['referredBy'],
       referralCount: data['referralCount'] ?? 0,
       referralEarnings: (data['referralEarnings'] ?? 0).toDouble(),
+      weightLbs: (data['weightLbs'] as num?)?.toDouble(),
+      heightInches: (data['heightInches'] as num?)?.toDouble(),
+      pullUpsPR: data['pullUpsPR'] as int?,
+      benchPressPR: data['benchPressPR'] as int?,
+      squatPR: data['squatPR'] as int?,
       notificationsEnabled: data['notificationsEnabled'] ?? true,
       healthConnected: data['healthConnected'] ?? false,
       fcmToken: data['fcmToken'],
@@ -180,6 +202,11 @@ class UserModel {
       'referredBy': referredBy,
       'referralCount': referralCount,
       'referralEarnings': referralEarnings,
+      'weightLbs': weightLbs,
+      'heightInches': heightInches,
+      'pullUpsPR': pullUpsPR,
+      'benchPressPR': benchPressPR,
+      'squatPR': squatPR,
       'notificationsEnabled': notificationsEnabled,
       'healthConnected': healthConnected,
       'fcmToken': fcmToken,
@@ -196,6 +223,11 @@ class UserModel {
     String? displayName,
     String? username,
     String? profileImageUrl,
+    double? weightLbs,
+    double? heightInches,
+    int? pullUpsPR,
+    int? benchPressPR,
+    int? squatPR,
     bool? notificationsEnabled,
     bool? healthConnected,
     String? fcmToken,
@@ -220,6 +252,11 @@ class UserModel {
       referredBy: referredBy,
       referralCount: referralCount,
       referralEarnings: referralEarnings,
+      weightLbs: weightLbs ?? this.weightLbs,
+      heightInches: heightInches ?? this.heightInches,
+      pullUpsPR: pullUpsPR ?? this.pullUpsPR,
+      benchPressPR: benchPressPR ?? this.benchPressPR,
+      squatPR: squatPR ?? this.squatPR,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       healthConnected: healthConnected ?? this.healthConnected,
       fcmToken: fcmToken ?? this.fcmToken,

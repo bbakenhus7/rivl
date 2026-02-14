@@ -1,10 +1,13 @@
 // screens/profile/profile_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/health_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../models/user_model.dart';
+import '../../services/firebase_service.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../wallet/wallet_screen.dart';
@@ -168,9 +171,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Achievements
+                    // Personal Attributes
                     SlideIn(
                       delay: const Duration(milliseconds: 150),
+                      child: _PersonalAttributes(user: user),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Achievements
+                    SlideIn(
+                      delay: const Duration(milliseconds: 200),
                       child: _AchievementsSection(user: user),
                     ),
                     const SizedBox(height: 16),
@@ -450,6 +460,500 @@ class _StatRow extends StatelessWidget {
         Text(
           value,
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+}
+
+class _PersonalAttributes extends StatelessWidget {
+  final UserModel user;
+
+  const _PersonalAttributes({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    final health = context.watch<HealthProvider>();
+    final runningWorkouts = health.recentWorkouts
+        .where((w) => w.type.toUpperCase() == 'RUNNING' && w.distance > 0)
+        .toList();
+
+    // Calculate average pace from running workouts (min per mile)
+    double? avgPaceMinPerMile;
+    if (runningWorkouts.isNotEmpty) {
+      double totalPace = 0;
+      for (final w in runningWorkouts) {
+        totalPace += w.duration.inSeconds / 60 / w.distance; // min/mile
+      }
+      avgPaceMinPerMile = totalPace / runningWorkouts.length;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: context.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Personal Attributes', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+              GestureDetector(
+                onTap: () => _showEditSheet(context, user),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: RivlColors.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Edit',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: RivlColors.primary),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Body section
+          Row(
+            children: [
+              Expanded(
+                child: _AttrTile(
+                  label: 'Weight',
+                  value: user.weightLbs != null ? '${user.weightLbs!.toStringAsFixed(0)} lbs' : '—',
+                  icon: Icons.monitor_weight_outlined,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _AttrTile(
+                  label: 'Height',
+                  value: user.heightInches != null
+                      ? '${(user.heightInches! ~/ 12)}\' ${(user.heightInches! % 12).toStringAsFixed(0)}"'
+                      : '—',
+                  icon: Icons.height,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _AttrTile(
+                  label: 'BMI',
+                  value: user.bmi != null ? user.bmi!.toStringAsFixed(1) : '—',
+                  icon: Icons.accessibility_new,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Running paces (auto from health data)
+          _SectionLabel(label: 'Running Pace', subtitle: 'Auto-synced'),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _AttrTile(
+                  label: '1 Mile',
+                  value: avgPaceMinPerMile != null ? _formatPace(avgPaceMinPerMile) : '—',
+                  icon: Icons.directions_run,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _AttrTile(
+                  label: '5K',
+                  value: avgPaceMinPerMile != null ? _formatTime(avgPaceMinPerMile * 3.107) : '—',
+                  icon: Icons.directions_run,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _AttrTile(
+                  label: '10K',
+                  value: avgPaceMinPerMile != null ? _formatTime(avgPaceMinPerMile * 6.214) : '—',
+                  icon: Icons.directions_run,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // PRs (manual input)
+          _SectionLabel(label: 'Personal Records', subtitle: 'Manual'),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _AttrTile(
+                  label: 'Pull-ups',
+                  value: user.pullUpsPR != null ? '${user.pullUpsPR} reps' : '—',
+                  icon: Icons.fitness_center,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _AttrTile(
+                  label: 'Bench',
+                  value: user.benchPressPR != null ? '${user.benchPressPR} lbs' : '—',
+                  icon: Icons.fitness_center,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _AttrTile(
+                  label: 'Squat',
+                  value: user.squatPR != null ? '${user.squatPR} lbs' : '—',
+                  icon: Icons.fitness_center,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatPace(double minPerMile) {
+    final mins = minPerMile.floor();
+    final secs = ((minPerMile - mins) * 60).round();
+    return '$mins:${secs.toString().padLeft(2, '0')}/mi';
+  }
+
+  String _formatTime(double totalMinutes) {
+    final mins = totalMinutes.floor();
+    final secs = ((totalMinutes - mins) * 60).round();
+    return '$mins:${secs.toString().padLeft(2, '0')}';
+  }
+
+  void _showEditSheet(BuildContext context, UserModel user) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _EditAttributesSheet(user: user),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  final String label;
+  final String subtitle;
+
+  const _SectionLabel({required this.label, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        const SizedBox(width: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: context.surfaceVariant,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            subtitle,
+            style: TextStyle(fontSize: 10, color: context.textSecondary, fontWeight: FontWeight.w500),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AttrTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _AttrTile({required this.label, required this.value, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+      decoration: BoxDecoration(
+        color: context.surfaceVariant.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 18, color: context.textSecondary),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(fontSize: 11, color: context.textSecondary),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EditAttributesSheet extends StatefulWidget {
+  final UserModel user;
+
+  const _EditAttributesSheet({required this.user});
+
+  @override
+  State<_EditAttributesSheet> createState() => _EditAttributesSheetState();
+}
+
+class _EditAttributesSheetState extends State<_EditAttributesSheet> {
+  late final TextEditingController _weightCtrl;
+  late final TextEditingController _heightFtCtrl;
+  late final TextEditingController _heightInCtrl;
+  late final TextEditingController _pullUpsCtrl;
+  late final TextEditingController _benchCtrl;
+  late final TextEditingController _squatCtrl;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _weightCtrl = TextEditingController(
+      text: widget.user.weightLbs?.toStringAsFixed(0) ?? '',
+    );
+    _heightFtCtrl = TextEditingController(
+      text: widget.user.heightInches != null ? '${widget.user.heightInches! ~/ 12}' : '',
+    );
+    _heightInCtrl = TextEditingController(
+      text: widget.user.heightInches != null ? '${(widget.user.heightInches! % 12).toStringAsFixed(0)}' : '',
+    );
+    _pullUpsCtrl = TextEditingController(
+      text: widget.user.pullUpsPR?.toString() ?? '',
+    );
+    _benchCtrl = TextEditingController(
+      text: widget.user.benchPressPR?.toString() ?? '',
+    );
+    _squatCtrl = TextEditingController(
+      text: widget.user.squatPR?.toString() ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _weightCtrl.dispose();
+    _heightFtCtrl.dispose();
+    _heightInCtrl.dispose();
+    _pullUpsCtrl.dispose();
+    _benchCtrl.dispose();
+    _squatCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+
+    final weight = double.tryParse(_weightCtrl.text);
+    final heightFt = int.tryParse(_heightFtCtrl.text);
+    final heightIn = int.tryParse(_heightInCtrl.text);
+    final totalInches = (heightFt != null || heightIn != null)
+        ? ((heightFt ?? 0) * 12 + (heightIn ?? 0)).toDouble()
+        : null;
+    final pullUps = int.tryParse(_pullUpsCtrl.text);
+    final bench = int.tryParse(_benchCtrl.text);
+    final squat = int.tryParse(_squatCtrl.text);
+
+    final updates = <String, dynamic>{};
+    if (weight != null) updates['weightLbs'] = weight;
+    if (totalInches != null && totalInches > 0) updates['heightInches'] = totalInches;
+    if (pullUps != null) updates['pullUpsPR'] = pullUps;
+    if (bench != null) updates['benchPressPR'] = bench;
+    if (squat != null) updates['squatPR'] = squat;
+
+    if (updates.isNotEmpty) {
+      try {
+        await FirebaseService().updateUser(widget.user.id, updates);
+        // Refresh user data
+        if (mounted) {
+          await context.read<AuthProvider>().refreshUser();
+        }
+      } catch (_) {}
+    }
+
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40, height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: context.surfaceVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Text(
+                'Edit Attributes',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 20),
+
+              // Body
+              Row(
+                children: [
+                  Expanded(
+                    child: _FieldInput(
+                      controller: _weightCtrl,
+                      label: 'Weight (lbs)',
+                      hint: '175',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 70,
+                    child: _FieldInput(
+                      controller: _heightFtCtrl,
+                      label: 'Feet',
+                      hint: '5',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 70,
+                    child: _FieldInput(
+                      controller: _heightInCtrl,
+                      label: 'Inches',
+                      hint: '10',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // PRs
+              Row(
+                children: [
+                  Expanded(
+                    child: _FieldInput(
+                      controller: _pullUpsCtrl,
+                      label: 'Pull-ups PR',
+                      hint: '15',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _FieldInput(
+                      controller: _benchCtrl,
+                      label: 'Bench PR (lbs)',
+                      hint: '225',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _FieldInput(
+                      controller: _squatCtrl,
+                      label: 'Squat PR (lbs)',
+                      hint: '315',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _save,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: RivlColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: _saving
+                      ? const SizedBox(
+                          width: 22, height: 22,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                        )
+                      : const Text('Save', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                ),
+              ),
+              SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FieldInput extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final TextInputType keyboardType;
+
+  const _FieldInput({
+    required this.controller,
+    required this.label,
+    required this.hint,
+    required this.keyboardType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 12, color: context.textSecondary, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: context.textSecondary.withOpacity(0.4)),
+            filled: true,
+            fillColor: context.surfaceVariant.withOpacity(0.5),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide.none,
+            ),
+          ),
         ),
       ],
     );
