@@ -127,14 +127,33 @@ class _HomeScreenState extends State<HomeScreen> {
               floating: true,
               pinned: true,
               backgroundColor: RivlColors.primaryDark,
-              title: const Text(
-                'RIVL',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
-                ),
+              title: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.all(2),
+                    child: Image.asset(
+                      'assets/images/rivl_logo.png',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'RIVL',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
               ),
               flexibleSpace: FlexibleSpaceBar(
                 background: Container(
