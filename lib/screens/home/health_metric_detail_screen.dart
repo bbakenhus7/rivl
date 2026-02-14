@@ -24,6 +24,7 @@ enum HealthMetricType {
   vo2Max,
   recovery,
   exertion,
+  healthScore,
 }
 
 class HealthMetricDetailScreen extends StatefulWidget {
@@ -110,6 +111,9 @@ class _HealthMetricDetailScreenState extends State<HealthMetricDetailScreen> {
             .clamp(10, 100);
       case HealthMetricType.exertion:
         return (30 + rng.nextInt(50) + noise * 8).clamp(5, 100);
+      case HealthMetricType.healthScore:
+        return ((60 + rng.nextInt(30)) * trendFactor + noise * 4)
+            .clamp(15, 100);
     }
   }
 
@@ -660,6 +664,7 @@ class _HealthMetricDetailScreenState extends State<HealthMetricDetailScreen> {
         return '${value.toStringAsFixed(0)}%';
       case HealthMetricType.recovery:
       case HealthMetricType.exertion:
+      case HealthMetricType.healthScore:
         return value.toStringAsFixed(0);
       default:
         return value.toStringAsFixed(0);
@@ -679,6 +684,7 @@ class _HealthMetricDetailScreenState extends State<HealthMetricDetailScreen> {
         return value.toStringAsFixed(1);
       case HealthMetricType.recovery:
       case HealthMetricType.exertion:
+      case HealthMetricType.healthScore:
         return '${value.toStringAsFixed(0)}/100';
       default:
         return value.toStringAsFixed(0);
@@ -700,6 +706,7 @@ class _HealthMetricDetailScreenState extends State<HealthMetricDetailScreen> {
         return '${value.toStringAsFixed(0)} bpm';
       case HealthMetricType.recovery:
       case HealthMetricType.exertion:
+      case HealthMetricType.healthScore:
         return value.toStringAsFixed(0);
     }
   }
@@ -722,6 +729,8 @@ class _HealthMetricDetailScreenState extends State<HealthMetricDetailScreen> {
         return '60-100 (higher is better)';
       case HealthMetricType.exertion:
         return '40-70 optimal training zone';
+      case HealthMetricType.healthScore:
+        return '70-100 (A grade or higher)';
     }
   }
 
@@ -785,6 +794,14 @@ class _HealthMetricDetailScreenState extends State<HealthMetricDetailScreen> {
           return 'Your exertion has decreased by $pct%. If intentional, this is a good deload period. Otherwise, consider ramping up your training to maintain fitness.';
         }
         return 'Your exertion has been consistent over the past $_selectedDays days. A moderate and steady training load supports long-term progress.';
+
+      case HealthMetricType.healthScore:
+        if (changePercent > 3) {
+          return 'Your RIVL Health Score has improved by $pct% over the past $_selectedDays days. Your overall fitness across steps, sleep, heart health, and cardio capacity is trending up.';
+        } else if (changePercent < -3) {
+          return 'Your RIVL Health Score has dropped by $pct%. Focus on the basics -- consistent movement, quality sleep, and managing stress -- to bring it back up.';
+        }
+        return 'Your RIVL Health Score has been steady over the past $_selectedDays days. Consistency across all six dimensions keeps your score strong.';
     }
   }
 

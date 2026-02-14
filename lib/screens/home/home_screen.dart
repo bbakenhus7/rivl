@@ -412,37 +412,44 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
 
-                  // Recovery & Strain Cards
+                  // RIVL Health Score Card
                   StaggeredListAnimation(
                     index: 1,
+                    child: const _RivlHealthScoreCard(),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Recovery & Strain Cards
+                  StaggeredListAnimation(
+                    index: 2,
                     child: const _RecoveryStrainRow(),
                   ),
                   const SizedBox(height: 16),
 
                   // Hero Activity Rings Card
                   StaggeredListAnimation(
-                    index: 2,
+                    index: 3,
                     child: const _ActivityBarsCard(),
                   ),
                   const SizedBox(height: 16),
 
                   // Health Metrics Grid
                   StaggeredListAnimation(
-                    index: 3,
+                    index: 4,
                     child: const _HealthMetricsGrid(),
                   ),
                   const SizedBox(height: 16),
 
                   // Weekly Steps Chart
                   StaggeredListAnimation(
-                    index: 4,
+                    index: 5,
                     child: const _WeeklyStepsCard(),
                   ),
                   const SizedBox(height: 16),
 
                   // Recent Workouts
                   StaggeredListAnimation(
-                    index: 5,
+                    index: 6,
                     child: const _RecentWorkoutsCard(),
                   ),
                   const SizedBox(height: 16),
@@ -494,6 +501,177 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// RIVL Health Score Card
+class _RivlHealthScoreCard extends StatelessWidget {
+  const _RivlHealthScoreCard();
+
+  Color _getGradeColor(String grade) {
+    switch (grade) {
+      case 'A+':
+      case 'A':
+        return RivlColors.success;
+      case 'B':
+        return Colors.lightGreen;
+      case 'C':
+        return Colors.orange;
+      default:
+        return RivlColors.error;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<HealthProvider>(
+      builder: (context, health, _) {
+        final score = health.rivlHealthScore;
+        final grade = health.rivlHealthGrade;
+        final color = _getGradeColor(grade);
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => HealthMetricDetailScreen(
+                  metricType: HealthMetricType.healthScore,
+                  icon: Icons.favorite_rounded,
+                  label: 'RIVL Health Score',
+                  currentValue: '$score',
+                  unit: '/100',
+                  color: color,
+                  description:
+                      'Your RIVL Health Score is a single number that captures your '
+                      'overall fitness across six key dimensions: Steps (25%), '
+                      'Distance (20%), Sleep (15%), Resting Heart Rate (15%), '
+                      'VO2 Max (15%), and HRV (10%).\n\n'
+                      'Why it matters: Instead of checking six different metrics, '
+                      'this score tells you at a glance whether your health is '
+                      'trending in the right direction. Research shows that people '
+                      'who track a single composite health metric are more likely '
+                      'to stay consistent with their fitness routines. Use it to '
+                      'spot patterns -- a dipping score often means sleep or '
+                      'recovery needs attention before you feel it.',
+                ),
+              ),
+            );
+          },
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                colors: [context.surface, color.withOpacity(0.06)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.08),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // Score and grade
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  color.withOpacity(0.18),
+                                  color.withOpacity(0.08),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.favorite_rounded, color: color, size: 20),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'RIVL Health Score',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                              color: context.textSecondary,
+                            ),
+                          ),
+                          const Spacer(),
+                          Icon(Icons.chevron_right_rounded, color: context.textSecondary, size: 22),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          AnimatedCounter(
+                            value: score,
+                            duration: const Duration(milliseconds: 800),
+                            style: TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.w800,
+                              color: color,
+                              height: 1.0,
+                              letterSpacing: -1,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: color.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                grade,
+                                style: TextStyle(
+                                  color: color,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 18,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Your overall fitness across steps, sleep, heart health, and cardio capacity. Tap to see your 30-day trend.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: context.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -51,6 +51,10 @@ class HealthProvider extends ChangeNotifier {
   String get recoveryStatus => _metrics.recoveryStatus;
   int get strainScore => _metrics.strainScore;
 
+  // RIVL Health Score
+  int get rivlHealthScore => _metrics.rivlHealthScore;
+  String get rivlHealthGrade => _metrics.rivlHealthGrade;
+
   // Goal tracking
   int get dailyGoal => _metrics.stepsGoal;
   double get goalProgress => _metrics.stepsProgress;
