@@ -506,6 +506,8 @@ class _RecoveryStrainRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<HealthProvider>(
       builder: (context, health, _) {
+        final recoveryColor = _getRecoveryColor(health.recoveryScore);
+        final exertionColor = _getStrainColor(health.strainScore);
         return Row(
           children: [
             Expanded(
@@ -513,8 +515,31 @@ class _RecoveryStrainRow extends StatelessWidget {
                 title: 'Recovery',
                 score: health.recoveryScore,
                 status: health.recoveryStatus,
-                color: _getRecoveryColor(health.recoveryScore),
+                color: recoveryColor,
                 icon: Icons.battery_charging_full,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => HealthMetricDetailScreen(
+                        metricType: HealthMetricType.recovery,
+                        icon: Icons.battery_charging_full,
+                        label: 'Recovery',
+                        currentValue: '${health.recoveryScore}',
+                        unit: '/100',
+                        color: recoveryColor,
+                        description: 'Recovery measures how ready your body is to perform. '
+                            'It is calculated from your Heart Rate Variability (HRV) and '
+                            'Resting Heart Rate, weighted equally. Higher HRV and lower '
+                            'resting heart rate both indicate better recovery.\n\n'
+                            'Why it matters: Training when recovery is high leads to bigger '
+                            'fitness gains. Training on low recovery increases injury risk '
+                            'and slows progress. Use this score to decide when to push hard '
+                            'and when to take it easy.',
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
             const SizedBox(width: 12),
@@ -523,9 +548,32 @@ class _RecoveryStrainRow extends StatelessWidget {
                 title: 'Exertion',
                 score: health.strainScore,
                 status: _getStrainStatus(health.strainScore),
-                color: _getStrainColor(health.strainScore),
+                color: exertionColor,
                 icon: Icons.local_fire_department,
                 maxScore: 100,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => HealthMetricDetailScreen(
+                        metricType: HealthMetricType.exertion,
+                        icon: Icons.local_fire_department,
+                        label: 'Exertion',
+                        currentValue: '${health.strainScore}',
+                        unit: '/100',
+                        color: exertionColor,
+                        description: 'Exertion measures the total physical load on your body today. '
+                            'It is calculated as the average of your steps exertion '
+                            '(steps vs. 15,000 target) and calorie exertion '
+                            '(active calories vs. 800 target).\n\n'
+                            'Why it matters: Tracking exertion helps you balance training '
+                            'intensity over time. Consistently high exertion without adequate '
+                            'recovery can lead to overtraining. Aim for a mix of high and low '
+                            'exertion days to build fitness safely.',
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -564,6 +612,7 @@ class _ScoreCard extends StatelessWidget {
   final Color color;
   final IconData icon;
   final int maxScore;
+  final VoidCallback? onTap;
 
   const _ScoreCard({
     required this.title,
@@ -572,11 +621,14 @@ class _ScoreCard extends StatelessWidget {
     required this.color,
     required this.icon,
     this.maxScore = 100,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
@@ -664,6 +716,7 @@ class _ScoreCard extends StatelessWidget {
         ],
       ),
         ),
+      ),
       ),
     );
   }
