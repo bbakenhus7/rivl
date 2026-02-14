@@ -351,10 +351,9 @@ class FirebaseService {
         final currentBalance = (walletDoc.data()?['balance'] ?? 0).toDouble();
         if (currentBalance < stakeAmount) return false;
 
-        // Deduct stake
+        // Deduct stake (held funds, not a loss)
         txn.update(walletRef, {
           'balance': currentBalance - stakeAmount,
-          'lifetimeLosses': FieldValue.increment(stakeAmount),
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
@@ -471,10 +470,9 @@ class FirebaseService {
       // Create the challenge
       txn.set(newChallengeRef, challengeData);
 
-      // Deduct stake
+      // Deduct stake (held funds, not a loss)
       txn.update(walletRef, {
         'balance': balance - stakeAmount,
-        'lifetimeLosses': FieldValue.increment(stakeAmount),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -528,7 +526,6 @@ class FirebaseService {
               (walletDoc.data()?['balance'] ?? 0).toDouble();
           txn.update(walletRef, {
             'balance': currentBalance + challenge.stakeAmount,
-            'lifetimeLosses': FieldValue.increment(-challenge.stakeAmount),
             'updatedAt': FieldValue.serverTimestamp(),
           });
 
@@ -554,6 +551,15 @@ class FirebaseService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     }
+
+    // Notify the creator that their challenge was declined
+    await _sendNotification(
+      userId: challenge.creatorId,
+      type: 'challenge_declined',
+      title: 'Challenge Declined',
+      body: '${challenge.opponentName ?? 'Your opponent'} declined your challenge',
+      data: {'challengeId': challengeId},
+    );
   }
 
   Future<void> syncSteps({

@@ -11,6 +11,7 @@ import '../providers/streak_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/battle_pass_provider.dart';
 import '../providers/activity_feed_provider.dart';
+import '../models/activity_feed_model.dart';
 import '../models/battle_pass_model.dart';
 import '../widgets/streak_reward_popup.dart';
 import 'home/home_screen.dart';
@@ -77,6 +78,34 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       };
       healthProvider.onXPEarned = (xp, source) {
         battlePassProvider.addXP(userId, xp, source);
+      };
+
+      // Wire activity feed posting from challenge events
+      challengeProvider.onActivityFeedPost = (type, message, data) {
+        final user = authProvider.user;
+        if (user != null) {
+          activityFeedProvider.postActivity(
+            userId: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            type: ActivityType.challengeWon,
+            message: message,
+            data: data,
+          );
+        }
+      };
+
+      // Wire streak milestone posting
+      streakProvider.onStreakMilestone = (streakDays) {
+        final user = authProvider.user;
+        if (user != null) {
+          activityFeedProvider.postStreakMilestone(
+            userId: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            streakDays: streakDays,
+          );
+        }
       };
 
       // New features

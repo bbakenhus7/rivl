@@ -1,6 +1,7 @@
 // providers/challenge_provider.dart
 
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/challenge_model.dart';
 import '../models/user_model.dart';
 import '../services/firebase_service.dart';
@@ -16,8 +17,12 @@ class ChallengeProvider extends ChangeNotifier {
   final AntiCheatService _antiCheatService = AntiCheatService();
 
   /// Callback invoked when the user earns XP from challenge activity.
-  /// Set this from the widget tree where BattlePassProvider is accessible.
   void Function(int xp, String source)? onXPEarned;
+
+  /// Callback invoked when a challenge event should be posted to the activity feed.
+  /// Parameters: (type, message, data)
+  void Function(String type, String message, Map<String, dynamic>? data)?
+      onActivityFeedPost;
 
   List<ChallengeModel> _challenges = [];
   List<Map<String, dynamic>> _leaderboard = [];
@@ -913,46 +918,58 @@ class ChallengeProvider extends ChangeNotifier {
       // Determine winner
       String? winnerId;
       String? winnerName;
+      String? loserId;
+      bool isTie = false;
 
       final creatorFlagged = creatorResult?.isCheating ?? false;
       final opponentFlagged = opponentResult?.isCheating ?? false;
 
       if (creatorFlagged && !opponentFlagged) {
-        // Creator cheated, opponent wins
         winnerId = challenge.opponentId;
         winnerName = challenge.opponentName;
+        loserId = challenge.creatorId;
       } else if (!creatorFlagged && opponentFlagged) {
-        // Opponent cheated, creator wins
         winnerId = challenge.creatorId;
         winnerName = challenge.creatorName;
+        loserId = challenge.opponentId;
       } else {
-        // Neither (or both) cheated — decide by progress
         if (challenge.goalType.higherIsBetter) {
-          if (challenge.creatorProgress >= challenge.opponentProgress) {
+          if (challenge.creatorProgress == challenge.opponentProgress) {
+            isTie = true;
+          } else if (challenge.creatorProgress > challenge.opponentProgress) {
             winnerId = challenge.creatorId;
             winnerName = challenge.creatorName;
+            loserId = challenge.opponentId;
           } else {
             winnerId = challenge.opponentId;
             winnerName = challenge.opponentName;
+            loserId = challenge.creatorId;
           }
         } else {
           // Pace-based: lower is better
           if (challenge.creatorProgress == 0 &&
               challenge.opponentProgress == 0) {
-            winnerId = null; // No data = tie
+            isTie = true;
           } else if (challenge.creatorProgress == 0) {
             winnerId = challenge.opponentId;
             winnerName = challenge.opponentName;
+            loserId = challenge.creatorId;
           } else if (challenge.opponentProgress == 0) {
             winnerId = challenge.creatorId;
             winnerName = challenge.creatorName;
-          } else if (challenge.creatorProgress <=
+            loserId = challenge.opponentId;
+          } else if (challenge.creatorProgress ==
+              challenge.opponentProgress) {
+            isTie = true;
+          } else if (challenge.creatorProgress <
               challenge.opponentProgress) {
             winnerId = challenge.creatorId;
             winnerName = challenge.creatorName;
+            loserId = challenge.opponentId;
           } else {
             winnerId = challenge.opponentId;
             winnerName = challenge.opponentName;
+            loserId = challenge.creatorId;
           }
         }
       }
@@ -962,10 +979,16 @@ class ChallengeProvider extends ChangeNotifier {
 
       // Update challenge document
       if (!challengeId.startsWith('demo-')) {
+        final rewardStatus = isTie
+            ? RewardStatus.pending.name
+            : (isFlagged ? RewardStatus.pending.name : RewardStatus.sent.name);
+
         await _firebaseService.updateChallenge(challengeId, {
           'status': ChallengeStatus.completed.name,
-          'winnerId': winnerId,
-          'winnerName': winnerName,
+          'winnerId': isTie ? null : winnerId,
+          'winnerName': isTie ? null : winnerName,
+          'isTie': isTie,
+          'rewardStatus': rewardStatus,
           'resultDeclaredAt': DateTime.now().toIso8601String(),
           'creatorAntiCheatScore': creatorResult?.overallScore ?? 1.0,
           'opponentAntiCheatScore': opponentResult?.overallScore ?? 1.0,
@@ -978,22 +1001,76 @@ class ChallengeProvider extends ChangeNotifier {
               : null,
         });
 
-        // Credit winnings to winner (if not flagged for cheating)
-        if (winnerId != null &&
-            challenge.stakeAmount > 0 &&
-            !isFlagged) {
-          await _walletService.creditWinnings(
-            userId: winnerId,
-            challengeId: challengeId,
-            amount: challenge.prizeAmount,
-          );
+        if (isTie) {
+          // Refund both stakes on tie
+          if (challenge.stakeAmount > 0) {
+            await _walletService.refundStake(
+              userId: challenge.creatorId,
+              challengeId: challengeId,
+              amount: challenge.stakeAmount,
+            );
+            if (challenge.opponentId != null) {
+              await _walletService.refundStake(
+                userId: challenge.opponentId!,
+                challengeId: challengeId,
+                amount: challenge.stakeAmount,
+              );
+            }
+          }
+          // Update user stats: increment draws + totalChallenges
+          await _firebaseService.updateUser(challenge.creatorId, {
+            'draws': FieldValue.increment(1),
+            'totalChallenges': FieldValue.increment(1),
+          });
+          if (challenge.opponentId != null) {
+            await _firebaseService.updateUser(challenge.opponentId!, {
+              'draws': FieldValue.increment(1),
+              'totalChallenges': FieldValue.increment(1),
+            });
+          }
+        } else if (winnerId != null && !isFlagged) {
+          // Credit winnings
+          if (challenge.stakeAmount > 0) {
+            await _walletService.creditWinnings(
+              userId: winnerId,
+              challengeId: challengeId,
+              amount: challenge.prizeAmount,
+            );
+          }
+          // Update winner user stats
+          await _firebaseService.updateUser(winnerId, {
+            'wins': FieldValue.increment(1),
+            'totalChallenges': FieldValue.increment(1),
+            'totalEarnings': FieldValue.increment(challenge.prizeAmount),
+          });
+          // Update loser user stats
+          if (loserId != null) {
+            await _firebaseService.updateUser(loserId, {
+              'losses': FieldValue.increment(1),
+              'totalChallenges': FieldValue.increment(1),
+            });
+          }
         }
       }
 
+      // Post to activity feed
+      if (!challengeId.startsWith('demo-') && winnerId != null && !isTie) {
+        onActivityFeedPost?.call(
+          'challengeWon',
+          '$winnerName won \$${challenge.prizeAmount.toStringAsFixed(0)}!',
+          {
+            'challengeId': challengeId,
+            'winnerId': winnerId,
+            'loserId': loserId,
+            'amount': challenge.prizeAmount,
+          },
+        );
+      }
+
       _isLoading = false;
-      _successMessage = winnerId != null
-          ? '$winnerName wins!'
-          : 'Challenge ended in a tie';
+      _successMessage = isTie
+          ? 'Challenge ended in a tie'
+          : '$winnerName wins!';
       notifyListeners();
       return true;
     } catch (e) {

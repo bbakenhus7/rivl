@@ -313,10 +313,9 @@ class WalletService {
           'completedAt': FieldValue.serverTimestamp(),
         });
 
-        // Deduct from balance atomically
+        // Deduct from balance atomically (stake, not a loss)
         txn.update(walletRef, {
           'balance': currentBalance - amount,
-          'lifetimeLosses': FieldValue.increment(amount),
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
@@ -397,7 +396,6 @@ class WalletService {
       // Refund balance atomically
       txn.update(walletRef, {
         'balance': currentBalance + amount,
-        'lifetimeLosses': FieldValue.increment(-amount),
         'updatedAt': FieldValue.serverTimestamp(),
       });
     });

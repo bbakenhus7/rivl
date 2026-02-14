@@ -7,8 +7,12 @@ import '../models/streak_model.dart';
 class StreakProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  /// Callback invoked when user hits a streak milestone (7, 14, 30, etc.)
+  void Function(int streakDays)? onStreakMilestone;
+
   StreakModel? _streak;
   bool _isLoading = false;
+  bool _isClaiming = false;
   String? _error;
   bool _showRewardPopup = false;
   LoginReward? _lastReward;
@@ -59,6 +63,9 @@ class StreakProvider with ChangeNotifier {
   /// Claim daily login reward
   Future<bool> claimDailyReward(String userId) async {
     if (_streak == null || !_streak!.canClaimToday) return false;
+    if (_isClaiming) return false; // Guard against double-claim
+
+    _isClaiming = true;
 
     try {
       final wasAlive = _streak!.isStreakAlive;
@@ -108,14 +115,21 @@ class StreakProvider with ChangeNotifier {
         'lastActiveAt': FieldValue.serverTimestamp(),
       });
 
+      // Post streak milestone to activity feed (7, 14, 30, 60, 100, ...)
+      if (LoginReward.isMilestone(newStreak)) {
+        onStreakMilestone?.call(newStreak);
+      }
+
       // Show reward popup
       _lastReward = reward;
       _showRewardPopup = true;
+      _isClaiming = false;
       notifyListeners();
 
       return true;
     } catch (e) {
       _error = e.toString();
+      _isClaiming = false;
       notifyListeners();
       return false;
     }

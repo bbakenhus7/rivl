@@ -489,13 +489,24 @@ async function completeChallenge(challengeId: string) {
 
     const loserId = winnerId === creatorId ? opponentId : creatorId;
 
+    // Look up winner's display name
+    let winnerName: string | null = null;
+    if (!isTie && winnerId) {
+      const winnerDoc = await db.collection('users').doc(winnerId).get();
+      if (winnerDoc.exists) {
+        winnerName = winnerDoc.data()?.displayName || null;
+      }
+    }
+
     // Update challenge with result
     await challengeRef.update({
       status: 'completed',
       winnerId: isTie ? null : winnerId,
+      winnerName: isTie ? null : winnerName,
       isTie,
       winnerScore: winningScore,
       loserScore: losingScore,
+      rewardStatus: isTie ? 'refunded' : 'sent',
       completedAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -519,6 +530,10 @@ async function completeChallenge(challengeId: string) {
         status: 'pending_transfer',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
+
+      // Update user stats: draws + totalChallenges for both
+      await updateUserStats(creatorId, { draws: 1, totalChallenges: 1 });
+      await updateUserStats(opponentId, { draws: 1, totalChallenges: 1 });
 
       // Award participation XP to both
       await awardXP(creatorId, challengeData, false);
@@ -557,8 +572,8 @@ async function completeChallenge(challengeId: string) {
       });
 
       // Update user stats
-      await updateUserStats(winnerId!, { wins: 1, earnings: prizeAmount });
-      await updateUserStats(loserId, { losses: 1 });
+      await updateUserStats(winnerId!, { wins: 1, totalChallenges: 1, earnings: prizeAmount });
+      await updateUserStats(loserId, { losses: 1, totalChallenges: 1 });
 
       // Award XP for battle pass
       await awardXP(winnerId!, challengeData, true);
@@ -600,6 +615,8 @@ async function completeChallenge(challengeId: string) {
 async function updateUserStats(userId: string, stats: {
   wins?: number;
   losses?: number;
+  draws?: number;
+  totalChallenges?: number;
   earnings?: number;
 }) {
   const userRef = db.collection('users').doc(userId);
@@ -614,11 +631,25 @@ async function updateUserStats(userId: string, stats: {
   if (stats.losses) {
     updateData.losses = admin.firestore.FieldValue.increment(stats.losses);
   }
+  if (stats.draws) {
+    updateData.draws = admin.firestore.FieldValue.increment(stats.draws);
+  }
+  if (stats.totalChallenges) {
+    updateData.totalChallenges = admin.firestore.FieldValue.increment(stats.totalChallenges);
+  }
   if (stats.earnings) {
     updateData.totalEarnings = admin.firestore.FieldValue.increment(stats.earnings);
   }
 
   await userRef.update(updateData);
+
+  // Recalculate win rate after updating stats
+  const updatedDoc = await userRef.get();
+  const userData = updatedDoc.data() || {};
+  const wins = userData.wins || 0;
+  const losses = userData.losses || 0;
+  const winRate = calculateWinRate(wins, losses);
+  await userRef.update({ winRate });
 }
 
 /**
@@ -636,6 +667,8 @@ async function updateLeaderboard(userId: string) {
     displayName: userData.displayName,
     wins: userData.wins || 0,
     losses: userData.losses || 0,
+    draws: userData.draws || 0,
+    totalChallenges: userData.totalChallenges || 0,
     totalEarnings: userData.totalEarnings || 0,
     winRate: calculateWinRate(userData.wins || 0, userData.losses || 0),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
