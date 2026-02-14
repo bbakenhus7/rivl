@@ -127,6 +127,15 @@ class _HomeScreenState extends State<HomeScreen> {
               floating: true,
               pinned: true,
               backgroundColor: RivlColors.primaryDark,
+              title: const Text(
+                'RIVL',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2,
+                ),
+              ),
               flexibleSpace: FlexibleSpaceBar(
                 background: Container(
                   decoration: const BoxDecoration(
