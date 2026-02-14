@@ -10,6 +10,7 @@ import '../../utils/animations.dart';
 import '../../models/challenge_model.dart';
 import '../../widgets/confetti_celebration.dart';
 import '../../widgets/add_funds_sheet.dart';
+import '../main_screen.dart';
 
 class ChallengeDetailScreen extends StatefulWidget {
   final String challengeId;
@@ -1131,7 +1132,7 @@ class _QuickRematchCard extends StatelessWidget {
     // Navigate to create screen (tab index 2)
     if (context.mounted) {
       Navigator.pop(context);
-      // The main screen's create tab will have the pre-filled data
+      MainScreen.onTabSelected?.call(2);
     }
   }
 
