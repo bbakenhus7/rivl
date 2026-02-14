@@ -8,6 +8,9 @@ import '../../models/user_model.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../wallet/wallet_screen.dart';
+import '../notifications/notifications_screen.dart';
+import 'health_connection_screen.dart';
+import 'help_support_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -666,11 +669,32 @@ class _AccountActions extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _ActionTile(icon: Icons.health_and_safety, label: 'Health App Connection', onTap: () {}),
+          _ActionTile(
+            icon: Icons.health_and_safety,
+            label: 'Health App Connection',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const HealthConnectionScreen()),
+            ),
+          ),
           Divider(height: 1, indent: 56, color: context.surfaceVariant),
-          _ActionTile(icon: Icons.notifications_outlined, label: 'Notifications', onTap: () {}),
+          _ActionTile(
+            icon: Icons.notifications_outlined,
+            label: 'Notifications',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+            ),
+          ),
           Divider(height: 1, indent: 56, color: context.surfaceVariant),
-          _ActionTile(icon: Icons.help_outline, label: 'Help & Support', onTap: () {}),
+          _ActionTile(
+            icon: Icons.help_outline,
+            label: 'Help & Support',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
+            ),
+          ),
         ],
       ),
     );
