@@ -51,6 +51,12 @@ class ChallengeModel {
   final List<DailySteps> creatorStepHistory;
   final List<DailySteps> opponentStepHistory;
   
+  // Group challenge fields
+  final List<GroupParticipant> participants;
+  final int maxParticipants;
+  final int minParticipants;
+  final GroupPayoutStructure? payoutStructure;
+
   // Results
   final String? winnerId;
   final String? winnerName;
@@ -92,6 +98,10 @@ class ChallengeModel {
     this.opponentProgress = 0,
     this.creatorStepHistory = const [],
     this.opponentStepHistory = const [],
+    this.participants = const [],
+    this.maxParticipants = 2,
+    this.minParticipants = 2,
+    this.payoutStructure,
     this.winnerId,
     this.winnerName,
     this.resultDeclaredAt,
@@ -108,6 +118,10 @@ class ChallengeModel {
   });
 
   // Computed properties
+  bool get isGroup => type == ChallengeType.group;
+  int get acceptedParticipantCount =>
+      participants.where((p) => p.status == ParticipantStatus.accepted).length;
+
   bool get isTied => creatorProgress == opponentProgress;
 
   bool get isUserWinning {
@@ -216,6 +230,14 @@ class ChallengeModel {
       opponentStepHistory: (data['opponentStepHistory'] as List<dynamic>?)
           ?.map((e) => DailySteps.fromMap(e))
           .toList() ?? [],
+      participants: (data['participants'] as List<dynamic>?)
+          ?.map((e) => GroupParticipant.fromMap(e as Map<String, dynamic>))
+          .toList() ?? [],
+      maxParticipants: data['maxParticipants'] ?? 2,
+      minParticipants: data['minParticipants'] ?? 2,
+      payoutStructure: data['payoutStructure'] != null
+          ? GroupPayoutStructure.fromMap(data['payoutStructure'] as Map<String, dynamic>)
+          : null,
       winnerId: data['winnerId'],
       winnerName: data['winnerName'],
       resultDeclaredAt: (data['resultDeclaredAt'] as Timestamp?)?.toDate(),
@@ -261,6 +283,12 @@ class ChallengeModel {
       'opponentProgress': opponentProgress,
       'creatorStepHistory': creatorStepHistory.map((e) => e.toMap()).toList(),
       'opponentStepHistory': opponentStepHistory.map((e) => e.toMap()).toList(),
+      if (participants.isNotEmpty)
+        'participants': participants.map((e) => e.toMap()).toList(),
+      if (maxParticipants > 2) 'maxParticipants': maxParticipants,
+      if (minParticipants > 2) 'minParticipants': minParticipants,
+      if (payoutStructure != null)
+        'payoutStructure': payoutStructure!.toMap(),
       'winnerId': winnerId,
       'winnerName': winnerName,
       'resultDeclaredAt': resultDeclaredAt != null ? Timestamp.fromDate(resultDeclaredAt!) : null,
@@ -312,6 +340,109 @@ class DailySteps {
       'verified': verified,
     };
   }
+}
+
+// Group challenge participant
+enum ParticipantStatus { invited, accepted, declined }
+
+class GroupParticipant {
+  final String userId;
+  final String displayName;
+  final String? username;
+  final ParticipantStatus status;
+  final int progress;
+  final List<DailySteps> stepHistory;
+
+  const GroupParticipant({
+    required this.userId,
+    required this.displayName,
+    this.username,
+    this.status = ParticipantStatus.invited,
+    this.progress = 0,
+    this.stepHistory = const [],
+  });
+
+  factory GroupParticipant.fromMap(Map<String, dynamic> map) {
+    return GroupParticipant(
+      userId: map['userId'] ?? '',
+      displayName: map['displayName'] ?? '',
+      username: map['username'],
+      status: ParticipantStatus.values.firstWhere(
+        (e) => e.name == map['status'],
+        orElse: () => ParticipantStatus.invited,
+      ),
+      progress: map['progress'] ?? 0,
+      stepHistory: (map['stepHistory'] as List<dynamic>?)
+          ?.map((e) => DailySteps.fromMap(e as Map<String, dynamic>))
+          .toList() ?? [],
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'userId': userId,
+      'displayName': displayName,
+      'username': username,
+      'status': status.name,
+      'progress': progress,
+      'stepHistory': stepHistory.map((e) => e.toMap()).toList(),
+    };
+  }
+}
+
+// Payout structure for group challenges (1st / 2nd / 3rd)
+class GroupPayoutStructure {
+  final double firstPercent;  // e.g. 0.60
+  final double secondPercent; // e.g. 0.25
+  final double thirdPercent;  // e.g. 0.15
+
+  const GroupPayoutStructure({
+    this.firstPercent = 0.60,
+    this.secondPercent = 0.25,
+    this.thirdPercent = 0.15,
+  });
+
+  /// Calculate dollar payouts from a prize pool (total pot minus fees)
+  double firstPayout(double prizePool) => (prizePool * firstPercent * 100).roundToDouble() / 100;
+  double secondPayout(double prizePool) => (prizePool * secondPercent * 100).roundToDouble() / 100;
+  double thirdPayout(double prizePool) => (prizePool * thirdPercent * 100).roundToDouble() / 100;
+
+  String firstDisplay(double prizePool) => '\$${firstPayout(prizePool).toStringAsFixed(0)}';
+  String secondDisplay(double prizePool) => '\$${secondPayout(prizePool).toStringAsFixed(0)}';
+  String thirdDisplay(double prizePool) => '\$${thirdPayout(prizePool).toStringAsFixed(0)}';
+
+  factory GroupPayoutStructure.fromMap(Map<String, dynamic> map) {
+    return GroupPayoutStructure(
+      firstPercent: (map['firstPercent'] ?? 0.60).toDouble(),
+      secondPercent: (map['secondPercent'] ?? 0.25).toDouble(),
+      thirdPercent: (map['thirdPercent'] ?? 0.15).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'firstPercent': firstPercent,
+      'secondPercent': secondPercent,
+      'thirdPercent': thirdPercent,
+    };
+  }
+
+  /// Standard payout: 60 / 25 / 15
+  static const standard = GroupPayoutStructure();
+
+  /// Winner-heavy: 70 / 20 / 10
+  static const winnerHeavy = GroupPayoutStructure(
+    firstPercent: 0.70,
+    secondPercent: 0.20,
+    thirdPercent: 0.10,
+  );
+
+  /// Flat-ish: 50 / 30 / 20
+  static const flat = GroupPayoutStructure(
+    firstPercent: 0.50,
+    secondPercent: 0.30,
+    thirdPercent: 0.20,
+  );
 }
 
 // Stake options

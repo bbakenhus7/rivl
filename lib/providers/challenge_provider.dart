@@ -28,10 +28,16 @@ class ChallengeProvider extends ChangeNotifier {
   String? _successMessage;
 
   // Create challenge form state
+  ChallengeType _selectedChallengeType = ChallengeType.headToHead;
   UserModel? _selectedOpponent;
   StakeOption _selectedStake = StakeOption.options[2]; // $25 default
   ChallengeDuration _selectedDuration = ChallengeDuration.oneWeek;
   GoalType _selectedGoalType = GoalType.steps;
+
+  // Group challenge form state
+  List<UserModel> _selectedGroupMembers = [];
+  int _groupSize = 6;
+  GroupPayoutStructure _selectedPayoutStructure = GroupPayoutStructure.standard;
 
   StreamSubscription? _challengesSubscription;
 
@@ -55,10 +61,24 @@ class ChallengeProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   String? get successMessage => _successMessage;
 
+  ChallengeType get selectedChallengeType => _selectedChallengeType;
   UserModel? get selectedOpponent => _selectedOpponent;
   StakeOption get selectedStake => _selectedStake;
   ChallengeDuration get selectedDuration => _selectedDuration;
   GoalType get selectedGoalType => _selectedGoalType;
+
+  // Group getters
+  List<UserModel> get selectedGroupMembers => _selectedGroupMembers;
+  int get groupSize => _groupSize;
+  GroupPayoutStructure get selectedPayoutStructure => _selectedPayoutStructure;
+  bool get isGroupMode => _selectedChallengeType == ChallengeType.group;
+
+  /// Estimated group prize pool (all participants × stake, minus 5% fee)
+  double get groupPrizePool {
+    if (_selectedStake.amount <= 0) return 0;
+    final totalPot = _selectedStake.amount * _groupSize;
+    return (totalPot * 0.95 * 100).roundToDouble() / 100;
+  }
 
   int get pendingCount => pendingChallenges.length;
   bool get hasActiveChallenges => activeChallenges.isNotEmpty;
@@ -364,6 +384,11 @@ class ChallengeProvider extends ChangeNotifier {
   // CREATE CHALLENGE
   // ============================================
 
+  void setSelectedChallengeType(ChallengeType type) {
+    _selectedChallengeType = type;
+    notifyListeners();
+  }
+
   void setSelectedOpponent(UserModel? opponent) {
     _selectedOpponent = opponent;
     notifyListeners();
@@ -381,6 +406,29 @@ class ChallengeProvider extends ChangeNotifier {
 
   void setSelectedGoalType(GoalType goalType) {
     _selectedGoalType = goalType;
+    notifyListeners();
+  }
+
+  // Group challenge setters
+  void setGroupSize(int size) {
+    _groupSize = size.clamp(3, 20);
+    notifyListeners();
+  }
+
+  void setSelectedPayoutStructure(GroupPayoutStructure structure) {
+    _selectedPayoutStructure = structure;
+    notifyListeners();
+  }
+
+  void addGroupMember(UserModel user) {
+    if (_selectedGroupMembers.any((m) => m.id == user.id)) return;
+    if (_selectedGroupMembers.length >= _groupSize - 1) return; // minus creator
+    _selectedGroupMembers.add(user);
+    notifyListeners();
+  }
+
+  void removeGroupMember(String userId) {
+    _selectedGroupMembers.removeWhere((m) => m.id == userId);
     notifyListeners();
   }
 
@@ -455,11 +503,121 @@ class ChallengeProvider extends ChangeNotifier {
     }
   }
 
+  Future<String?> createGroupChallenge({double? walletBalance}) async {
+    if (_selectedGroupMembers.isEmpty) {
+      _errorMessage = 'Please add at least one member';
+      notifyListeners();
+      return null;
+    }
+
+    // Validate wallet balance for paid challenges
+    if (_selectedStake.amount > 0) {
+      final balance = walletBalance ?? 0.0;
+      if (balance < _selectedStake.amount) {
+        _errorMessage =
+            'Insufficient balance. You need \$${_selectedStake.amount.toStringAsFixed(0)} to enter this challenge.';
+        notifyListeners();
+        return null;
+      }
+    }
+
+    _isCreating = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final invitedParticipants = _selectedGroupMembers
+          .map((m) => GroupParticipant(
+                userId: m.id,
+                displayName: m.displayName,
+                username: m.username,
+                status: ParticipantStatus.invited,
+              ))
+          .toList();
+
+      // Demo mode: create locally
+      if (_selectedGroupMembers.every((m) => m.id.startsWith('demo'))) {
+        final now = DateTime.now();
+        final allParticipants = [
+          GroupParticipant(
+            userId: 'demo-user',
+            displayName: 'You',
+            status: ParticipantStatus.accepted,
+          ),
+          ...invitedParticipants,
+        ];
+        final totalPot = _selectedStake.amount * allParticipants.length;
+        final prizeAmount = (totalPot * 0.95 * 100).roundToDouble() / 100;
+
+        final demoId = 'demo-group-${DateTime.now().millisecondsSinceEpoch}';
+        _challenges.insert(
+          0,
+          ChallengeModel(
+            id: demoId,
+            creatorId: 'demo-user',
+            creatorName: 'You',
+            type: ChallengeType.group,
+            status: ChallengeStatus.pending,
+            stakeAmount: _selectedStake.amount,
+            totalPot: totalPot,
+            prizeAmount: prizeAmount,
+            goalType: _selectedGoalType,
+            goalValue: suggestedGoalValue,
+            duration: _selectedDuration,
+            participants: allParticipants,
+            maxParticipants: _groupSize,
+            minParticipants: 3,
+            payoutStructure: _selectedPayoutStructure,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+
+        _successMessage = 'Group challenge created!';
+        onXPEarned?.call(15, 'challenge_created');
+        resetCreateForm();
+        _isCreating = false;
+        notifyListeners();
+        return demoId;
+      }
+
+      final challengeId = await _firebaseService.createGroupChallenge(
+        invitedParticipants: invitedParticipants,
+        goalType: _selectedGoalType,
+        goalValue: suggestedGoalValue,
+        duration: _selectedDuration,
+        stakeAmount: _selectedStake.amount,
+        maxParticipants: _groupSize,
+        minParticipants: 3,
+        payoutStructure: _selectedPayoutStructure,
+      );
+
+      _successMessage = 'Group challenge created!';
+      onXPEarned?.call(15, 'challenge_created');
+      resetCreateForm();
+
+      _isCreating = false;
+      notifyListeners();
+      return challengeId;
+    } catch (e) {
+      _isCreating = false;
+      _errorMessage = e.toString().contains('Exception:')
+          ? e.toString().replaceFirst('Exception: ', '')
+          : 'Failed to create group challenge. Please try again.';
+      notifyListeners();
+      return null;
+    }
+  }
+
   void resetCreateForm() {
+    _selectedChallengeType = ChallengeType.headToHead;
     _selectedOpponent = null;
     _selectedStake = StakeOption.options[2];
     _selectedDuration = ChallengeDuration.oneWeek;
     _selectedGoalType = GoalType.steps;
+    _selectedGroupMembers = [];
+    _groupSize = 6;
+    _selectedPayoutStructure = GroupPayoutStructure.standard;
     notifyListeners();
   }
 
