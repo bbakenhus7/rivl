@@ -147,6 +147,33 @@ class ChallengeCard extends StatelessWidget {
                                 ],
                               ],
                             ),
+                            // Expiry countdown for pending challenges
+                            if (challenge.status == ChallengeStatus.pending)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.timer_outlined,
+                                      size: 11,
+                                      color: challenge.isExpired
+                                          ? Colors.red
+                                          : Colors.orange[600],
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      challenge.expiryTimeRemaining,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: challenge.isExpired
+                                            ? Colors.red
+                                            : Colors.orange[600],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -185,8 +212,9 @@ class ChallengeCard extends StatelessWidget {
                     isWinning: isWinning,
                   ),
 
-                  // Pending challenge actions (Accept / Decline inline)
+                  // Pending challenge actions (Accept / Decline inline) - hidden when expired
                   if (challenge.status == ChallengeStatus.pending &&
+                      !challenge.isExpired &&
                       (onAccept != null || onDecline != null)) ...[
                     const SizedBox(height: 14),
                     Row(

@@ -58,6 +58,9 @@ class ChallengeModel {
   final int minParticipants;
   final GroupPayoutStructure? payoutStructure;
 
+  // Expiry (pending challenges auto-decline after this date)
+  final DateTime? expiresAt;
+
   // Results
   final String? winnerId;
   final String? winnerName;
@@ -104,6 +107,7 @@ class ChallengeModel {
     this.maxParticipants = 2,
     this.minParticipants = 2,
     this.payoutStructure,
+    this.expiresAt,
     this.winnerId,
     this.winnerName,
     this.resultDeclaredAt,
@@ -123,6 +127,31 @@ class ChallengeModel {
   bool get isGroup => type == ChallengeType.group;
   int get acceptedParticipantCount =>
       participants.where((p) => p.status == ParticipantStatus.accepted).length;
+
+  /// Whether this pending challenge has expired.
+  bool get isExpired {
+    if (status != ChallengeStatus.pending) return false;
+    final expiry = expiresAt ?? createdAt.add(const Duration(days: 7));
+    return DateTime.now().isAfter(expiry);
+  }
+
+  /// Human-readable time remaining until expiry for pending challenges.
+  String get expiryTimeRemaining {
+    final expiry = expiresAt ?? createdAt.add(const Duration(days: 7));
+    final remaining = expiry.difference(DateTime.now());
+    if (remaining.isNegative) return 'Expired';
+
+    final days = remaining.inDays;
+    final hours = remaining.inHours % 24;
+
+    if (days > 0) return '${days}d ${hours}h left to respond';
+    if (hours > 0) {
+      final minutes = remaining.inMinutes % 60;
+      return '${hours}h ${minutes}m left to respond';
+    }
+    final minutes = remaining.inMinutes;
+    return '${minutes}m left to respond';
+  }
 
   bool get isTied => creatorProgress == opponentProgress;
 
@@ -243,6 +272,7 @@ class ChallengeModel {
       payoutStructure: data['payoutStructure'] != null
           ? GroupPayoutStructure.fromMap(data['payoutStructure'] as Map<String, dynamic>)
           : null,
+      expiresAt: (data['expiresAt'] as Timestamp?)?.toDate(),
       winnerId: data['winnerId'],
       winnerName: data['winnerName'],
       resultDeclaredAt: (data['resultDeclaredAt'] as Timestamp?)?.toDate(),
@@ -296,6 +326,8 @@ class ChallengeModel {
       if (minParticipants > 2) 'minParticipants': minParticipants,
       if (payoutStructure != null)
         'payoutStructure': payoutStructure!.toMap(),
+      if (expiresAt != null)
+        'expiresAt': Timestamp.fromDate(expiresAt!),
       'winnerId': winnerId,
       'winnerName': winnerName,
       'resultDeclaredAt': resultDeclaredAt != null ? Timestamp.fromDate(resultDeclaredAt!) : null,

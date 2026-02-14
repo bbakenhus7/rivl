@@ -6,12 +6,14 @@ import '../models/user_model.dart';
 import '../services/firebase_service.dart';
 import '../services/health_service.dart';
 import '../services/wallet_service.dart';
+import '../services/anti_cheat_service.dart';
 import 'dart:async';
 
 class ChallengeProvider extends ChangeNotifier {
   final FirebaseService _firebaseService = FirebaseService();
   final HealthService _healthService = HealthService();
   final WalletService _walletService = WalletService();
+  final AntiCheatService _antiCheatService = AntiCheatService();
 
   /// Callback invoked when the user earns XP from challenge activity.
   /// Set this from the widget tree where BattlePassProvider is accessible.
@@ -95,6 +97,8 @@ class ChallengeProvider extends ChangeNotifier {
     _challengesSubscription = _firebaseService.userChallengesStream(userId).listen(
       (challenges) {
         _challenges = challenges;
+        // Auto-decline expired pending challenges
+        _autoDeclineExpired();
         notifyListeners();
       },
       onError: (error) {
@@ -102,6 +106,21 @@ class ChallengeProvider extends ChangeNotifier {
         notifyListeners();
       },
     );
+  }
+
+  /// Auto-decline any pending challenges that have passed their expiry date.
+  /// Refunds creator's stake for paid challenges.
+  void _autoDeclineExpired() {
+    final expired = _challenges.where((c) => c.isExpired).toList();
+    for (final challenge in expired) {
+      if (challenge.id.startsWith('demo-')) {
+        // Remove demo challenges locally
+        _challenges.removeWhere((c) => c.id == challenge.id);
+      } else {
+        // Fire-and-forget: decline on Firestore (includes refund)
+        _firebaseService.declineChallenge(challenge.id).catchError((_) {});
+      }
+    }
   }
 
   void stopListening() {
@@ -197,6 +216,7 @@ class ChallengeProvider extends ChangeNotifier {
         duration: ChallengeDuration.twoWeeks,
         creatorProgress: 0,
         opponentProgress: 0,
+        expiresAt: now.add(const Duration(days: 5, hours: 12)),
         createdAt: now.subtract(const Duration(hours: 3)),
         updatedAt: now,
       ),
@@ -217,6 +237,7 @@ class ChallengeProvider extends ChangeNotifier {
         duration: ChallengeDuration.oneWeek,
         creatorProgress: 0,
         opponentProgress: 0,
+        expiresAt: now.add(const Duration(days: 6, hours: 16)),
         createdAt: now.subtract(const Duration(hours: 8)),
         updatedAt: now,
       ),
@@ -478,7 +499,8 @@ class ChallengeProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final challengeId = await _firebaseService.createChallenge(
+      // Use atomic create+deduct for paid challenges
+      final challengeId = await _firebaseService.createChallengeWithStake(
         opponentId: _selectedOpponent!.id,
         opponentName: _selectedOpponent!.displayName,
         type: ChallengeType.headToHead,
@@ -487,15 +509,6 @@ class ChallengeProvider extends ChangeNotifier {
         duration: _selectedDuration,
         stakeAmount: _selectedStake.amount,
       );
-
-      // Deduct creator's stake from wallet for paid challenges
-      if (_selectedStake.amount > 0 && _firebaseService.currentUser != null) {
-        await _walletService.deductStake(
-          userId: _firebaseService.currentUser!.uid,
-          challengeId: challengeId,
-          amount: _selectedStake.amount,
-        );
-      }
 
       _successMessage = 'Challenge sent to ${_selectedOpponent!.displayName}!';
       onXPEarned?.call(15, 'challenge_created'); // XPSource.CHALLENGE_CREATED
@@ -604,13 +617,19 @@ class ChallengeProvider extends ChangeNotifier {
         payoutStructure: _selectedPayoutStructure,
       );
 
-      // Deduct creator's stake from wallet for paid group challenges
+      // Deduct creator's stake atomically for paid group challenges
       if (_selectedStake.amount > 0 && _firebaseService.currentUser != null) {
-        await _walletService.deductStake(
+        final deducted = await _walletService.deductStake(
           userId: _firebaseService.currentUser!.uid,
           challengeId: challengeId,
           amount: _selectedStake.amount,
         );
+        if (!deducted) {
+          _isCreating = false;
+          _errorMessage = 'Failed to deduct stake. Challenge created but payment pending.';
+          notifyListeners();
+          return challengeId;
+        }
       }
 
       _successMessage = 'Group challenge created!';
@@ -708,22 +727,23 @@ class ChallengeProvider extends ChangeNotifier {
           );
         }
       } else {
-        // Deduct stake from wallet for paid challenges
+        // Atomic accept + stake deduction
         if (challenge.stakeAmount > 0) {
           final userId = _firebaseService.currentUser!.uid;
-          final deducted = await _walletService.deductStake(
-            userId: userId,
+          final success = await _firebaseService.acceptChallengeWithStake(
             challengeId: challengeId,
-            amount: challenge.stakeAmount,
+            userId: userId,
+            stakeAmount: challenge.stakeAmount,
           );
-          if (!deducted) {
+          if (!success) {
             _isLoading = false;
-            _errorMessage = 'Failed to deduct stake from wallet';
+            _errorMessage = 'Insufficient balance to accept this challenge';
             notifyListeners();
             return false;
           }
+        } else {
+          await _firebaseService.acceptChallenge(challengeId);
         }
-        await _firebaseService.acceptChallenge(challengeId);
       }
 
       _successMessage = 'Challenge accepted! Good luck!';
@@ -733,7 +753,9 @@ class ChallengeProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _isLoading = false;
-      _errorMessage = 'Failed to accept challenge';
+      _errorMessage = e.toString().contains('Exception:')
+          ? e.toString().replaceFirst('Exception: ', '')
+          : 'Failed to accept challenge';
       notifyListeners();
       return false;
     }
@@ -787,6 +809,11 @@ class ChallengeProvider extends ChangeNotifier {
         stepHistory: result.history,
       );
 
+      // Run anti-cheat analysis on synced data
+      if (result.history.isNotEmpty) {
+        _runAntiCheatAnalysis(challenge, result.history);
+      }
+
       _isSyncing = false;
       _successMessage = '${challenge.goalType.displayName} synced successfully';
       notifyListeners();
@@ -794,6 +821,183 @@ class ChallengeProvider extends ChangeNotifier {
     } catch (e) {
       _isSyncing = false;
       _errorMessage = 'Failed to sync ${challenge.goalType.displayName.toLowerCase()}';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Run anti-cheat analysis asynchronously after step sync.
+  /// Stores the score on the challenge document and flags if suspicious.
+  Future<void> _runAntiCheatAnalysis(
+    ChallengeModel challenge,
+    List<DailySteps> stepHistory,
+  ) async {
+    try {
+      final userId = _firebaseService.currentUser?.uid;
+      if (userId == null) return;
+
+      final reputation =
+          await _antiCheatService.calculateUserReputation(userId);
+
+      final result = await _antiCheatService.analyzeActivity(
+        stepHistory: stepHistory,
+        userId: userId,
+        userReputation: reputation,
+      );
+
+      // Determine which field to update
+      final isCreator = challenge.creatorId == userId;
+      final scoreField =
+          isCreator ? 'creatorAntiCheatScore' : 'opponentAntiCheatScore';
+
+      final updates = <String, dynamic>{
+        scoreField: result.overallScore,
+        'updatedAt': DateTime.now().toIso8601String(),
+      };
+
+      // Flag if suspicious
+      if (result.isSuspicious || result.isCheating) {
+        updates['flagged'] = true;
+        updates['flagReason'] = result.flags.isNotEmpty
+            ? result.flags.join('; ')
+            : result.recommendation;
+      }
+
+      // Update the challenge document (non-demo)
+      if (!challenge.id.startsWith('demo-')) {
+        await _firebaseService.updateChallenge(challenge.id, updates);
+      }
+    } catch (_) {
+      // Anti-cheat is best-effort; don't block the sync
+    }
+  }
+
+  /// Settle a completed challenge: determine winner, run anti-cheat,
+  /// credit winnings, and update the challenge document.
+  Future<bool> settleChallenge(String challengeId) async {
+    final matches = _challenges.where((c) => c.id == challengeId).toList();
+    if (matches.isEmpty) return false;
+
+    final challenge = matches.first;
+    if (challenge.status != ChallengeStatus.active) return false;
+
+    // Check if challenge has ended
+    if (challenge.endDate != null &&
+        challenge.endDate!.isAfter(DateTime.now())) {
+      return false; // Not yet ended
+    }
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      // Run anti-cheat on both sides
+      AntiCheatResult? creatorResult;
+      AntiCheatResult? opponentResult;
+
+      if (challenge.creatorStepHistory.isNotEmpty) {
+        creatorResult = await _antiCheatService.analyzeActivity(
+          stepHistory: challenge.creatorStepHistory,
+          userId: challenge.creatorId,
+        );
+      }
+      if (challenge.opponentStepHistory.isNotEmpty &&
+          challenge.opponentId != null) {
+        opponentResult = await _antiCheatService.analyzeActivity(
+          stepHistory: challenge.opponentStepHistory,
+          userId: challenge.opponentId!,
+        );
+      }
+
+      // Determine winner
+      String? winnerId;
+      String? winnerName;
+
+      final creatorFlagged = creatorResult?.isCheating ?? false;
+      final opponentFlagged = opponentResult?.isCheating ?? false;
+
+      if (creatorFlagged && !opponentFlagged) {
+        // Creator cheated, opponent wins
+        winnerId = challenge.opponentId;
+        winnerName = challenge.opponentName;
+      } else if (!creatorFlagged && opponentFlagged) {
+        // Opponent cheated, creator wins
+        winnerId = challenge.creatorId;
+        winnerName = challenge.creatorName;
+      } else {
+        // Neither (or both) cheated — decide by progress
+        if (challenge.goalType.higherIsBetter) {
+          if (challenge.creatorProgress >= challenge.opponentProgress) {
+            winnerId = challenge.creatorId;
+            winnerName = challenge.creatorName;
+          } else {
+            winnerId = challenge.opponentId;
+            winnerName = challenge.opponentName;
+          }
+        } else {
+          // Pace-based: lower is better
+          if (challenge.creatorProgress == 0 &&
+              challenge.opponentProgress == 0) {
+            winnerId = null; // No data = tie
+          } else if (challenge.creatorProgress == 0) {
+            winnerId = challenge.opponentId;
+            winnerName = challenge.opponentName;
+          } else if (challenge.opponentProgress == 0) {
+            winnerId = challenge.creatorId;
+            winnerName = challenge.creatorName;
+          } else if (challenge.creatorProgress <=
+              challenge.opponentProgress) {
+            winnerId = challenge.creatorId;
+            winnerName = challenge.creatorName;
+          } else {
+            winnerId = challenge.opponentId;
+            winnerName = challenge.opponentName;
+          }
+        }
+      }
+
+      final isFlagged = (creatorResult?.isSuspicious ?? false) ||
+          (opponentResult?.isSuspicious ?? false);
+
+      // Update challenge document
+      if (!challengeId.startsWith('demo-')) {
+        await _firebaseService.updateChallenge(challengeId, {
+          'status': ChallengeStatus.completed.name,
+          'winnerId': winnerId,
+          'winnerName': winnerName,
+          'resultDeclaredAt': DateTime.now().toIso8601String(),
+          'creatorAntiCheatScore': creatorResult?.overallScore ?? 1.0,
+          'opponentAntiCheatScore': opponentResult?.overallScore ?? 1.0,
+          'flagged': isFlagged,
+          'flagReason': isFlagged
+              ? [
+                  ...?creatorResult?.flags,
+                  ...?opponentResult?.flags,
+                ].join('; ')
+              : null,
+        });
+
+        // Credit winnings to winner (if not flagged for cheating)
+        if (winnerId != null &&
+            challenge.stakeAmount > 0 &&
+            !isFlagged) {
+          await _walletService.creditWinnings(
+            userId: winnerId,
+            challengeId: challengeId,
+            amount: challenge.prizeAmount,
+          );
+        }
+      }
+
+      _isLoading = false;
+      _successMessage = winnerId != null
+          ? '$winnerName wins!'
+          : 'Challenge ended in a tie';
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = 'Failed to settle challenge';
       notifyListeners();
       return false;
     }
@@ -841,6 +1045,7 @@ class ChallengeProvider extends ChangeNotifier {
       _leaderboard = await _firebaseService.getLeaderboard();
     } catch (e) {
       _leaderboard = [];
+      _errorMessage = 'Failed to load leaderboard';
     }
 
     _isLoading = false;

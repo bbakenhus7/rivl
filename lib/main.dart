@@ -196,15 +196,24 @@ class _WaitlistDialogState extends State<_WaitlistDialog> {
         'contact': _contactController.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
       });
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+          _submitted = true;
+        });
+      }
     } catch (_) {
-      // If Firestore is unavailable, still show success for demo
-    }
-
-    if (mounted) {
-      setState(() {
-        _submitting = false;
-        _submitted = true;
-      });
+      if (mounted) {
+        setState(() => _submitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to join waitlist. Check your connection and try again.'),
+            backgroundColor: Colors.red[700],
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
     }
   }
 
