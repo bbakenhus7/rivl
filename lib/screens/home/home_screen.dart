@@ -21,6 +21,8 @@ import '../challenges/challenge_detail_screen.dart';
 import '../main_screen.dart';
 import '../notifications/notifications_screen.dart';
 import 'health_metric_detail_screen.dart';
+import 'workout_detail_screen.dart';
+import 'steps_trend_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -1704,15 +1706,31 @@ class _WeeklyStepsCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('This Week', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  Text(
-                    '${health.formatSteps(health.weeklyTotal)} total',
-                    style: TextStyle(color: context.textSecondary, fontSize: 14),
-                  ),
-                ],
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const StepsTrendScreen(),
+                    ),
+                  );
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('This Week', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Row(
+                      children: [
+                        Text(
+                          '${health.formatSteps(health.weeklyTotal)} total',
+                          style: TextStyle(color: context.textSecondary, fontSize: 14),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(Icons.chevron_right, size: 18, color: context.textSecondary),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 20),
               SizedBox(
@@ -1858,39 +1876,51 @@ class _WorkoutTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: RivlColors.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Icon(workout.iconData, color: RivlColors.primary, size: 22),
-            ),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => WorkoutDetailScreen(workout: workout),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(workout.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                Text(
-                  '${workout.formattedDuration} • ${workout.calories} cal',
-                  style: TextStyle(color: context.textSecondary, fontSize: 13),
-                ),
-              ],
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: workout.accentColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Icon(workout.iconData, color: workout.accentColor, size: 22),
+              ),
             ),
-          ),
-          Text(
-            _formatDate(workout.date),
-            style: TextStyle(color: context.textSecondary, fontSize: 12),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(workout.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  Text(
+                    '${workout.formattedDuration} • ${workout.calories} cal',
+                    style: TextStyle(color: context.textSecondary, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              _formatDate(workout.date),
+              style: TextStyle(color: context.textSecondary, fontSize: 12),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right, size: 18, color: context.textSecondary),
+          ],
+        ),
       ),
     );
   }

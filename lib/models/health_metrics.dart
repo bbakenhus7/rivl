@@ -171,6 +171,14 @@ class HealthMetrics {
           calories: 280 + rnd.nextInt(150),
           distance: 2.5 + rnd.nextDouble() * 2,
           date: now.subtract(const Duration(days: 1)),
+          elapsedTime: Duration(minutes: 43 + rnd.nextInt(10)),
+          activeCalories: 280 + rnd.nextInt(150),
+          totalCalories: 350 + rnd.nextInt(150),
+          elevationGain: 45 + rnd.nextDouble() * 80,
+          avgPace: Duration(minutes: 8, seconds: 15 + rnd.nextInt(45)),
+          avgHeartRate: 145 + rnd.nextInt(20),
+          maxHeartRate: 172 + rnd.nextInt(15),
+          avgCadence: 160 + rnd.nextInt(20),
         ),
         WorkoutData(
           type: 'STRENGTH_TRAINING',
@@ -178,6 +186,11 @@ class HealthMetrics {
           calories: 200 + rnd.nextInt(100),
           distance: 0,
           date: now.subtract(const Duration(days: 2)),
+          elapsedTime: Duration(hours: 1, minutes: 13 + rnd.nextInt(10)),
+          activeCalories: 200 + rnd.nextInt(100),
+          totalCalories: 248 + rnd.nextInt(80),
+          avgHeartRate: 115 + rnd.nextInt(15),
+          maxHeartRate: 148 + rnd.nextInt(15),
         ),
         WorkoutData(
           type: 'WALKING',
@@ -185,6 +198,13 @@ class HealthMetrics {
           calories: 120 + rnd.nextInt(80),
           distance: 1.2 + rnd.nextDouble() * 1,
           date: now.subtract(const Duration(days: 3)),
+          elapsedTime: Duration(minutes: 29 + rnd.nextInt(10)),
+          activeCalories: 100 + rnd.nextInt(60),
+          totalCalories: 131 + rnd.nextInt(40),
+          avgPace: Duration(minutes: 17, seconds: 30 + rnd.nextInt(30)),
+          avgHeartRate: 95 + rnd.nextInt(15),
+          maxHeartRate: 118 + rnd.nextInt(20),
+          avgCadence: 110 + rnd.nextInt(15),
         ),
       ],
       lastUpdated: now,
@@ -218,12 +238,36 @@ class WorkoutData {
   final double distance;
   final DateTime date;
 
+  // Detailed stats (populated from Apple Health)
+  final Duration? elapsedTime; // Total elapsed time including pauses
+  final int? activeCalories;
+  final int? totalCalories;
+  final double? elevationGain; // in feet
+  final double? avgPower; // in watts
+  final int? avgCadence; // steps/min or rpm
+  final Duration? avgPace; // per mile
+  final int? avgHeartRate; // bpm
+  final int? maxHeartRate; // bpm
+  final double? avgSpeed; // mph
+  final int? effortScore; // 1-10 Apple effort rating
+
   WorkoutData({
     required this.type,
     required this.duration,
     required this.calories,
     required this.distance,
     required this.date,
+    this.elapsedTime,
+    this.activeCalories,
+    this.totalCalories,
+    this.avgPower,
+    this.avgCadence,
+    this.avgPace,
+    this.avgHeartRate,
+    this.maxHeartRate,
+    this.avgSpeed,
+    this.elevationGain,
+    this.effortScore,
   });
 
   String get displayName {
@@ -320,5 +364,69 @@ class WorkoutData {
       return '${hours}h ${minutes}m';
     }
     return '${minutes}m';
+  }
+
+  String get formattedElapsedTime {
+    final d = elapsedTime ?? duration;
+    final hours = d.inHours;
+    final minutes = d.inMinutes % 60;
+    final seconds = d.inSeconds % 60;
+    if (hours > 0) return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  String get formattedPace {
+    if (avgPace == null) return '--';
+    final min = avgPace!.inMinutes;
+    final sec = avgPace!.inSeconds % 60;
+    return "$min'${sec.toString().padLeft(2, '0')}\"";
+  }
+
+  String get formattedDistance {
+    if (distance <= 0) return '--';
+    return '${distance.toStringAsFixed(2)} mi';
+  }
+
+  String get formattedSpeed {
+    if (avgSpeed == null || avgSpeed! <= 0) return '--';
+    return '${avgSpeed!.toStringAsFixed(1)} mph';
+  }
+
+  String get formattedElevation {
+    if (elevationGain == null || elevationGain! <= 0) return '--';
+    return '${elevationGain!.toStringAsFixed(0)} ft';
+  }
+
+  /// Whether this is a distance-based workout
+  bool get isDistanceBased {
+    final upper = type.toUpperCase();
+    return upper == 'RUNNING' || upper == 'WALKING' || upper == 'CYCLING' ||
+        upper == 'SWIMMING' || upper == 'HIKING' || upper == 'ELLIPTICAL' ||
+        upper == 'ROWING';
+  }
+
+  /// Color associated with the workout type (Apple Fitness style)
+  Color get accentColor {
+    switch (type.toUpperCase()) {
+      case 'RUNNING':
+        return const Color(0xFF32D74B); // Green
+      case 'WALKING':
+        return const Color(0xFFFFD60A); // Yellow
+      case 'CYCLING':
+        return const Color(0xFF30D158); // Bright green
+      case 'SWIMMING':
+        return const Color(0xFF64D2FF); // Cyan
+      case 'STRENGTH_TRAINING':
+      case 'TRADITIONAL_STRENGTH_TRAINING':
+      case 'FUNCTIONAL_STRENGTH_TRAINING':
+        return const Color(0xFFFF9F0A); // Orange
+      case 'HIIT':
+      case 'HIGH_INTENSITY_INTERVAL_TRAINING':
+        return const Color(0xFFFF453A); // Red
+      case 'YOGA':
+        return const Color(0xFFBF5AF2); // Purple
+      default:
+        return const Color(0xFF0A84FF); // Blue
+    }
   }
 }
