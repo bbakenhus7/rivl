@@ -1,13 +1,21 @@
 // screens/profile/profile_screen.dart
 
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/health_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../models/user_model.dart';
+import '../../services/firebase_service.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../wallet/wallet_screen.dart';
+import '../notifications/notifications_screen.dart';
+import 'health_connection_screen.dart';
+import 'help_support_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -165,9 +173,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Achievements
+                    // Personal Attributes
                     SlideIn(
                       delay: const Duration(milliseconds: 150),
+                      child: _PersonalAttributes(user: user),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Achievements
+                    SlideIn(
+                      delay: const Duration(milliseconds: 200),
                       child: _AchievementsSection(user: user),
                     ),
                     const SizedBox(height: 16),
@@ -453,6 +468,710 @@ class _StatRow extends StatelessWidget {
   }
 }
 
+class _PersonalAttributes extends StatelessWidget {
+  final UserModel user;
+
+  const _PersonalAttributes({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    final health = context.watch<HealthProvider>();
+    final runningWorkouts = health.recentWorkouts
+        .where((w) => w.type.toUpperCase() == 'RUNNING' && w.distance > 0)
+        .toList();
+
+    // Average pace from running workouts (min per mile)
+    double? avgPaceMinPerMile;
+    if (runningWorkouts.isNotEmpty) {
+      double totalPace = 0;
+      for (final w in runningWorkouts) {
+        totalPace += w.duration.inSeconds / 60 / w.distance;
+      }
+      avgPaceMinPerMile = totalPace / runningWorkouts.length;
+    }
+
+    // --- Compute 6 stats as user percentiles (1-99) ---
+    // Uses population benchmarks to map raw values to percentile rank.
+
+    final benchVal = (user.benchPressPR ?? 0).toDouble();
+    final squatVal = (user.squatPR ?? 0).toDouble();
+
+    // STR: bench + squat combined (population: mean ~350 lbs, sd ~120)
+    final strength = _percentile(benchVal + squatVal, 350, 120);
+
+    // SPD: mile pace — lower is better, so we invert
+    // Population: mean ~9.5 min/mi, sd ~2.0 (lower = faster = higher percentile)
+    final speed = avgPaceMinPerMile != null
+        ? _percentile(19.0 - avgPaceMinPerMile, 9.5, 2.0)  // invert so faster = higher
+        : 1.0;
+
+    // END: VO2 Max (population: mean ~38, sd ~8)
+    final endurance = _percentile(health.vo2Max, 38, 8);
+
+    // PWR: pull-ups (population: mean ~8, sd ~5)
+    final power = _percentile((user.pullUpsPR ?? 0).toDouble(), 8, 5);
+
+    // VIT: recovery score (population: mean ~55, sd ~18)
+    final vitality = _percentile(health.recoveryScore.toDouble(), 55, 18);
+
+    // STA: daily steps (population: mean ~6000, sd ~3000)
+    final stamina = _percentile(health.todaySteps.toDouble(), 6000, 3000);
+
+    final stats = [
+      _RadarStat('STR', strength, '${(benchVal + squatVal).toInt()} lbs'),
+      _RadarStat('SPD', speed, avgPaceMinPerMile != null ? _formatPace(avgPaceMinPerMile) : '—'),
+      _RadarStat('END', endurance, '${health.vo2Max.toStringAsFixed(1)} VO2'),
+      _RadarStat('PWR', power, '${user.pullUpsPR ?? 0} reps'),
+      _RadarStat('VIT', vitality, '${health.recoveryScore}%'),
+      _RadarStat('STA', stamina, '${health.todaySteps} steps'),
+    ];
+
+    final overallRating = (stats.fold(0.0, (sum, s) => sum + s.value) / stats.length).round();
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: context.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Text('Attributes', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: RivlColors.primary,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '$overallRating OVR',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              GestureDetector(
+                onTap: () => _showEditSheet(context, user),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: RivlColors.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Edit',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: RivlColors.primary),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Radar chart
+          SizedBox(
+            height: 240,
+            child: CustomPaint(
+              size: const Size(240, 240),
+              painter: _RadarChartPainter(
+                stats: stats,
+                primaryColor: RivlColors.primary,
+                gridColor: context.surfaceVariant,
+                textColor: context.textSecondary,
+                isDark: Theme.of(context).brightness == Brightness.dark,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+
+          // Stat bars beneath the chart
+          ...stats.map((s) => _StatBar(stat: s)),
+
+          // Compact data row beneath
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: context.surfaceVariant.withOpacity(0.4),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                _CompactStat(
+                  label: 'Weight',
+                  value: user.weightLbs != null ? '${user.weightLbs!.toStringAsFixed(0)}' : '—',
+                  unit: 'lbs',
+                ),
+                _compactDivider(context),
+                _CompactStat(
+                  label: 'Height',
+                  value: user.heightInches != null
+                      ? '${(user.heightInches! ~/ 12)}\'${(user.heightInches! % 12).toStringAsFixed(0)}"'
+                      : '—',
+                  unit: '',
+                ),
+                _compactDivider(context),
+                _CompactStat(
+                  label: 'BMI',
+                  value: user.bmi != null ? user.bmi!.toStringAsFixed(1) : '—',
+                  unit: '',
+                ),
+                _compactDivider(context),
+                _CompactStat(
+                  label: '5K',
+                  value: avgPaceMinPerMile != null ? _formatTime(avgPaceMinPerMile * 3.107) : '—',
+                  unit: '',
+                ),
+                _compactDivider(context),
+                _CompactStat(
+                  label: '10K',
+                  value: avgPaceMinPerMile != null ? _formatTime(avgPaceMinPerMile * 6.214) : '—',
+                  unit: '',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _compactDivider(BuildContext context) {
+    return Container(width: 1, height: 28, margin: const EdgeInsets.symmetric(horizontal: 6), color: context.surfaceVariant);
+  }
+
+  /// Approximate percentile rank (1-99) using a normal CDF.
+  /// Maps a raw [value] against a population with [mean] and [sd].
+  static double _percentile(double value, double mean, double sd) {
+    if (sd <= 0) return 50;
+    // Approximate normal CDF using logistic sigmoid
+    final z = (value - mean) / sd;
+    final cdf = 1.0 / (1.0 + math.exp(-1.7 * z));
+    return (cdf * 98 + 1).clamp(1.0, 99.0);
+  }
+
+  String _formatPace(double minPerMile) {
+    final mins = minPerMile.floor();
+    final secs = ((minPerMile - mins) * 60).round();
+    return '${mins}:${secs.toString().padLeft(2, '0')}/mi';
+  }
+
+  String _formatTime(double totalMinutes) {
+    final mins = totalMinutes.floor();
+    final secs = ((totalMinutes - mins) * 60).round();
+    return '$mins:${secs.toString().padLeft(2, '0')}';
+  }
+
+  void _showEditSheet(BuildContext context, UserModel user) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _EditAttributesSheet(user: user),
+    );
+  }
+}
+
+class _RadarStat {
+  final String label;
+  final double value; // 0-99
+  final String detail;
+
+  const _RadarStat(this.label, this.value, this.detail);
+}
+
+class _RadarChartPainter extends CustomPainter {
+  final List<_RadarStat> stats;
+  final Color primaryColor;
+  final Color gridColor;
+  final Color textColor;
+  final bool isDark;
+
+  _RadarChartPainter({
+    required this.stats,
+    required this.primaryColor,
+    required this.gridColor,
+    required this.textColor,
+    required this.isDark,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - 32;
+    final sides = stats.length;
+    final angleStep = (2 * math.pi) / sides;
+    // Rotate so first stat points up
+    const startAngle = -math.pi / 2;
+
+    // Grid rings
+    final gridPaint = Paint()
+      ..color = gridColor.withOpacity(0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    for (int ring = 1; ring <= 3; ring++) {
+      final r = radius * ring / 3;
+      final path = Path();
+      for (int i = 0; i <= sides; i++) {
+        final angle = startAngle + angleStep * (i % sides);
+        final point = Offset(center.dx + r * math.cos(angle), center.dy + r * math.sin(angle));
+        if (i == 0) {
+          path.moveTo(point.dx, point.dy);
+        } else {
+          path.lineTo(point.dx, point.dy);
+        }
+      }
+      canvas.drawPath(path, gridPaint);
+    }
+
+    // Spoke lines
+    for (int i = 0; i < sides; i++) {
+      final angle = startAngle + angleStep * i;
+      final outer = Offset(center.dx + radius * math.cos(angle), center.dy + radius * math.sin(angle));
+      canvas.drawLine(center, outer, gridPaint);
+    }
+
+    // Filled data polygon
+    final dataPath = Path();
+    final dataPoints = <Offset>[];
+    for (int i = 0; i <= sides; i++) {
+      final idx = i % sides;
+      final fraction = (stats[idx].value / 99).clamp(0.05, 1.0);
+      final r = radius * fraction;
+      final angle = startAngle + angleStep * idx;
+      final point = Offset(center.dx + r * math.cos(angle), center.dy + r * math.sin(angle));
+      if (i == 0) {
+        dataPath.moveTo(point.dx, point.dy);
+      } else {
+        dataPath.lineTo(point.dx, point.dy);
+      }
+      if (i < sides) dataPoints.add(point);
+    }
+
+    // Fill
+    final fillPaint = Paint()
+      ..color = primaryColor.withOpacity(0.15)
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(dataPath, fillPaint);
+
+    // Stroke
+    final strokePaint = Paint()
+      ..color = primaryColor.withOpacity(0.8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    canvas.drawPath(dataPath, strokePaint);
+
+    // Vertex dots
+    final dotPaint = Paint()
+      ..color = primaryColor
+      ..style = PaintingStyle.fill;
+    for (final point in dataPoints) {
+      canvas.drawCircle(point, 4, dotPaint);
+      canvas.drawCircle(point, 4, Paint()..color = (isDark ? Colors.black : Colors.white)..style = PaintingStyle.stroke..strokeWidth = 1.5);
+    }
+
+    // Labels + values at each vertex
+    for (int i = 0; i < sides; i++) {
+      final angle = startAngle + angleStep * i;
+      final labelRadius = radius + 22;
+      final lx = center.dx + labelRadius * math.cos(angle);
+      final ly = center.dy + labelRadius * math.sin(angle);
+
+      // Stat number
+      final valueSpan = TextSpan(
+        text: stats[i].value.round().toString(),
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w900,
+          color: isDark ? Colors.white : Colors.black87,
+        ),
+      );
+      final valuePainter = TextPainter(text: valueSpan, textDirection: TextDirection.ltr)..layout();
+
+      // Label text
+      final labelSpan = TextSpan(
+        text: ' ${stats[i].label}',
+        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: textColor),
+      );
+      final labelPainter = TextPainter(text: labelSpan, textDirection: TextDirection.ltr)..layout();
+
+      final totalWidth = valuePainter.width + labelPainter.width;
+      final xOffset = lx - totalWidth / 2;
+      final yOffset = ly - valuePainter.height / 2;
+
+      valuePainter.paint(canvas, Offset(xOffset, yOffset));
+      labelPainter.paint(canvas, Offset(xOffset + valuePainter.width, yOffset + (valuePainter.height - labelPainter.height) / 2));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RadarChartPainter old) =>
+      old.stats != stats || old.primaryColor != primaryColor;
+}
+
+class _StatBar extends StatelessWidget {
+  final _RadarStat stat;
+
+  const _StatBar({required this.stat});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 32,
+            child: Text(
+              stat.label,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.textSecondary),
+            ),
+          ),
+          const SizedBox(width: 6),
+          SizedBox(
+            width: 26,
+            child: Text(
+              stat.value.round().toString(),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+              textAlign: TextAlign.right,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: SizedBox(
+                height: 6,
+                child: LinearProgressIndicator(
+                  value: stat.value / 99,
+                  backgroundColor: context.surfaceVariant.withOpacity(0.5),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    _barColor(stat.value),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 68,
+            child: Text(
+              stat.detail,
+              style: TextStyle(fontSize: 10, color: context.textSecondary),
+              textAlign: TextAlign.right,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _barColor(double value) {
+    if (value >= 80) return RivlColors.success;
+    if (value >= 60) return RivlColors.primary;
+    if (value >= 40) return RivlColors.warning;
+    return RivlColors.error;
+  }
+}
+
+class _CompactStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final String unit;
+
+  const _CompactStat({required this.label, required this.value, required this.unit});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            unit.isNotEmpty ? '$label ($unit)' : label,
+            style: TextStyle(fontSize: 9, color: context.textSecondary),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EditAttributesSheet extends StatefulWidget {
+  final UserModel user;
+
+  const _EditAttributesSheet({required this.user});
+
+  @override
+  State<_EditAttributesSheet> createState() => _EditAttributesSheetState();
+}
+
+class _EditAttributesSheetState extends State<_EditAttributesSheet> {
+  late final TextEditingController _weightCtrl;
+  late final TextEditingController _heightFtCtrl;
+  late final TextEditingController _heightInCtrl;
+  late final TextEditingController _pullUpsCtrl;
+  late final TextEditingController _benchCtrl;
+  late final TextEditingController _squatCtrl;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _weightCtrl = TextEditingController(
+      text: widget.user.weightLbs?.toStringAsFixed(0) ?? '',
+    );
+    _heightFtCtrl = TextEditingController(
+      text: widget.user.heightInches != null ? '${widget.user.heightInches! ~/ 12}' : '',
+    );
+    _heightInCtrl = TextEditingController(
+      text: widget.user.heightInches != null ? '${(widget.user.heightInches! % 12).toStringAsFixed(0)}' : '',
+    );
+    _pullUpsCtrl = TextEditingController(
+      text: widget.user.pullUpsPR?.toString() ?? '',
+    );
+    _benchCtrl = TextEditingController(
+      text: widget.user.benchPressPR?.toString() ?? '',
+    );
+    _squatCtrl = TextEditingController(
+      text: widget.user.squatPR?.toString() ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _weightCtrl.dispose();
+    _heightFtCtrl.dispose();
+    _heightInCtrl.dispose();
+    _pullUpsCtrl.dispose();
+    _benchCtrl.dispose();
+    _squatCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+
+    final weight = double.tryParse(_weightCtrl.text);
+    final heightFt = int.tryParse(_heightFtCtrl.text);
+    final heightIn = int.tryParse(_heightInCtrl.text);
+    final totalInches = (heightFt != null || heightIn != null)
+        ? ((heightFt ?? 0) * 12 + (heightIn ?? 0)).toDouble()
+        : null;
+    final pullUps = int.tryParse(_pullUpsCtrl.text);
+    final bench = int.tryParse(_benchCtrl.text);
+    final squat = int.tryParse(_squatCtrl.text);
+
+    final updates = <String, dynamic>{};
+    if (weight != null) updates['weightLbs'] = weight;
+    if (totalInches != null && totalInches > 0) updates['heightInches'] = totalInches;
+    if (pullUps != null) updates['pullUpsPR'] = pullUps;
+    if (bench != null) updates['benchPressPR'] = bench;
+    if (squat != null) updates['squatPR'] = squat;
+
+    if (updates.isNotEmpty) {
+      try {
+        await FirebaseService().updateUser(widget.user.id, updates);
+        // Refresh user data
+        if (mounted) {
+          await context.read<AuthProvider>().refreshUser();
+        }
+      } catch (_) {}
+    }
+
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40, height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: context.surfaceVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Text(
+                'Edit Attributes',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 20),
+
+              // Body
+              Row(
+                children: [
+                  Expanded(
+                    child: _FieldInput(
+                      controller: _weightCtrl,
+                      label: 'Weight (lbs)',
+                      hint: '175',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 70,
+                    child: _FieldInput(
+                      controller: _heightFtCtrl,
+                      label: 'Feet',
+                      hint: '5',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 70,
+                    child: _FieldInput(
+                      controller: _heightInCtrl,
+                      label: 'Inches',
+                      hint: '10',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // PRs
+              Row(
+                children: [
+                  Expanded(
+                    child: _FieldInput(
+                      controller: _pullUpsCtrl,
+                      label: 'Pull-ups PR',
+                      hint: '15',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _FieldInput(
+                      controller: _benchCtrl,
+                      label: 'Bench PR (lbs)',
+                      hint: '225',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _FieldInput(
+                      controller: _squatCtrl,
+                      label: 'Squat PR (lbs)',
+                      hint: '315',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _save,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: RivlColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: _saving
+                      ? const SizedBox(
+                          width: 22, height: 22,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                        )
+                      : const Text('Save', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                ),
+              ),
+              SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FieldInput extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+  final TextInputType keyboardType;
+
+  const _FieldInput({
+    required this.controller,
+    required this.label,
+    required this.hint,
+    required this.keyboardType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 12, color: context.textSecondary, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: context.textSecondary.withOpacity(0.4)),
+            filled: true,
+            fillColor: context.surfaceVariant.withOpacity(0.5),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _AchievementsSection extends StatelessWidget {
   final UserModel user;
 
@@ -624,6 +1343,7 @@ class _ReferralSection extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.copy_rounded, size: 20),
                   onPressed: () {
+                    Clipboard.setData(ClipboardData(text: user.referralCode));
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Code copied!')),
                     );
@@ -631,7 +1351,15 @@ class _ReferralSection extends StatelessWidget {
                 ),
                 IconButton(
                   icon: const Icon(Icons.share_rounded, size: 20),
-                  onPressed: () {},
+                  onPressed: () {
+                    SharePlus.instance.share(
+                      ShareParams(
+                        text: 'Join me on RIVL and compete in fitness challenges! '
+                            'Use my referral code ${user.referralCode} to sign up. '
+                            'https://rivl.app/refer/${user.referralCode}',
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -666,11 +1394,32 @@ class _AccountActions extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _ActionTile(icon: Icons.health_and_safety, label: 'Health App Connection', onTap: () {}),
+          _ActionTile(
+            icon: Icons.health_and_safety,
+            label: 'Health App Connection',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const HealthConnectionScreen()),
+            ),
+          ),
           Divider(height: 1, indent: 56, color: context.surfaceVariant),
-          _ActionTile(icon: Icons.notifications_outlined, label: 'Notifications', onTap: () {}),
+          _ActionTile(
+            icon: Icons.notifications_outlined,
+            label: 'Notifications',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+            ),
+          ),
           Divider(height: 1, indent: 56, color: context.surfaceVariant),
-          _ActionTile(icon: Icons.help_outline, label: 'Help & Support', onTap: () {}),
+          _ActionTile(
+            icon: Icons.help_outline,
+            label: 'Help & Support',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
+            ),
+          ),
         ],
       ),
     );

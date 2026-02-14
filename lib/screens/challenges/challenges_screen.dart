@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/challenge_provider.dart';
+import '../../providers/wallet_provider.dart';
 import '../../models/challenge_model.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../../widgets/challenge_card.dart';
+import '../../widgets/add_funds_sheet.dart';
 import 'challenge_detail_screen.dart';
 
 class ChallengesScreen extends StatefulWidget {
@@ -172,7 +174,12 @@ class _ChallengeList extends StatelessWidget {
 
         return RefreshIndicator(
           onRefresh: () async {
-            // Trigger refresh
+            final auth = context.read<AuthProvider>();
+            if (auth.user != null) {
+              provider.startListening(auth.user!.id);
+            } else {
+              provider.loadDemoChallenges();
+            }
           },
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -195,10 +202,54 @@ class _ChallengeList extends StatelessWidget {
                       );
                     },
                     onAccept: isPending
-                        ? () => provider.acceptChallenge(challenge.id)
+                        ? () async {
+                            var walletBalance = context.read<WalletProvider>().balance;
+
+                            // Prompt to add funds if balance is insufficient
+                            if (challenge.stakeAmount > 0 && walletBalance < challenge.stakeAmount) {
+                              final funded = await showAddFundsSheet(
+                                context,
+                                stakeAmount: challenge.stakeAmount,
+                                currentBalance: walletBalance,
+                              );
+                              if (!funded || !context.mounted) return;
+                              // Re-read balance after deposit
+                              walletBalance = context.read<WalletProvider>().balance;
+                            }
+
+                            final success = await provider.acceptChallenge(
+                              challenge.id,
+                              walletBalance: walletBalance,
+                            );
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(success
+                                    ? 'Challenge accepted! Good luck!'
+                                    : provider.errorMessage ?? 'Failed to accept challenge'),
+                                backgroundColor: success ? RivlColors.success : RivlColors.error,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            );
+                            provider.clearMessages();
+                          }
                         : null,
                     onDecline: isPending
-                        ? () => provider.declineChallenge(challenge.id)
+                        ? () async {
+                            final success = await provider.declineChallenge(challenge.id);
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(success
+                                    ? 'Challenge declined'
+                                    : provider.errorMessage ?? 'Failed to decline challenge'),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            );
+                            provider.clearMessages();
+                          }
                         : null,
                   ),
                 ),

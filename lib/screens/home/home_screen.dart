@@ -9,12 +9,16 @@ import '../../providers/health_provider.dart';
 import '../../providers/streak_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../providers/notification_provider.dart';
+import '../../widgets/add_funds_sheet.dart';
+import '../../providers/theme_provider.dart';
 import '../../models/challenge_model.dart';
 import '../../models/health_metrics.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
+import '../../widgets/rivl_logo.dart';
 import '../../widgets/challenge_card.dart';
 import '../challenges/challenge_detail_screen.dart';
+import '../main_screen.dart';
 import '../notifications/notifications_screen.dart';
 import 'health_metric_detail_screen.dart';
 
@@ -32,6 +36,38 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<HealthProvider>().refreshData();
     });
+  }
+
+  PopupMenuEntry<ThemeMode> _themeMenuItem(
+    ThemeMode value,
+    IconData icon,
+    String label,
+    ThemeMode current,
+  ) {
+    final selected = value == current;
+    return PopupMenuItem<ThemeMode>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 20,
+            color: selected ? RivlColors.primary : null,
+          ),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+              color: selected ? RivlColors.primary : null,
+            ),
+          ),
+          const Spacer(),
+          if (selected)
+            const Icon(Icons.check, size: 18, color: RivlColors.primary),
+        ],
+      ),
+    );
   }
 
   void _showAppInfo(BuildContext context) {
@@ -127,6 +163,31 @@ class _HomeScreenState extends State<HomeScreen> {
               floating: true,
               pinned: true,
               backgroundColor: RivlColors.primaryDark,
+              title: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.all(2),
+                    child: const RivlLogo(size: 24),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'RIVL',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
+              ),
               flexibleSpace: FlexibleSpaceBar(
                 background: Container(
                   decoration: const BoxDecoration(
@@ -146,10 +207,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             padding: const EdgeInsets.all(4),
-                            child: Image.asset(
-                              'assets/images/rivl_logo.png',
-                              fit: BoxFit.contain,
-                            ),
+                            child: const RivlLogo(size: 36),
                           ),
                           const SizedBox(width: 12),
                           Column(
@@ -224,6 +282,46 @@ class _HomeScreenState extends State<HomeScreen> {
                           MaterialPageRoute(builder: (_) => const NotificationsScreen()),
                         );
                       },
+                    );
+                  },
+                ),
+                // Theme toggle
+                Consumer<ThemeProvider>(
+                  builder: (context, themeProv, _) {
+                    return PopupMenuButton<ThemeMode>(
+                      icon: Icon(
+                        themeProv.themeMode == ThemeMode.light
+                            ? Icons.light_mode
+                            : themeProv.themeMode == ThemeMode.dark
+                                ? Icons.dark_mode
+                                : Icons.brightness_auto,
+                        color: Colors.white,
+                      ),
+                      offset: const Offset(0, 48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      onSelected: (mode) => themeProv.setThemeMode(mode),
+                      itemBuilder: (_) => [
+                        _themeMenuItem(
+                          ThemeMode.light,
+                          Icons.light_mode_outlined,
+                          'Light',
+                          themeProv.themeMode,
+                        ),
+                        _themeMenuItem(
+                          ThemeMode.dark,
+                          Icons.dark_mode_outlined,
+                          'Dark',
+                          themeProv.themeMode,
+                        ),
+                        _themeMenuItem(
+                          ThemeMode.system,
+                          Icons.brightness_auto_outlined,
+                          'Device',
+                          themeProv.themeMode,
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -304,8 +402,48 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                     );
                                   },
-                                  onAccept: () => provider.acceptChallenge(challenge.id),
-                                  onDecline: () => provider.declineChallenge(challenge.id),
+                                  onAccept: () async {
+                                    var walletBalance = context.read<WalletProvider>().balance;
+                                    if (challenge.stakeAmount > 0 && walletBalance < challenge.stakeAmount) {
+                                      final funded = await showAddFundsSheet(
+                                        context,
+                                        stakeAmount: challenge.stakeAmount,
+                                        currentBalance: walletBalance,
+                                      );
+                                      if (!funded || !context.mounted) return;
+                                      walletBalance = context.read<WalletProvider>().balance;
+                                    }
+                                    final success = await provider.acceptChallenge(
+                                      challenge.id,
+                                      walletBalance: walletBalance,
+                                    );
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(success
+                                            ? 'Challenge accepted! Good luck!'
+                                            : provider.errorMessage ?? 'Failed to accept challenge'),
+                                        backgroundColor: success ? RivlColors.success : RivlColors.error,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      ),
+                                    );
+                                    provider.clearMessages();
+                                  },
+                                  onDecline: () async {
+                                    final success = await provider.declineChallenge(challenge.id);
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(success
+                                            ? 'Challenge declined'
+                                            : provider.errorMessage ?? 'Failed to decline challenge'),
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      ),
+                                    );
+                                    provider.clearMessages();
+                                  },
                                 ),
                               ),
                             );
@@ -316,37 +454,44 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
 
-                  // Recovery & Strain Cards
+                  // RIVL Health Score Card
                   StaggeredListAnimation(
                     index: 1,
+                    child: const _RivlHealthScoreCard(),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Recovery & Strain Cards
+                  StaggeredListAnimation(
+                    index: 2,
                     child: const _RecoveryStrainRow(),
                   ),
                   const SizedBox(height: 16),
 
                   // Hero Activity Rings Card
                   StaggeredListAnimation(
-                    index: 2,
+                    index: 3,
                     child: const _ActivityBarsCard(),
                   ),
                   const SizedBox(height: 16),
 
                   // Health Metrics Grid
                   StaggeredListAnimation(
-                    index: 3,
+                    index: 4,
                     child: const _HealthMetricsGrid(),
                   ),
                   const SizedBox(height: 16),
 
                   // Weekly Steps Chart
                   StaggeredListAnimation(
-                    index: 4,
+                    index: 5,
                     child: const _WeeklyStepsCard(),
                   ),
                   const SizedBox(height: 16),
 
                   // Recent Workouts
                   StaggeredListAnimation(
-                    index: 5,
+                    index: 6,
                     child: const _RecentWorkoutsCard(),
                   ),
                   const SizedBox(height: 16),
@@ -366,7 +511,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text('Active Challenges', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                TextButton(onPressed: () {}, child: const Text('See All')),
+                                TextButton(
+                                  onPressed: () => MainScreen.onTabSelected?.call(1),
+                                  child: const Text('See All'),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 12),
@@ -402,6 +550,177 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+// RIVL Health Score Card
+class _RivlHealthScoreCard extends StatelessWidget {
+  const _RivlHealthScoreCard();
+
+  Color _getGradeColor(String grade) {
+    switch (grade) {
+      case 'A+':
+      case 'A':
+        return RivlColors.success;
+      case 'B':
+        return Colors.lightGreen;
+      case 'C':
+        return Colors.orange;
+      default:
+        return RivlColors.error;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<HealthProvider>(
+      builder: (context, health, _) {
+        final score = health.rivlHealthScore;
+        final grade = health.rivlHealthGrade;
+        final color = _getGradeColor(grade);
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => HealthMetricDetailScreen(
+                  metricType: HealthMetricType.healthScore,
+                  icon: Icons.favorite_rounded,
+                  label: 'RIVL Health Score',
+                  currentValue: '$score',
+                  unit: '/100',
+                  color: color,
+                  description:
+                      'Your RIVL Health Score is a single number that captures your '
+                      'overall fitness across six key dimensions: Steps (25%), '
+                      'Distance (20%), Sleep (15%), Resting Heart Rate (15%), '
+                      'VO2 Max (15%), and HRV (10%).\n\n'
+                      'Why it matters: Instead of checking six different metrics, '
+                      'this score tells you at a glance whether your health is '
+                      'trending in the right direction. Research shows that people '
+                      'who track a single composite health metric are more likely '
+                      'to stay consistent with their fitness routines. Use it to '
+                      'spot patterns -- a dipping score often means sleep or '
+                      'recovery needs attention before you feel it.',
+                ),
+              ),
+            );
+          },
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                colors: [context.surface, color.withOpacity(0.06)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.08),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // Score and grade
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  color.withOpacity(0.18),
+                                  color.withOpacity(0.08),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.favorite_rounded, color: color, size: 20),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'RIVL Health Score',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                              color: context.textSecondary,
+                            ),
+                          ),
+                          const Spacer(),
+                          Icon(Icons.chevron_right_rounded, color: context.textSecondary, size: 22),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          AnimatedCounter(
+                            value: score,
+                            duration: const Duration(milliseconds: 800),
+                            style: TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.w800,
+                              color: color,
+                              height: 1.0,
+                              letterSpacing: -1,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: color.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                grade,
+                                style: TextStyle(
+                                  color: color,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 18,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Your overall fitness across steps, sleep, heart health, and cardio capacity. Tap to see your 30-day trend.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: context.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 // Recovery & Strain Row
 class _RecoveryStrainRow extends StatelessWidget {
   const _RecoveryStrainRow();
@@ -410,6 +729,8 @@ class _RecoveryStrainRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<HealthProvider>(
       builder: (context, health, _) {
+        final recoveryColor = _getRecoveryColor(health.recoveryScore);
+        final exertionColor = _getStrainColor(health.strainScore);
         return Row(
           children: [
             Expanded(
@@ -417,8 +738,31 @@ class _RecoveryStrainRow extends StatelessWidget {
                 title: 'Recovery',
                 score: health.recoveryScore,
                 status: health.recoveryStatus,
-                color: _getRecoveryColor(health.recoveryScore),
+                color: recoveryColor,
                 icon: Icons.battery_charging_full,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => HealthMetricDetailScreen(
+                        metricType: HealthMetricType.recovery,
+                        icon: Icons.battery_charging_full,
+                        label: 'Recovery',
+                        currentValue: '${health.recoveryScore}',
+                        unit: '/100',
+                        color: recoveryColor,
+                        description: 'Recovery measures how ready your body is to perform. '
+                            'It is calculated from your Heart Rate Variability (HRV) and '
+                            'Resting Heart Rate, weighted equally. Higher HRV and lower '
+                            'resting heart rate both indicate better recovery.\n\n'
+                            'Why it matters: Training when recovery is high leads to bigger '
+                            'fitness gains. Training on low recovery increases injury risk '
+                            'and slows progress. Use this score to decide when to push hard '
+                            'and when to take it easy.',
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
             const SizedBox(width: 12),
@@ -427,9 +771,32 @@ class _RecoveryStrainRow extends StatelessWidget {
                 title: 'Exertion',
                 score: health.strainScore,
                 status: _getStrainStatus(health.strainScore),
-                color: _getStrainColor(health.strainScore),
+                color: exertionColor,
                 icon: Icons.local_fire_department,
                 maxScore: 100,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => HealthMetricDetailScreen(
+                        metricType: HealthMetricType.exertion,
+                        icon: Icons.local_fire_department,
+                        label: 'Exertion',
+                        currentValue: '${health.strainScore}',
+                        unit: '/100',
+                        color: exertionColor,
+                        description: 'Exertion measures the total physical load on your body today. '
+                            'It is calculated as the average of your steps exertion '
+                            '(steps vs. 15,000 target) and calorie exertion '
+                            '(active calories vs. 800 target).\n\n'
+                            'Why it matters: Tracking exertion helps you balance training '
+                            'intensity over time. Consistently high exertion without adequate '
+                            'recovery can lead to overtraining. Aim for a mix of high and low '
+                            'exertion days to build fitness safely.',
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -468,6 +835,7 @@ class _ScoreCard extends StatelessWidget {
   final Color color;
   final IconData icon;
   final int maxScore;
+  final VoidCallback? onTap;
 
   const _ScoreCard({
     required this.title,
@@ -476,11 +844,14 @@ class _ScoreCard extends StatelessWidget {
     required this.color,
     required this.icon,
     this.maxScore = 100,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
@@ -568,6 +939,7 @@ class _ScoreCard extends StatelessWidget {
         ],
       ),
         ),
+      ),
       ),
     );
   }

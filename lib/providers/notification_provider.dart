@@ -35,7 +35,7 @@ class NotificationProvider with ChangeNotifier {
         .snapshots()
         .listen((snapshot) {
       _notifications = snapshot.docs.map((doc) {
-        final data = doc.data();
+        final data = Map<String, dynamic>.from(doc.data());
         data['id'] = doc.id;
         return data;
       }).toList();

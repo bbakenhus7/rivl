@@ -178,6 +178,7 @@ class BattlePassProvider with ChangeNotifier {
     if (_progress == null) return false;
 
     try {
+      final levelBefore = _progress!.currentLevel;
       int newXP = _progress!.currentXP + xp;
       int newTotalXP = _progress!.totalXP + xp;
       int newLevel = _progress!.currentLevel;
@@ -205,8 +206,6 @@ class BattlePassProvider with ChangeNotifier {
 
       // Save to Firestore
       await _saveProgress(userId);
-
-      final levelBefore = _progress!.currentLevel;
 
       // Record XP transaction
       await _firestore
@@ -379,9 +378,14 @@ class BattlePassProvider with ChangeNotifier {
         break;
 
       case RewardType.premium_days:
-        // Extend premium subscription
+        // Extend premium subscription by reward.value days
+        final currentExpiry = (await userRef.get()).data()?['premiumExpiresAt'];
+        final baseDate = currentExpiry is Timestamp
+            ? currentExpiry.toDate()
+            : DateTime.now();
+        final newExpiry = baseDate.add(Duration(days: reward.value));
         await userRef.update({
-          'premiumExpiresAt': FieldValue.serverTimestamp(),
+          'premiumExpiresAt': Timestamp.fromDate(newExpiry),
         });
         break;
 

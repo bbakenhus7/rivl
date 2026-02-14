@@ -5,11 +5,13 @@ import '../models/challenge_model.dart';
 import '../models/user_model.dart';
 import '../services/firebase_service.dart';
 import '../services/health_service.dart';
+import '../services/wallet_service.dart';
 import 'dart:async';
 
 class ChallengeProvider extends ChangeNotifier {
   final FirebaseService _firebaseService = FirebaseService();
   final HealthService _healthService = HealthService();
+  final WalletService _walletService = WalletService();
 
   /// Callback invoked when the user earns XP from challenge activity.
   /// Set this from the widget tree where BattlePassProvider is accessible.
@@ -28,10 +30,16 @@ class ChallengeProvider extends ChangeNotifier {
   String? _successMessage;
 
   // Create challenge form state
+  ChallengeType _selectedChallengeType = ChallengeType.headToHead;
   UserModel? _selectedOpponent;
   StakeOption _selectedStake = StakeOption.options[2]; // $25 default
   ChallengeDuration _selectedDuration = ChallengeDuration.oneWeek;
   GoalType _selectedGoalType = GoalType.steps;
+
+  // Group challenge form state
+  List<UserModel> _selectedGroupMembers = [];
+  int _groupSize = 6;
+  GroupPayoutStructure _selectedPayoutStructure = GroupPayoutStructure.standard;
 
   StreamSubscription? _challengesSubscription;
 
@@ -55,10 +63,24 @@ class ChallengeProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   String? get successMessage => _successMessage;
 
+  ChallengeType get selectedChallengeType => _selectedChallengeType;
   UserModel? get selectedOpponent => _selectedOpponent;
   StakeOption get selectedStake => _selectedStake;
   ChallengeDuration get selectedDuration => _selectedDuration;
   GoalType get selectedGoalType => _selectedGoalType;
+
+  // Group getters
+  List<UserModel> get selectedGroupMembers => _selectedGroupMembers;
+  int get groupSize => _groupSize;
+  GroupPayoutStructure get selectedPayoutStructure => _selectedPayoutStructure;
+  bool get isGroupMode => _selectedChallengeType == ChallengeType.group;
+
+  /// Estimated group prize pool (all participants × stake, minus 5% fee)
+  double get groupPrizePool {
+    if (_selectedStake.amount <= 0) return 0;
+    final totalPot = _selectedStake.amount * _groupSize;
+    return (totalPot * 0.95 * 100).roundToDouble() / 100;
+  }
 
   int get pendingCount => pendingChallenges.length;
   bool get hasActiveChallenges => activeChallenges.isNotEmpty;
@@ -364,6 +386,11 @@ class ChallengeProvider extends ChangeNotifier {
   // CREATE CHALLENGE
   // ============================================
 
+  void setSelectedChallengeType(ChallengeType type) {
+    _selectedChallengeType = type;
+    notifyListeners();
+  }
+
   void setSelectedOpponent(UserModel? opponent) {
     _selectedOpponent = opponent;
     notifyListeners();
@@ -381,6 +408,29 @@ class ChallengeProvider extends ChangeNotifier {
 
   void setSelectedGoalType(GoalType goalType) {
     _selectedGoalType = goalType;
+    notifyListeners();
+  }
+
+  // Group challenge setters
+  void setGroupSize(int size) {
+    _groupSize = size.clamp(3, 20);
+    notifyListeners();
+  }
+
+  void setSelectedPayoutStructure(GroupPayoutStructure structure) {
+    _selectedPayoutStructure = structure;
+    notifyListeners();
+  }
+
+  void addGroupMember(UserModel user) {
+    if (_selectedGroupMembers.any((m) => m.id == user.id)) return;
+    if (_selectedGroupMembers.length >= _groupSize - 1) return; // minus creator
+    _selectedGroupMembers.add(user);
+    notifyListeners();
+  }
+
+  void removeGroupMember(String userId) {
+    _selectedGroupMembers.removeWhere((m) => m.id == userId);
     notifyListeners();
   }
 
@@ -438,6 +488,15 @@ class ChallengeProvider extends ChangeNotifier {
         stakeAmount: _selectedStake.amount,
       );
 
+      // Deduct creator's stake from wallet for paid challenges
+      if (_selectedStake.amount > 0 && _firebaseService.currentUser != null) {
+        await _walletService.deductStake(
+          userId: _firebaseService.currentUser!.uid,
+          challengeId: challengeId,
+          amount: _selectedStake.amount,
+        );
+      }
+
       _successMessage = 'Challenge sent to ${_selectedOpponent!.displayName}!';
       onXPEarned?.call(15, 'challenge_created'); // XPSource.CHALLENGE_CREATED
       resetCreateForm();
@@ -455,11 +514,133 @@ class ChallengeProvider extends ChangeNotifier {
     }
   }
 
+  Future<String?> createGroupChallenge({double? walletBalance}) async {
+    if (_selectedGroupMembers.isEmpty) {
+      _errorMessage = 'Please add at least one member';
+      notifyListeners();
+      return null;
+    }
+
+    // Validate wallet balance for paid challenges
+    if (_selectedStake.amount > 0) {
+      final balance = walletBalance ?? 0.0;
+      if (balance < _selectedStake.amount) {
+        _errorMessage =
+            'Insufficient balance. You need \$${_selectedStake.amount.toStringAsFixed(0)} to enter this challenge.';
+        notifyListeners();
+        return null;
+      }
+    }
+
+    _isCreating = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final invitedParticipants = _selectedGroupMembers
+          .map((m) => GroupParticipant(
+                userId: m.id,
+                displayName: m.displayName,
+                username: m.username,
+                status: ParticipantStatus.invited,
+              ))
+          .toList();
+
+      // Demo mode: create locally
+      if (_selectedGroupMembers.every((m) => m.id.startsWith('demo'))) {
+        final now = DateTime.now();
+        final allParticipants = [
+          GroupParticipant(
+            userId: 'demo-user',
+            displayName: 'You',
+            status: ParticipantStatus.accepted,
+          ),
+          ...invitedParticipants,
+        ];
+        final totalPot = _selectedStake.amount * allParticipants.length;
+        final prizeAmount = (totalPot * 0.95 * 100).roundToDouble() / 100;
+
+        final demoId = 'demo-group-${DateTime.now().millisecondsSinceEpoch}';
+        _challenges.insert(
+          0,
+          ChallengeModel(
+            id: demoId,
+            creatorId: 'demo-user',
+            creatorName: 'You',
+            type: ChallengeType.group,
+            status: ChallengeStatus.pending,
+            stakeAmount: _selectedStake.amount,
+            totalPot: totalPot,
+            prizeAmount: prizeAmount,
+            goalType: _selectedGoalType,
+            goalValue: suggestedGoalValue,
+            duration: _selectedDuration,
+            participants: allParticipants,
+            participantIds: allParticipants.map((p) => p.userId).toList(),
+            maxParticipants: _groupSize,
+            minParticipants: 3,
+            payoutStructure: _selectedPayoutStructure,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+
+        _successMessage = 'Group challenge created!';
+        onXPEarned?.call(15, 'challenge_created');
+        resetCreateForm();
+        _isCreating = false;
+        notifyListeners();
+        return demoId;
+      }
+
+      final challengeId = await _firebaseService.createGroupChallenge(
+        invitedParticipants: invitedParticipants,
+        goalType: _selectedGoalType,
+        goalValue: suggestedGoalValue,
+        duration: _selectedDuration,
+        stakeAmount: _selectedStake.amount,
+        maxParticipants: _groupSize,
+        minParticipants: 3,
+        payoutStructure: _selectedPayoutStructure,
+      );
+
+      // Deduct creator's stake from wallet for paid group challenges
+      if (_selectedStake.amount > 0 && _firebaseService.currentUser != null) {
+        await _walletService.deductStake(
+          userId: _firebaseService.currentUser!.uid,
+          challengeId: challengeId,
+          amount: _selectedStake.amount,
+        );
+      }
+
+      _successMessage = 'Group challenge created!';
+      onXPEarned?.call(15, 'challenge_created');
+      resetCreateForm();
+
+      _isCreating = false;
+      notifyListeners();
+      return challengeId;
+    } catch (e) {
+      _isCreating = false;
+      _errorMessage = e.toString().contains('Exception:')
+          ? e.toString().replaceFirst('Exception: ', '')
+          : 'Failed to create group challenge. Please try again.';
+      notifyListeners();
+      return null;
+    }
+  }
+
   void resetCreateForm() {
+    _selectedChallengeType = ChallengeType.headToHead;
     _selectedOpponent = null;
     _selectedStake = StakeOption.options[2];
     _selectedDuration = ChallengeDuration.oneWeek;
     _selectedGoalType = GoalType.steps;
+    _selectedGroupMembers = [];
+    _groupSize = 6;
+    _selectedPayoutStructure = GroupPayoutStructure.standard;
+    _errorMessage = null;
+    _successMessage = null;
     notifyListeners();
   }
 
@@ -469,22 +650,28 @@ class ChallengeProvider extends ChangeNotifier {
 
   Future<bool> acceptChallenge(String challengeId, {double? walletBalance}) async {
     // Validate that the challenge is still pending before accepting
-    final challenge = _challenges.where((c) => c.id == challengeId).toList();
-    if (challenge.isNotEmpty) {
-      if (challenge.first.status != ChallengeStatus.pending) {
-        _errorMessage = 'This challenge is no longer available';
+    final matches = _challenges.where((c) => c.id == challengeId).toList();
+    if (matches.isEmpty) {
+      _errorMessage = 'Challenge not found';
+      notifyListeners();
+      return false;
+    }
+
+    final challenge = matches.first;
+    if (challenge.status != ChallengeStatus.pending) {
+      _errorMessage = 'This challenge is no longer available';
+      notifyListeners();
+      return false;
+    }
+
+    // Validate wallet balance for paid challenges
+    if (challenge.stakeAmount > 0) {
+      final balance = walletBalance ?? 0.0;
+      if (balance < challenge.stakeAmount) {
+        _errorMessage =
+            'Insufficient balance. You need \$${challenge.stakeAmount.toStringAsFixed(0)} to accept this challenge.';
         notifyListeners();
         return false;
-      }
-      // Validate wallet balance for paid challenges
-      if (challenge.first.stakeAmount > 0) {
-        final balance = walletBalance ?? 0.0;
-        if (balance < challenge.first.stakeAmount) {
-          _errorMessage =
-              'Insufficient balance. You need \$${challenge.first.stakeAmount.toStringAsFixed(0)} to accept this challenge.';
-          notifyListeners();
-          return false;
-        }
       }
     }
 
@@ -493,9 +680,54 @@ class ChallengeProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _firebaseService.acceptChallenge(challengeId);
+      // Handle demo challenges locally
+      if (challengeId.startsWith('demo-')) {
+        final now = DateTime.now();
+        final idx = _challenges.indexWhere((c) => c.id == challengeId);
+        if (idx != -1) {
+          _challenges[idx] = ChallengeModel(
+            id: challenge.id,
+            creatorId: challenge.creatorId,
+            opponentId: challenge.opponentId,
+            creatorName: challenge.creatorName,
+            opponentName: challenge.opponentName,
+            type: challenge.type,
+            status: ChallengeStatus.active,
+            stakeAmount: challenge.stakeAmount,
+            totalPot: challenge.totalPot,
+            prizeAmount: challenge.prizeAmount,
+            goalType: challenge.goalType,
+            goalValue: challenge.goalValue,
+            duration: challenge.duration,
+            startDate: now,
+            endDate: now.add(Duration(days: challenge.duration.days)),
+            creatorProgress: challenge.creatorProgress,
+            opponentProgress: challenge.opponentProgress,
+            createdAt: challenge.createdAt,
+            updatedAt: now,
+          );
+        }
+      } else {
+        // Deduct stake from wallet for paid challenges
+        if (challenge.stakeAmount > 0) {
+          final userId = _firebaseService.currentUser!.uid;
+          final deducted = await _walletService.deductStake(
+            userId: userId,
+            challengeId: challengeId,
+            amount: challenge.stakeAmount,
+          );
+          if (!deducted) {
+            _isLoading = false;
+            _errorMessage = 'Failed to deduct stake from wallet';
+            notifyListeners();
+            return false;
+          }
+        }
+        await _firebaseService.acceptChallenge(challengeId);
+      }
+
       _successMessage = 'Challenge accepted! Good luck!';
-      onXPEarned?.call(15, 'challenge_accepted'); // XPSource.CHALLENGE_ACCEPTED
+      onXPEarned?.call(15, 'challenge_accepted');
       _isLoading = false;
       notifyListeners();
       return true;
@@ -513,7 +745,13 @@ class ChallengeProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _firebaseService.declineChallenge(challengeId);
+      // Handle demo challenges locally
+      if (challengeId.startsWith('demo-')) {
+        _challenges.removeWhere((c) => c.id == challengeId);
+      } else {
+        await _firebaseService.declineChallenge(challengeId);
+      }
+
       _successMessage = 'Challenge declined';
       _isLoading = false;
       notifyListeners();
@@ -579,6 +817,7 @@ class ChallengeProvider extends ChangeNotifier {
       _searchResults = await _firebaseService.searchUsers(query);
     } catch (e) {
       _searchResults = [];
+      _errorMessage = 'Search failed. Please try again.';
     }
 
     _isSearching = false;

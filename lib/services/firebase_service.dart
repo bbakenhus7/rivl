@@ -197,18 +197,83 @@ class FirebaseService {
     return docRef.id;
   }
 
+  Future<String> createGroupChallenge({
+    required List<GroupParticipant> invitedParticipants,
+    required GoalType goalType,
+    required int goalValue,
+    required ChallengeDuration duration,
+    required double stakeAmount,
+    required int maxParticipants,
+    required int minParticipants,
+    required GroupPayoutStructure payoutStructure,
+  }) async {
+    final user = await getUser(currentUser!.uid);
+    if (user == null) throw Exception('User not found');
+
+    // Creator is automatically accepted
+    final allParticipants = [
+      GroupParticipant(
+        userId: currentUser!.uid,
+        displayName: user.displayName,
+        username: user.username,
+        status: ParticipantStatus.accepted,
+      ),
+      ...invitedParticipants,
+    ];
+
+    final totalPot = stakeAmount * allParticipants.length;
+    final prizeAmount = _calculatePrize(totalPot, ChallengeType.group);
+
+    final challenge = ChallengeModel(
+      id: '',
+      creatorId: currentUser!.uid,
+      creatorName: user.displayName,
+      type: ChallengeType.group,
+      status: ChallengeStatus.pending,
+      stakeAmount: stakeAmount,
+      totalPot: totalPot,
+      prizeAmount: prizeAmount,
+      goalType: goalType,
+      goalValue: goalValue,
+      duration: duration,
+      participants: allParticipants,
+      participantIds: allParticipants.map((p) => p.userId).toList(),
+      maxParticipants: maxParticipants,
+      minParticipants: minParticipants,
+      payoutStructure: payoutStructure,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    final docRef = await _db.collection('challenges').add(challenge.toFirestore());
+
+    // Notify all invited participants
+    for (final participant in invitedParticipants) {
+      await _sendNotification(
+        userId: participant.userId,
+        type: 'challenge_invite',
+        title: 'Group Challenge!',
+        body: '${user.displayName} invited you to a group challenge!',
+        data: {'challengeId': docRef.id},
+      );
+    }
+
+    return docRef.id;
+  }
+
   Stream<List<ChallengeModel>> userChallengesStream(String userId) {
+    // All challenges where user is creator, opponent, or group participant
     return _db
         .collection('challenges')
         .where(Filter.or(
           Filter('creatorId', isEqualTo: userId),
           Filter('opponentId', isEqualTo: userId),
+          Filter('participantIds', arrayContains: userId),
         ))
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) => ChallengeModel.fromFirestore(doc)).toList();
-    });
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => ChallengeModel.fromFirestore(doc)).toList());
   }
 
   Future<ChallengeModel?> getChallenge(String challengeId) async {

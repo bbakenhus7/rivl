@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/theme.dart';
+import '../challenges/challenge_detail_screen.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
@@ -119,6 +120,16 @@ class NotificationsScreen extends StatelessWidget {
                       provider.markAsRead(notification['id']);
                     }
                     // Navigate based on notification type/data
+                    final data = notification['data'] as Map<String, dynamic>?;
+                    final challengeId = data?['challengeId'] as String?;
+                    if (challengeId != null && challengeId.isNotEmpty) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChallengeDetailScreen(challengeId: challengeId),
+                        ),
+                      );
+                    }
                   },
                 ),
               );

@@ -23,6 +23,9 @@ import 'notifications/notifications_screen.dart';
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
+  /// Static callback to switch tabs from child screens (e.g. HomeScreen "See All").
+  static void Function(int)? onTabSelected;
+
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
@@ -41,6 +44,9 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    MainScreen.onTabSelected = (index) {
+      if (mounted) setState(() => _currentIndex = index);
+    };
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeData();
     });

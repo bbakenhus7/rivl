@@ -9,6 +9,8 @@ import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../../models/challenge_model.dart';
 import '../../widgets/confetti_celebration.dart';
+import '../../widgets/add_funds_sheet.dart';
+import '../main_screen.dart';
 
 class ChallengeDetailScreen extends StatefulWidget {
   final String challengeId;
@@ -234,8 +236,10 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                 // Creator / user side
                                 Expanded(
                                   child: _AvatarColumn(
-                                    name: challenge.creatorName,
-                                    progress: challenge.creatorProgress,
+                                    name: isCreator ? userName : rivalName,
+                                    progress: isCreator
+                                        ? challenge.creatorProgress
+                                        : challenge.opponentProgress,
                                     goalUnit: challenge.goalType.unit,
                                     goalType: challenge.goalType,
                                     color: RivlColors.primary,
@@ -243,7 +247,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                       RivlColors.primary,
                                       RivlColors.primaryLight,
                                     ],
-                                    isLeading: challenge.isUserWinning,
+                                    isLeading: isWinning && !isTied,
                                   ),
                                 ),
 
@@ -319,8 +323,12 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                 // Opponent side
                                 Expanded(
                                   child: _AvatarColumn(
-                                    name: challenge.opponentName ?? 'Opponent',
-                                    progress: challenge.opponentProgress,
+                                    name: isCreator
+                                        ? (challenge.opponentName ?? 'Opponent')
+                                        : challenge.creatorName,
+                                    progress: isCreator
+                                        ? challenge.opponentProgress
+                                        : challenge.creatorProgress,
                                     goalUnit: challenge.goalType.unit,
                                     goalType: challenge.goalType,
                                     color: RivlColors.secondary,
@@ -328,8 +336,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                       Color(0xFFFF6B5B),
                                       Color(0xFFFF9A8B),
                                     ],
-                                    isLeading: !challenge.isUserWinning &&
-                                        challenge.opponentProgress > 0,
+                                    isLeading: !isWinning && !isTied &&
+                                        rivalProgress > 0,
                                   ),
                                 ),
                               ],
@@ -389,6 +397,16 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
+
+                  // -- Accept / Decline for pending challenges --
+                  if (challenge.status == ChallengeStatus.pending)
+                    SlideIn(
+                      delay: const Duration(milliseconds: 400),
+                      child: _PendingActions(
+                        challenge: challenge,
+                        provider: provider,
+                      ),
+                    ),
 
                   // -- Sync button --
                   if (challenge.status == ChallengeStatus.active)
@@ -1114,7 +1132,7 @@ class _QuickRematchCard extends StatelessWidget {
     // Navigate to create screen (tab index 2)
     if (context.mounted) {
       Navigator.pop(context);
-      // The main screen's create tab will have the pre-filled data
+      MainScreen.onTabSelected?.call(2);
     }
   }
 
@@ -1163,6 +1181,181 @@ class _QuickRematchCard extends StatelessWidget {
       if (match.isNotEmpty) return match.first;
     }
     return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Accept / Decline buttons for pending challenges on the detail screen
+// ---------------------------------------------------------------------------
+class _PendingActions extends StatefulWidget {
+  final ChallengeModel challenge;
+  final ChallengeProvider provider;
+
+  const _PendingActions({required this.challenge, required this.provider});
+
+  @override
+  State<_PendingActions> createState() => _PendingActionsState();
+}
+
+class _PendingActionsState extends State<_PendingActions> {
+  bool _accepting = false;
+  bool _declining = false;
+
+  Future<void> _accept() async {
+    var walletBalance = context.read<WalletProvider>().balance;
+
+    // Prompt to add funds if balance is insufficient
+    if (widget.challenge.stakeAmount > 0 && walletBalance < widget.challenge.stakeAmount) {
+      final funded = await showAddFundsSheet(
+        context,
+        stakeAmount: widget.challenge.stakeAmount,
+        currentBalance: walletBalance,
+      );
+      if (!funded || !mounted) return;
+      // Re-read balance after deposit
+      walletBalance = context.read<WalletProvider>().balance;
+    }
+
+    setState(() => _accepting = true);
+    final success = await widget.provider.acceptChallenge(
+      widget.challenge.id,
+      walletBalance: walletBalance,
+    );
+    if (!mounted) return;
+    setState(() => _accepting = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(success
+            ? 'Challenge accepted! Good luck!'
+            : widget.provider.errorMessage ?? 'Failed to accept challenge'),
+        backgroundColor: success ? RivlColors.success : RivlColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+    widget.provider.clearMessages();
+
+    if (success && mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  Future<void> _decline() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Decline Challenge?'),
+        content: const Text('Are you sure you want to decline this challenge?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Decline', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _declining = true);
+    final success = await widget.provider.declineChallenge(widget.challenge.id);
+    if (!mounted) return;
+    setState(() => _declining = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(success
+            ? 'Challenge declined'
+            : widget.provider.errorMessage ?? 'Failed to decline challenge'),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+    widget.provider.clearMessages();
+
+    if (success && mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Accept button
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            onPressed: _accepting || _declining ? null : _accept,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: RivlColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              elevation: 0,
+            ),
+            child: _accepting
+                ? const SizedBox(
+                    width: 22, height: 22,
+                    child: CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 2.5,
+                    ),
+                  )
+                : const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check_circle_outline, size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        'Accept Challenge',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        // Decline button
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: OutlinedButton(
+            onPressed: _accepting || _declining ? null : _decline,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: context.textSecondary,
+              side: BorderSide(color: context.textSecondary.withOpacity(0.3)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: _declining
+                ? SizedBox(
+                    width: 22, height: 22,
+                    child: CircularProgressIndicator(
+                      color: context.textSecondary, strokeWidth: 2.5,
+                    ),
+                  )
+                : const Text(
+                    'Decline',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
   }
 }
 

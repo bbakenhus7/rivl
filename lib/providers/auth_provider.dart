@@ -27,15 +27,22 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void _init() {
-    _firebaseService.authStateChanges.listen((firebaseUser) async {
-      if (firebaseUser != null) {
-        await _loadUser(firebaseUser.uid);
-      } else {
-        _user = null;
-        _state = AuthState.unauthenticated;
+    _firebaseService.authStateChanges.listen(
+      (firebaseUser) async {
+        if (firebaseUser != null) {
+          await _loadUser(firebaseUser.uid);
+        } else {
+          _user = null;
+          _state = AuthState.unauthenticated;
+          notifyListeners();
+        }
+      },
+      onError: (error) {
+        _state = AuthState.error;
+        _errorMessage = 'Authentication error. Please restart the app.';
         notifyListeners();
-      }
-    });
+      },
+    );
   }
 
   Future<void> _loadUser(String userId) async {

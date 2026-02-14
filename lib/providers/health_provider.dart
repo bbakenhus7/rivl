@@ -1,5 +1,6 @@
 // providers/health_provider.dart
 
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../services/health_service.dart';
@@ -8,6 +9,7 @@ import '../models/health_metrics.dart';
 
 class HealthProvider extends ChangeNotifier {
   final HealthService _healthService = HealthService();
+  Timer? _autoRefreshTimer;
 
   /// Callback invoked when the user earns XP from health activity.
   void Function(int xp, String source)? onXPEarned;
@@ -48,6 +50,10 @@ class HealthProvider extends ChangeNotifier {
   int get recoveryScore => _metrics.recoveryScore;
   String get recoveryStatus => _metrics.recoveryStatus;
   int get strainScore => _metrics.strainScore;
+
+  // RIVL Health Score
+  int get rivlHealthScore => _metrics.rivlHealthScore;
+  String get rivlHealthGrade => _metrics.rivlHealthGrade;
 
   // Goal tracking
   int get dailyGoal => _metrics.stepsGoal;
@@ -183,12 +189,24 @@ class HealthProvider extends ChangeNotifier {
 
   /// Start periodic background refresh (call once from MainScreen).
   void startAutoRefresh() {
-    // Refresh health data every 5 minutes while the app is open
-    Future.delayed(const Duration(minutes: 5), () {
+    _autoRefreshTimer?.cancel();
+    _autoRefreshTimer = Timer.periodic(const Duration(minutes: 5), (_) {
       if (_isAuthorized) {
-        refreshData().then((_) => startAutoRefresh());
+        refreshData();
       }
     });
+  }
+
+  /// Stop periodic background refresh.
+  void stopAutoRefresh() {
+    _autoRefreshTimer?.cancel();
+    _autoRefreshTimer = null;
+  }
+
+  @override
+  void dispose() {
+    _autoRefreshTimer?.cancel();
+    super.dispose();
   }
 
   // ============================================

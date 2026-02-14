@@ -1,6 +1,7 @@
 // providers/wallet_provider.dart
 
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/wallet_model.dart';
 import '../services/wallet_service.dart';
@@ -70,7 +71,7 @@ class WalletProvider extends ChangeNotifier {
           notifyListeners();
         },
         onError: (error) {
-          // Silently handle transaction stream errors
+          debugPrint('Transaction stream error: $error');
         },
       );
 
@@ -160,7 +161,7 @@ class WalletProvider extends ChangeNotifier {
       _transactions = await _walletService.getTransactions(_wallet!.userId);
       notifyListeners();
     } catch (e) {
-      // Silently handle refresh errors
+      debugPrint('Transaction refresh error: $e');
     }
   }
 
