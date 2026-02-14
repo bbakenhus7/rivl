@@ -234,8 +234,10 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                 // Creator / user side
                                 Expanded(
                                   child: _AvatarColumn(
-                                    name: challenge.creatorName,
-                                    progress: challenge.creatorProgress,
+                                    name: isCreator ? userName : rivalName,
+                                    progress: isCreator
+                                        ? challenge.creatorProgress
+                                        : challenge.opponentProgress,
                                     goalUnit: challenge.goalType.unit,
                                     goalType: challenge.goalType,
                                     color: RivlColors.primary,
@@ -243,7 +245,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                       RivlColors.primary,
                                       RivlColors.primaryLight,
                                     ],
-                                    isLeading: challenge.isUserWinning,
+                                    isLeading: isWinning && !isTied,
                                   ),
                                 ),
 
@@ -319,8 +321,12 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                 // Opponent side
                                 Expanded(
                                   child: _AvatarColumn(
-                                    name: challenge.opponentName ?? 'Opponent',
-                                    progress: challenge.opponentProgress,
+                                    name: isCreator
+                                        ? (challenge.opponentName ?? 'Opponent')
+                                        : challenge.creatorName,
+                                    progress: isCreator
+                                        ? challenge.opponentProgress
+                                        : challenge.creatorProgress,
                                     goalUnit: challenge.goalType.unit,
                                     goalType: challenge.goalType,
                                     color: RivlColors.secondary,
@@ -328,8 +334,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                       Color(0xFFFF6B5B),
                                       Color(0xFFFF9A8B),
                                     ],
-                                    isLeading: !challenge.isUserWinning &&
-                                        challenge.opponentProgress > 0,
+                                    isLeading: !isWinning && !isTied &&
+                                        rivalProgress > 0,
                                   ),
                                 ),
                               ],

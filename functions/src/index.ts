@@ -415,17 +415,16 @@ async function completeChallenge(challengeId: string) {
     const opponentDocProgress = challengeData.opponentProgress || 0;
 
     // Determine winner based on goal type
-    let winnerId = null;
+    let winnerId: string | null = null;
     let winningScore = 0;
     let losingScore = 0;
-
-    // Pace-based goals: lower is better (faster time wins)
-    const lowerIsBetter = ['milePace', 'fiveKPace', 'tenKPace'];
+    let isTie = false;
 
     switch (goalType) {
       // Legacy step-based goal types
       case 'total_steps':
-        winnerId = creatorTotal > opponentTotal ? creatorId : opponentId;
+        isTie = creatorTotal === opponentTotal;
+        winnerId = creatorTotal >= opponentTotal ? creatorId : opponentId;
         winningScore = Math.max(creatorTotal, opponentTotal);
         losingScore = Math.min(creatorTotal, opponentTotal);
         break;
@@ -433,13 +432,15 @@ async function completeChallenge(challengeId: string) {
       case 'daily_average':
         const creatorAvg = creatorDays > 0 ? creatorTotal / creatorDays : 0;
         const opponentAvg = opponentDays > 0 ? opponentTotal / opponentDays : 0;
-        winnerId = creatorAvg > opponentAvg ? creatorId : opponentId;
+        isTie = creatorAvg === opponentAvg;
+        winnerId = creatorAvg >= opponentAvg ? creatorId : opponentId;
         winningScore = Math.max(creatorAvg, opponentAvg);
         losingScore = Math.min(creatorAvg, opponentAvg);
         break;
 
       case 'most_steps_single_day':
-        winnerId = creatorMax > opponentMax ? creatorId : opponentId;
+        isTie = creatorMax === opponentMax;
+        winnerId = creatorMax >= opponentMax ? creatorId : opponentId;
         winningScore = Math.max(creatorMax, opponentMax);
         losingScore = Math.min(creatorMax, opponentMax);
         break;
@@ -450,7 +451,8 @@ async function completeChallenge(challengeId: string) {
       case 'sleepDuration':
       case 'rivlHealthScore':
       case 'vo2Max':
-        winnerId = creatorDocProgress > opponentDocProgress ? creatorId : opponentId;
+        isTie = creatorDocProgress === opponentDocProgress;
+        winnerId = creatorDocProgress >= opponentDocProgress ? creatorId : opponentId;
         winningScore = Math.max(creatorDocProgress, opponentDocProgress);
         losingScore = Math.min(creatorDocProgress, opponentDocProgress);
         break;
@@ -462,14 +464,15 @@ async function completeChallenge(challengeId: string) {
         // Lower value = faster = winner
         // But if someone has 0 progress, they didn't record and should lose
         if (creatorDocProgress === 0 && opponentDocProgress === 0) {
-          // Both no progress — draw, creator gets tie-breaker
+          isTie = true;
           winnerId = creatorId;
         } else if (creatorDocProgress === 0) {
           winnerId = opponentId;
         } else if (opponentDocProgress === 0) {
           winnerId = creatorId;
         } else {
-          winnerId = creatorDocProgress < opponentDocProgress ? creatorId : opponentId;
+          isTie = creatorDocProgress === opponentDocProgress;
+          winnerId = creatorDocProgress <= opponentDocProgress ? creatorId : opponentId;
         }
         winningScore = Math.min(creatorDocProgress || 999999, opponentDocProgress || 999999);
         losingScore = Math.max(creatorDocProgress, opponentDocProgress);
@@ -477,6 +480,7 @@ async function completeChallenge(challengeId: string) {
 
       default:
         // Fallback: use document progress, higher is better
+        isTie = creatorDocProgress === opponentDocProgress;
         winnerId = creatorDocProgress >= opponentDocProgress ? creatorId : opponentId;
         winningScore = Math.max(creatorDocProgress, opponentDocProgress);
         losingScore = Math.min(creatorDocProgress, opponentDocProgress);
@@ -485,55 +489,102 @@ async function completeChallenge(challengeId: string) {
 
     const loserId = winnerId === creatorId ? opponentId : creatorId;
 
-    // Update challenge with winner
+    // Update challenge with result
     await challengeRef.update({
       status: 'completed',
-      winnerId,
+      winnerId: isTie ? null : winnerId,
+      isTie,
       winnerScore: winningScore,
       loserScore: losingScore,
       completedAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // Transfer funds to winner
-    // Note: In production, you'd create a Stripe Transfer or Payout
-    // For now, we'll just record the transaction
-    await db.collection('users').doc(winnerId).collection('transactions').add({
-      type: 'challenge_win',
-      amount: prizeAmount,
-      challengeId,
-      status: 'pending_transfer',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    if (isTie) {
+      // Tie: refund each participant their stake
+      const refundAmount = prizeAmount / 2;
 
-    // Update user stats
-    await updateUserStats(winnerId, { wins: 1, earnings: prizeAmount });
-    await updateUserStats(loserId, { losses: 1 });
+      await db.collection('users').doc(creatorId).collection('transactions').add({
+        type: 'challenge_tie_refund',
+        amount: refundAmount,
+        challengeId,
+        status: 'pending_transfer',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
-    // Award XP for battle pass
-    await awardXP(winnerId, challengeData, true);
-    await awardXP(loserId, challengeData, false);
+      await db.collection('users').doc(opponentId).collection('transactions').add({
+        type: 'challenge_tie_refund',
+        amount: refundAmount,
+        challengeId,
+        status: 'pending_transfer',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
 
-    // Update leaderboard
-    await updateLeaderboard(winnerId);
-    await updateLeaderboard(loserId);
+      // Award participation XP to both
+      await awardXP(creatorId, challengeData, false);
+      await awardXP(opponentId, challengeData, false);
 
-    // Send notifications
-    await createNotification(winnerId, {
-      type: 'challenge_won',
-      title: 'You Won!',
-      message: `Congratulations! You won $${prizeAmount.toFixed(2)}`,
-      challengeId,
-    });
+      // Update leaderboard
+      await updateLeaderboard(creatorId);
+      await updateLeaderboard(opponentId);
 
-    await createNotification(loserId, {
-      type: 'challenge_lost',
-      title: 'Challenge Ended',
-      message: 'Better luck next time!',
-      challengeId,
-    });
+      // Notify both
+      await createNotification(creatorId, {
+        type: 'challenge_tied',
+        title: "It's a Tie!",
+        message: 'Challenge ended in a draw. Stakes have been refunded.',
+        challengeId,
+      });
 
-    console.log(`Challenge ${challengeId} completed. Winner: ${winnerId}`);
+      await createNotification(opponentId, {
+        type: 'challenge_tied',
+        title: "It's a Tie!",
+        message: 'Challenge ended in a draw. Stakes have been refunded.',
+        challengeId,
+      });
+
+      console.log(`Challenge ${challengeId} completed. Result: Tie`);
+    } else {
+      // Transfer funds to winner
+      // Note: In production, you'd create a Stripe Transfer or Payout
+      // For now, we'll just record the transaction
+      await db.collection('users').doc(winnerId).collection('transactions').add({
+        type: 'challenge_win',
+        amount: prizeAmount,
+        challengeId,
+        status: 'pending_transfer',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Update user stats
+      await updateUserStats(winnerId!, { wins: 1, earnings: prizeAmount });
+      await updateUserStats(loserId, { losses: 1 });
+
+      // Award XP for battle pass
+      await awardXP(winnerId!, challengeData, true);
+      await awardXP(loserId, challengeData, false);
+
+      // Update leaderboard
+      await updateLeaderboard(winnerId!);
+      await updateLeaderboard(loserId);
+
+      // Send notifications
+      await createNotification(winnerId!, {
+        type: 'challenge_won',
+        title: 'You Won!',
+        message: `Congratulations! You won $${prizeAmount.toFixed(2)}`,
+        challengeId,
+      });
+
+      await createNotification(loserId, {
+        type: 'challenge_lost',
+        title: 'Challenge Ended',
+        message: 'Better luck next time!',
+        challengeId,
+      });
+
+      console.log(`Challenge ${challengeId} completed. Winner: ${winnerId}`);
+    }
   } catch (error) {
     console.error(`Error completing challenge ${challengeId}:`, error);
   }

@@ -108,7 +108,10 @@ class ChallengeModel {
   });
 
   // Computed properties
+  bool get isTied => creatorProgress == opponentProgress;
+
   bool get isUserWinning {
+    if (isTied) return false;
     if (goalType.higherIsBetter) {
       return creatorProgress > opponentProgress;
     } else {

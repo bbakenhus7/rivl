@@ -579,6 +579,7 @@ class ChallengeProvider extends ChangeNotifier {
       _searchResults = await _firebaseService.searchUsers(query);
     } catch (e) {
       _searchResults = [];
+      _errorMessage = 'Search failed. Please try again.';
     }
 
     _isSearching = false;
