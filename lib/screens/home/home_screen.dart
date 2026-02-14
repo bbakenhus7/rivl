@@ -13,6 +13,7 @@ import '../../models/challenge_model.dart';
 import '../../models/health_metrics.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
+import '../../widgets/rivl_logo.dart';
 import '../../widgets/challenge_card.dart';
 import '../challenges/challenge_detail_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -138,10 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     padding: const EdgeInsets.all(2),
-                    child: Image.asset(
-                      'assets/images/rivl_logo.png',
-                      fit: BoxFit.contain,
-                    ),
+                    child: const RivlLogo(size: 24),
                   ),
                   const SizedBox(width: 8),
                   const Text(
@@ -174,10 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             padding: const EdgeInsets.all(4),
-                            child: Image.asset(
-                              'assets/images/rivl_logo.png',
-                              fit: BoxFit.contain,
-                            ),
+                            child: const RivlLogo(size: 36),
                           ),
                           const SizedBox(width: 12),
                           Column(

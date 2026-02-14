@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
+import '../../widgets/rivl_logo.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
 import '../main_screen.dart';
@@ -157,8 +158,8 @@ class _LoginScreenState extends State<LoginScreen> {
             ],
           ),
           padding: const EdgeInsets.all(12),
-          child: Image.asset(
-            'assets/images/rivl_logo.png',
+          child: const RivlLogo(
+            size: 56,
             color: Colors.white,
             colorBlendMode: BlendMode.srcIn,
           ),

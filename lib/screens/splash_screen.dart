@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/theme.dart';
+import '../widgets/rivl_logo.dart';
 import 'auth/login_screen.dart';
 import 'main_screen.dart';
 
@@ -136,13 +137,9 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ],
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Image.asset(
-                      'assets/images/rivl_logo.png',
-                      width: 56,
-                      height: 56,
-                    ),
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: RivlLogo(size: 56),
                   ),
                 ),
                 const SizedBox(height: 32),
