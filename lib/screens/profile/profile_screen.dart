@@ -489,30 +489,32 @@ class _PersonalAttributes extends StatelessWidget {
       avgPaceMinPerMile = totalPace / runningWorkouts.length;
     }
 
-    // --- Compute 6 game-style stats (each 0-99) ---
-    // STR: bench + squat (max ~600 lbs combined → 99)
+    // --- Compute 6 stats as user percentiles (1-99) ---
+    // Uses population benchmarks to map raw values to percentile rank.
+
     final benchVal = (user.benchPressPR ?? 0).toDouble();
     final squatVal = (user.squatPR ?? 0).toDouble();
-    final strength = ((benchVal + squatVal) / 600 * 99).clamp(0.0, 99.0);
 
-    // SPD: mile pace (5:00 min/mi → 99, 15:00 → 0)
+    // STR: bench + squat combined (population: mean ~350 lbs, sd ~120)
+    final strength = _percentile(benchVal + squatVal, 350, 120);
+
+    // SPD: mile pace — lower is better, so we invert
+    // Population: mean ~9.5 min/mi, sd ~2.0 (lower = faster = higher percentile)
     final speed = avgPaceMinPerMile != null
-        ? ((15.0 - avgPaceMinPerMile) / 10.0 * 99).clamp(0.0, 99.0)
-        : 0.0;
+        ? _percentile(19.0 - avgPaceMinPerMile, 9.5, 2.0)  // invert so faster = higher
+        : 1.0;
 
-    // END: VO2 Max (25-60 range)
-    final endurance = ((health.vo2Max - 25) / 35 * 99).clamp(0.0, 99.0);
+    // END: VO2 Max (population: mean ~38, sd ~8)
+    final endurance = _percentile(health.vo2Max, 38, 8);
 
-    // PWR: pull-ups (max 30 reps → 99)
-    final power = ((user.pullUpsPR ?? 0) / 30 * 99).clamp(0.0, 99.0);
+    // PWR: pull-ups (population: mean ~8, sd ~5)
+    final power = _percentile((user.pullUpsPR ?? 0).toDouble(), 8, 5);
 
-    // VIT: recovery score from health data
-    final vitality = health.recoveryScore.toDouble().clamp(0.0, 99.0);
+    // VIT: recovery score (population: mean ~55, sd ~18)
+    final vitality = _percentile(health.recoveryScore.toDouble(), 55, 18);
 
-    // STA: steps progress + streak (blended)
-    final stepsNorm = (health.todaySteps / 10000 * 50).clamp(0.0, 50.0);
-    final streakNorm = (user.currentStreak / 30 * 49).clamp(0.0, 49.0);
-    final stamina = (stepsNorm + streakNorm).clamp(0.0, 99.0);
+    // STA: daily steps (population: mean ~6000, sd ~3000)
+    final stamina = _percentile(health.todaySteps.toDouble(), 6000, 3000);
 
     final stats = [
       _RadarStat('STR', strength, '${(benchVal + squatVal).toInt()} lbs'),
@@ -650,6 +652,16 @@ class _PersonalAttributes extends StatelessWidget {
 
   Widget _compactDivider(BuildContext context) {
     return Container(width: 1, height: 28, margin: const EdgeInsets.symmetric(horizontal: 6), color: context.surfaceVariant);
+  }
+
+  /// Approximate percentile rank (1-99) using a normal CDF.
+  /// Maps a raw [value] against a population with [mean] and [sd].
+  static double _percentile(double value, double mean, double sd) {
+    if (sd <= 0) return 50;
+    // Approximate normal CDF using logistic sigmoid
+    final z = (value - mean) / sd;
+    final cdf = 1.0 / (1.0 + math.exp(-1.7 * z));
+    return (cdf * 98 + 1).clamp(1.0, 99.0);
   }
 
   String _formatPace(double minPerMile) {
