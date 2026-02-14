@@ -35,6 +35,10 @@ class NotificationsScreen extends StatelessWidget {
       ),
       body: Consumer<NotificationProvider>(
         builder: (context, provider, _) {
+          if (provider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
           if (provider.notifications.isEmpty) {
             return Center(
               child: Column(
@@ -62,8 +66,27 @@ class NotificationsScreen extends StatelessWidget {
 
           return ListView.builder(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: provider.notifications.length,
+            itemCount: provider.notifications.length + (provider.hasMore ? 1 : 0),
             itemBuilder: (context, index) {
+              // "Load more" button at the end
+              if (index >= provider.notifications.length) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Center(
+                    child: provider.isLoadingMore
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : TextButton(
+                            onPressed: () => provider.loadMore(),
+                            child: const Text('Load more'),
+                          ),
+                  ),
+                );
+              }
+
               final notification = provider.notifications[index];
               final isRead = notification['read'] == true;
               final type = notification['type'] as String? ?? 'general';

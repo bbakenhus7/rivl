@@ -10,6 +10,7 @@ import 'firebase_options.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
+import 'config/env.dart';
 import 'providers/auth_provider.dart';
 import 'providers/challenge_provider.dart';
 import 'providers/health_provider.dart';
@@ -34,7 +35,7 @@ void main() async {
   // Initialize Stripe (only for non-web platforms)
   if (!kIsWeb) {
     try {
-      Stripe.publishableKey = 'pk_test_51SvOs4FJPVRByrQYaB8DqcSSobK4zBBV3rFO3YpCoTBk0s08yo9Aec1s95uxXnpOesn4Y6QnQItBKX4KnWvzSRwN007RkMUOCl';
+      Stripe.publishableKey = Env.stripePublishableKey;
       await Stripe.instance.applySettings();
     } catch (e) {
       // If Stripe fails to initialize, continue without blocking app startup.

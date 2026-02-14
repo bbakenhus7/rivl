@@ -127,6 +127,11 @@ class _ChallengeList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<ChallengeProvider>(
       builder: (context, provider, _) {
+        // Show loading spinner on initial load
+        if (provider.isLoading && provider.challenges.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
         List<ChallengeModel> challenges;
         String emptyTitle;
         String emptySubtitle;

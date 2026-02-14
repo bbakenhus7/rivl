@@ -843,6 +843,7 @@ class ChallengeProvider extends ChangeNotifier {
         stepHistory: stepHistory,
         userId: userId,
         userReputation: reputation,
+        challengeId: challenge.id,
       );
 
       // Determine which field to update

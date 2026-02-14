@@ -407,11 +407,13 @@ class WalletService {
   // TRANSACTION HISTORY
   // ============================================
 
-  /// Get transaction history
+  /// Get transaction history with pagination support.
+  /// Pass [startAfter] to get the next page.
   Future<List<WalletTransaction>> getTransactions(
     String userId, {
-    int limit = 50,
+    int limit = 20,
     TransactionType? filterType,
+    DocumentSnapshot? startAfter,
   }) async {
     Query query = _db
         .collection('wallets')
@@ -421,6 +423,10 @@ class WalletService {
 
     if (filterType != null) {
       query = query.where('type', isEqualTo: filterType.name);
+    }
+
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
     }
 
     final snapshot = await query.limit(limit).get();

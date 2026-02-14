@@ -1030,6 +1030,90 @@ async function notifyAdmin(notification: any) {
 }
 
 // ============================================
+// SERVER-SIDE ANTI-CHEAT (CALLABLE)
+// ============================================
+
+/**
+ * Callable function for on-demand anti-cheat analysis.
+ * The client sends step history and the server runs the full ML pipeline,
+ * so the scoring logic can't be reverse-engineered from the APK.
+ */
+export const analyzeAntiCheat = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
+  }
+
+  const { challengeId, stepHistory } = data;
+  const userId = context.auth.uid;
+
+  if (!challengeId || !stepHistory || !Array.isArray(stepHistory)) {
+    throw new functions.https.HttpsError('invalid-argument', 'Missing challengeId or stepHistory');
+  }
+
+  try {
+    // Get user reputation
+    const userDoc = await db.collection('users').doc(userId).get();
+    const userData = userDoc.data() || {};
+
+    // Run server-side analysis
+    const values = stepHistory.map((entry: any) => entry.steps ?? entry.value ?? 0);
+    const result = await performAIAnalysis({
+      value: values.length > 0 ? values[values.length - 1] : 0,
+      goalType: 'steps',
+      activityHistory: stepHistory.map((entry: any, i: number) => ({
+        value: entry.steps ?? entry.value ?? 0,
+        date: entry.date ?? new Date().toISOString(),
+      })),
+      userReputation: userData.antiCheatScore || 0.85,
+      accountAge: userData.createdAt,
+      pastChallenges: userData.totalChallenges || 0,
+    });
+
+    // Update challenge document with server-side score
+    const challengeRef = db.collection('challenges').doc(challengeId);
+    const challengeDoc = await challengeRef.get();
+    if (challengeDoc.exists) {
+      const challengeData = challengeDoc.data()!;
+      const isCreator = challengeData.creatorId === userId;
+      const scoreField = isCreator ? 'creatorAntiCheatScore' : 'opponentAntiCheatScore';
+
+      const updates: any = {
+        [scoreField]: result.overallScore,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      if (result.isSuspicious || result.isCheating) {
+        updates.flagged = true;
+        updates.flagReason = result.flags.join('; ');
+      }
+
+      await challengeRef.update(updates);
+    }
+
+    // Update user reputation
+    if (userDoc.exists) {
+      const newReputation = calculateUpdatedReputation(
+        userData.antiCheatScore || 0.85,
+        result.overallScore,
+      );
+      await db.collection('users').doc(userId).update({
+        antiCheatScore: newReputation,
+      });
+    }
+
+    return {
+      overallScore: result.overallScore,
+      flags: result.flags,
+      isSuspicious: result.isSuspicious,
+      isCheating: result.isCheating,
+    };
+  } catch (error: any) {
+    console.error('Error in analyzeAntiCheat:', error);
+    throw new functions.https.HttpsError('internal', error.message);
+  }
+});
+
+// ============================================
 // UTILITY FUNCTIONS
 // ============================================
 

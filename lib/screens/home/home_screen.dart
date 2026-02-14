@@ -345,6 +345,60 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 16),
 
+                  // Demo data banner (when health data isn't authorized)
+                  Consumer<HealthProvider>(
+                    builder: (context, health, _) {
+                      if (!health.isDemoData) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: FadeIn(
+                          child: GestureDetector(
+                            onTap: () => health.requestAuthorization(),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.amber.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.science_outlined,
+                                      size: 18, color: Colors.amber[800]),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'Showing demo health data',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.amber[800],
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    'Tap to connect',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.amber[700],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(Icons.arrow_forward_ios,
+                                      size: 12, color: Colors.amber[700]),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
                   // Pending challenges banner (action required)
                   Consumer<ChallengeProvider>(
                     builder: (context, provider, _) {

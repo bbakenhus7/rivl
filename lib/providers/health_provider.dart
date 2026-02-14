@@ -32,6 +32,9 @@ class HealthProvider extends ChangeNotifier {
   HealthMetrics get metrics => _metrics;
   String? get errorMessage => _errorMessage;
 
+  /// True when displayed health data is demo/placeholder (not from HealthKit/Google Fit).
+  bool get isDemoData => !_isAuthorized;
+
   // Quick access to common metrics
   int get todaySteps => _metrics.steps;
   int get heartRate => _metrics.heartRate;

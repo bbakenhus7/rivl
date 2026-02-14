@@ -30,7 +30,7 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
 
   final List<Widget> _screens = const [
@@ -44,6 +44,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     MainScreen.onTabSelected = (index) {
       if (mounted) setState(() => _currentIndex = index);
     };
@@ -93,6 +94,31 @@ class _MainScreenState extends State<MainScreen> {
       // Load demo data for unauthenticated users so UI isn't empty
       challengeProvider.loadDemoChallenges();
       challengeProvider.loadDemoOpponents();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final healthProvider = context.read<HealthProvider>();
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        // Pause health refresh to save battery
+        healthProvider.stopAutoRefresh();
+        break;
+      case AppLifecycleState.resumed:
+        // Resume refresh and do an immediate data pull
+        healthProvider.startAutoRefresh();
+        healthProvider.refreshData();
+        break;
     }
   }
 
