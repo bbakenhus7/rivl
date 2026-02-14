@@ -9,6 +9,7 @@ import '../../providers/health_provider.dart';
 import '../../providers/streak_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../providers/notification_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../models/challenge_model.dart';
 import '../../models/health_metrics.dart';
 import '../../utils/theme.dart';
@@ -33,6 +34,38 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<HealthProvider>().refreshData();
     });
+  }
+
+  PopupMenuEntry<ThemeMode> _themeMenuItem(
+    ThemeMode value,
+    IconData icon,
+    String label,
+    ThemeMode current,
+  ) {
+    final selected = value == current;
+    return PopupMenuItem<ThemeMode>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 20,
+            color: selected ? RivlColors.primary : null,
+          ),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+              color: selected ? RivlColors.primary : null,
+            ),
+          ),
+          const Spacer(),
+          if (selected)
+            const Icon(Icons.check, size: 18, color: RivlColors.primary),
+        ],
+      ),
+    );
   }
 
   void _showAppInfo(BuildContext context) {
@@ -247,6 +280,46 @@ class _HomeScreenState extends State<HomeScreen> {
                           MaterialPageRoute(builder: (_) => const NotificationsScreen()),
                         );
                       },
+                    );
+                  },
+                ),
+                // Theme toggle
+                Consumer<ThemeProvider>(
+                  builder: (context, themeProv, _) {
+                    return PopupMenuButton<ThemeMode>(
+                      icon: Icon(
+                        themeProv.themeMode == ThemeMode.light
+                            ? Icons.light_mode
+                            : themeProv.themeMode == ThemeMode.dark
+                                ? Icons.dark_mode
+                                : Icons.brightness_auto,
+                        color: Colors.white,
+                      ),
+                      offset: const Offset(0, 48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      onSelected: (mode) => themeProv.setThemeMode(mode),
+                      itemBuilder: (_) => [
+                        _themeMenuItem(
+                          ThemeMode.light,
+                          Icons.light_mode_outlined,
+                          'Light',
+                          themeProv.themeMode,
+                        ),
+                        _themeMenuItem(
+                          ThemeMode.dark,
+                          Icons.dark_mode_outlined,
+                          'Dark',
+                          themeProv.themeMode,
+                        ),
+                        _themeMenuItem(
+                          ThemeMode.system,
+                          Icons.brightness_auto_outlined,
+                          'Device',
+                          themeProv.themeMode,
+                        ),
+                      ],
                     );
                   },
                 ),

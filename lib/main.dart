@@ -19,6 +19,7 @@ import 'providers/notification_provider.dart';
 import 'providers/battle_pass_provider.dart';
 import 'providers/subscription_provider.dart';
 import 'providers/activity_feed_provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/splash_screen.dart';
 import 'utils/theme.dart';
 
@@ -77,21 +78,26 @@ class RivlApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BattlePassProvider()),
         ChangeNotifierProvider(create: (_) => SubscriptionProvider()),
         ChangeNotifierProvider(create: (_) => ActivityFeedProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
-      child: MaterialApp(
-        title: 'RIVL',
-        navigatorKey: navigatorKey,
-        debugShowCheckedModeBanner: false,
-        theme: RivlTheme.lightTheme,
-        darkTheme: RivlTheme.darkTheme,
-        themeMode: ThemeMode.system,
-        home: const SplashScreen(),
-        builder: (context, child) {
-          return Column(
-            children: [
-              const WaitlistBanner(),
-              Expanded(child: child ?? const SizedBox.shrink()),
-            ],
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProv, _) {
+          return MaterialApp(
+            title: 'RIVL',
+            navigatorKey: navigatorKey,
+            debugShowCheckedModeBanner: false,
+            theme: RivlTheme.lightTheme,
+            darkTheme: RivlTheme.darkTheme,
+            themeMode: themeProv.themeMode,
+            home: const SplashScreen(),
+            builder: (context, child) {
+              return Column(
+                children: [
+                  const WaitlistBanner(),
+                  Expanded(child: child ?? const SizedBox.shrink()),
+                ],
+              );
+            },
           );
         },
       ),
