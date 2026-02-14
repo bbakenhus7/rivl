@@ -5,11 +5,13 @@ import '../models/challenge_model.dart';
 import '../models/user_model.dart';
 import '../services/firebase_service.dart';
 import '../services/health_service.dart';
+import '../services/wallet_service.dart';
 import 'dart:async';
 
 class ChallengeProvider extends ChangeNotifier {
   final FirebaseService _firebaseService = FirebaseService();
   final HealthService _healthService = HealthService();
+  final WalletService _walletService = WalletService();
 
   /// Callback invoked when the user earns XP from challenge activity.
   /// Set this from the widget tree where BattlePassProvider is accessible.
@@ -486,6 +488,15 @@ class ChallengeProvider extends ChangeNotifier {
         stakeAmount: _selectedStake.amount,
       );
 
+      // Deduct creator's stake from wallet for paid challenges
+      if (_selectedStake.amount > 0 && _firebaseService.currentUser != null) {
+        await _walletService.deductStake(
+          userId: _firebaseService.currentUser!.uid,
+          challengeId: challengeId,
+          amount: _selectedStake.amount,
+        );
+      }
+
       _successMessage = 'Challenge sent to ${_selectedOpponent!.displayName}!';
       onXPEarned?.call(15, 'challenge_created'); // XPSource.CHALLENGE_CREATED
       resetCreateForm();
@@ -593,6 +604,15 @@ class ChallengeProvider extends ChangeNotifier {
         payoutStructure: _selectedPayoutStructure,
       );
 
+      // Deduct creator's stake from wallet for paid group challenges
+      if (_selectedStake.amount > 0 && _firebaseService.currentUser != null) {
+        await _walletService.deductStake(
+          userId: _firebaseService.currentUser!.uid,
+          challengeId: challengeId,
+          amount: _selectedStake.amount,
+        );
+      }
+
       _successMessage = 'Group challenge created!';
       onXPEarned?.call(15, 'challenge_created');
       resetCreateForm();
@@ -619,6 +639,8 @@ class ChallengeProvider extends ChangeNotifier {
     _selectedGroupMembers = [];
     _groupSize = 6;
     _selectedPayoutStructure = GroupPayoutStructure.standard;
+    _errorMessage = null;
+    _successMessage = null;
     notifyListeners();
   }
 
@@ -686,6 +708,21 @@ class ChallengeProvider extends ChangeNotifier {
           );
         }
       } else {
+        // Deduct stake from wallet for paid challenges
+        if (challenge.stakeAmount > 0) {
+          final userId = _firebaseService.currentUser!.uid;
+          final deducted = await _walletService.deductStake(
+            userId: userId,
+            challengeId: challengeId,
+            amount: challenge.stakeAmount,
+          );
+          if (!deducted) {
+            _isLoading = false;
+            _errorMessage = 'Failed to deduct stake from wallet';
+            notifyListeners();
+            return false;
+          }
+        }
         await _firebaseService.acceptChallenge(challengeId);
       }
 

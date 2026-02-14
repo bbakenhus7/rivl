@@ -174,7 +174,12 @@ class _ChallengeList extends StatelessWidget {
 
         return RefreshIndicator(
           onRefresh: () async {
-            // Trigger refresh
+            final auth = context.read<AuthProvider>();
+            if (auth.user != null) {
+              provider.startListening(auth.user!.id);
+            } else {
+              provider.loadDemoChallenges();
+            }
           },
           child: ListView.builder(
             padding: const EdgeInsets.all(16),

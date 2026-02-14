@@ -281,6 +281,7 @@ class _BattlePassScreenState extends State<BattlePassScreen> {
               Navigator.pop(context);
               final authProvider = context.read<AuthProvider>();
               await provider.unlockPremium(authProvider.user!.id);
+              if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Premium Pass unlocked!')),
               );
@@ -300,6 +301,7 @@ class _BattlePassScreenState extends State<BattlePassScreen> {
       reward.tier,
     );
 
+    if (!mounted) return;
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Claimed: ${reward.name}')),

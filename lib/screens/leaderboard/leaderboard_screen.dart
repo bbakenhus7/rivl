@@ -7,6 +7,7 @@ import '../../models/user_model.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../../widgets/skeleton_loader.dart';
+import '../main_screen.dart';
 
 enum LeaderboardFilter { global, friends, weekly, monthly }
 
@@ -734,7 +735,7 @@ class _UserProfileSheet extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.pop(context);
-                        // Navigate to challenge creation
+                        MainScreen.onTabSelected?.call(2);
                       },
                       child: const Text('Challenge'),
                     ),
