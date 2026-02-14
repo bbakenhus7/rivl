@@ -9,6 +9,7 @@ import '../../models/challenge_model.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../../widgets/challenge_card.dart';
+import '../../widgets/add_funds_sheet.dart';
 import 'challenge_detail_screen.dart';
 
 class ChallengesScreen extends StatefulWidget {
@@ -197,7 +198,20 @@ class _ChallengeList extends StatelessWidget {
                     },
                     onAccept: isPending
                         ? () async {
-                            final walletBalance = context.read<WalletProvider>().balance;
+                            var walletBalance = context.read<WalletProvider>().balance;
+
+                            // Prompt to add funds if balance is insufficient
+                            if (challenge.stakeAmount > 0 && walletBalance < challenge.stakeAmount) {
+                              final funded = await showAddFundsSheet(
+                                context,
+                                stakeAmount: challenge.stakeAmount,
+                                currentBalance: walletBalance,
+                              );
+                              if (!funded || !context.mounted) return;
+                              // Re-read balance after deposit
+                              walletBalance = context.read<WalletProvider>().balance;
+                            }
+
                             final success = await provider.acceptChallenge(
                               challenge.id,
                               walletBalance: walletBalance,

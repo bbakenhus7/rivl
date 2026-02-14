@@ -9,6 +9,7 @@ import '../../models/user_model.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../../widgets/confetti_celebration.dart';
+import '../../widgets/add_funds_sheet.dart';
 
 class CreateChallengeScreen extends StatefulWidget {
   const CreateChallengeScreen({super.key});
@@ -67,7 +68,21 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
   }
 
   Future<void> _sendChallenge(ChallengeProvider provider) async {
-    final walletBalance = context.read<WalletProvider>().balance;
+    var walletBalance = context.read<WalletProvider>().balance;
+    final stakeAmount = provider.selectedStake.amount;
+
+    // Prompt to add funds if balance is insufficient
+    if (stakeAmount > 0 && walletBalance < stakeAmount) {
+      final funded = await showAddFundsSheet(
+        context,
+        stakeAmount: stakeAmount,
+        currentBalance: walletBalance,
+      );
+      if (!funded || !mounted) return;
+      // Re-read balance after deposit
+      walletBalance = context.read<WalletProvider>().balance;
+    }
+
     final challengeId = await provider.createChallenge(walletBalance: walletBalance);
     if (challengeId != null && mounted) {
       setState(() => _challengeSent = true);
