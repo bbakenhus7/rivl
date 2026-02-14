@@ -469,22 +469,28 @@ class ChallengeProvider extends ChangeNotifier {
 
   Future<bool> acceptChallenge(String challengeId, {double? walletBalance}) async {
     // Validate that the challenge is still pending before accepting
-    final challenge = _challenges.where((c) => c.id == challengeId).toList();
-    if (challenge.isNotEmpty) {
-      if (challenge.first.status != ChallengeStatus.pending) {
-        _errorMessage = 'This challenge is no longer available';
+    final matches = _challenges.where((c) => c.id == challengeId).toList();
+    if (matches.isEmpty) {
+      _errorMessage = 'Challenge not found';
+      notifyListeners();
+      return false;
+    }
+
+    final challenge = matches.first;
+    if (challenge.status != ChallengeStatus.pending) {
+      _errorMessage = 'This challenge is no longer available';
+      notifyListeners();
+      return false;
+    }
+
+    // Validate wallet balance for paid challenges
+    if (challenge.stakeAmount > 0) {
+      final balance = walletBalance ?? 0.0;
+      if (balance < challenge.stakeAmount) {
+        _errorMessage =
+            'Insufficient balance. You need \$${challenge.stakeAmount.toStringAsFixed(0)} to accept this challenge.';
         notifyListeners();
         return false;
-      }
-      // Validate wallet balance for paid challenges
-      if (challenge.first.stakeAmount > 0) {
-        final balance = walletBalance ?? 0.0;
-        if (balance < challenge.first.stakeAmount) {
-          _errorMessage =
-              'Insufficient balance. You need \$${challenge.first.stakeAmount.toStringAsFixed(0)} to accept this challenge.';
-          notifyListeners();
-          return false;
-        }
       }
     }
 
@@ -493,9 +499,39 @@ class ChallengeProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _firebaseService.acceptChallenge(challengeId);
+      // Handle demo challenges locally
+      if (challengeId.startsWith('demo-')) {
+        final now = DateTime.now();
+        final idx = _challenges.indexWhere((c) => c.id == challengeId);
+        if (idx != -1) {
+          _challenges[idx] = ChallengeModel(
+            id: challenge.id,
+            creatorId: challenge.creatorId,
+            opponentId: challenge.opponentId,
+            creatorName: challenge.creatorName,
+            opponentName: challenge.opponentName,
+            type: challenge.type,
+            status: ChallengeStatus.active,
+            stakeAmount: challenge.stakeAmount,
+            totalPot: challenge.totalPot,
+            prizeAmount: challenge.prizeAmount,
+            goalType: challenge.goalType,
+            goalValue: challenge.goalValue,
+            duration: challenge.duration,
+            startDate: now,
+            endDate: now.add(Duration(days: challenge.duration.days)),
+            creatorProgress: challenge.creatorProgress,
+            opponentProgress: challenge.opponentProgress,
+            createdAt: challenge.createdAt,
+            updatedAt: now,
+          );
+        }
+      } else {
+        await _firebaseService.acceptChallenge(challengeId);
+      }
+
       _successMessage = 'Challenge accepted! Good luck!';
-      onXPEarned?.call(15, 'challenge_accepted'); // XPSource.CHALLENGE_ACCEPTED
+      onXPEarned?.call(15, 'challenge_accepted');
       _isLoading = false;
       notifyListeners();
       return true;
@@ -513,7 +549,13 @@ class ChallengeProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _firebaseService.declineChallenge(challengeId);
+      // Handle demo challenges locally
+      if (challengeId.startsWith('demo-')) {
+        _challenges.removeWhere((c) => c.id == challengeId);
+      } else {
+        await _firebaseService.declineChallenge(challengeId);
+      }
+
       _successMessage = 'Challenge declined';
       _isLoading = false;
       notifyListeners();

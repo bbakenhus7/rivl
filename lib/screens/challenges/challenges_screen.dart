@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/challenge_provider.dart';
+import '../../providers/wallet_provider.dart';
 import '../../models/challenge_model.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
@@ -195,10 +196,41 @@ class _ChallengeList extends StatelessWidget {
                       );
                     },
                     onAccept: isPending
-                        ? () => provider.acceptChallenge(challenge.id)
+                        ? () async {
+                            final walletBalance = context.read<WalletProvider>().balance;
+                            final success = await provider.acceptChallenge(
+                              challenge.id,
+                              walletBalance: walletBalance,
+                            );
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(success
+                                    ? 'Challenge accepted! Good luck!'
+                                    : provider.errorMessage ?? 'Failed to accept challenge'),
+                                backgroundColor: success ? RivlColors.success : RivlColors.error,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            );
+                            provider.clearMessages();
+                          }
                         : null,
                     onDecline: isPending
-                        ? () => provider.declineChallenge(challenge.id)
+                        ? () async {
+                            final success = await provider.declineChallenge(challenge.id);
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(success
+                                    ? 'Challenge declined'
+                                    : provider.errorMessage ?? 'Failed to decline challenge'),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            );
+                            provider.clearMessages();
+                          }
                         : null,
                   ),
                 ),
