@@ -1,5 +1,6 @@
 // screens/profile/profile_screen.dart
 
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -478,15 +479,51 @@ class _PersonalAttributes extends StatelessWidget {
         .where((w) => w.type.toUpperCase() == 'RUNNING' && w.distance > 0)
         .toList();
 
-    // Calculate average pace from running workouts (min per mile)
+    // Average pace from running workouts (min per mile)
     double? avgPaceMinPerMile;
     if (runningWorkouts.isNotEmpty) {
       double totalPace = 0;
       for (final w in runningWorkouts) {
-        totalPace += w.duration.inSeconds / 60 / w.distance; // min/mile
+        totalPace += w.duration.inSeconds / 60 / w.distance;
       }
       avgPaceMinPerMile = totalPace / runningWorkouts.length;
     }
+
+    // --- Compute 6 game-style stats (each 0-99) ---
+    // STR: bench + squat (max ~600 lbs combined → 99)
+    final benchVal = (user.benchPressPR ?? 0).toDouble();
+    final squatVal = (user.squatPR ?? 0).toDouble();
+    final strength = ((benchVal + squatVal) / 600 * 99).clamp(0.0, 99.0);
+
+    // SPD: mile pace (5:00 min/mi → 99, 15:00 → 0)
+    final speed = avgPaceMinPerMile != null
+        ? ((15.0 - avgPaceMinPerMile) / 10.0 * 99).clamp(0.0, 99.0)
+        : 0.0;
+
+    // END: VO2 Max (25-60 range)
+    final endurance = ((health.vo2Max - 25) / 35 * 99).clamp(0.0, 99.0);
+
+    // PWR: pull-ups (max 30 reps → 99)
+    final power = ((user.pullUpsPR ?? 0) / 30 * 99).clamp(0.0, 99.0);
+
+    // VIT: recovery score from health data
+    final vitality = health.recoveryScore.toDouble().clamp(0.0, 99.0);
+
+    // STA: steps progress + streak (blended)
+    final stepsNorm = (health.todaySteps / 10000 * 50).clamp(0.0, 50.0);
+    final streakNorm = (user.currentStreak / 30 * 49).clamp(0.0, 49.0);
+    final stamina = (stepsNorm + streakNorm).clamp(0.0, 99.0);
+
+    final stats = [
+      _RadarStat('STR', strength, '${(benchVal + squatVal).toInt()} lbs'),
+      _RadarStat('SPD', speed, avgPaceMinPerMile != null ? _formatPace(avgPaceMinPerMile) : '—'),
+      _RadarStat('END', endurance, '${health.vo2Max.toStringAsFixed(1)} VO2'),
+      _RadarStat('PWR', power, '${user.pullUpsPR ?? 0} reps'),
+      _RadarStat('VIT', vitality, '${health.recoveryScore}%'),
+      _RadarStat('STA', stamina, '${health.todaySteps} steps'),
+    ];
+
+    final overallRating = (stats.fold(0.0, (sum, s) => sum + s.value) / stats.length).round();
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -498,12 +535,33 @@ class _PersonalAttributes extends StatelessWidget {
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Personal Attributes', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+              Row(
+                children: [
+                  const Text('Attributes', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: RivlColors.primary,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '$overallRating OVR',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               GestureDetector(
                 onTap: () => _showEditSheet(context, user),
                 child: Container(
@@ -520,111 +578,84 @@ class _PersonalAttributes extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
 
-          // Body section
-          Row(
-            children: [
-              Expanded(
-                child: _AttrTile(
-                  label: 'Weight',
-                  value: user.weightLbs != null ? '${user.weightLbs!.toStringAsFixed(0)} lbs' : '—',
-                  icon: Icons.monitor_weight_outlined,
-                ),
+          // Radar chart
+          SizedBox(
+            height: 240,
+            child: CustomPaint(
+              size: const Size(240, 240),
+              painter: _RadarChartPainter(
+                stats: stats,
+                primaryColor: RivlColors.primary,
+                gridColor: context.surfaceVariant,
+                textColor: context.textSecondary,
+                isDark: Theme.of(context).brightness == Brightness.dark,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _AttrTile(
+            ),
+          ),
+          const SizedBox(height: 4),
+
+          // Stat bars beneath the chart
+          ...stats.map((s) => _StatBar(stat: s)),
+
+          // Compact data row beneath
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: context.surfaceVariant.withOpacity(0.4),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                _CompactStat(
+                  label: 'Weight',
+                  value: user.weightLbs != null ? '${user.weightLbs!.toStringAsFixed(0)}' : '—',
+                  unit: 'lbs',
+                ),
+                _compactDivider(context),
+                _CompactStat(
                   label: 'Height',
                   value: user.heightInches != null
-                      ? '${(user.heightInches! ~/ 12)}\' ${(user.heightInches! % 12).toStringAsFixed(0)}"'
+                      ? '${(user.heightInches! ~/ 12)}\'${(user.heightInches! % 12).toStringAsFixed(0)}"'
                       : '—',
-                  icon: Icons.height,
+                  unit: '',
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _AttrTile(
+                _compactDivider(context),
+                _CompactStat(
                   label: 'BMI',
                   value: user.bmi != null ? user.bmi!.toStringAsFixed(1) : '—',
-                  icon: Icons.accessibility_new,
+                  unit: '',
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Running paces (auto from health data)
-          _SectionLabel(label: 'Running Pace', subtitle: 'Auto-synced'),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _AttrTile(
-                  label: '1 Mile',
-                  value: avgPaceMinPerMile != null ? _formatPace(avgPaceMinPerMile) : '—',
-                  icon: Icons.directions_run,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _AttrTile(
+                _compactDivider(context),
+                _CompactStat(
                   label: '5K',
                   value: avgPaceMinPerMile != null ? _formatTime(avgPaceMinPerMile * 3.107) : '—',
-                  icon: Icons.directions_run,
+                  unit: '',
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _AttrTile(
+                _compactDivider(context),
+                _CompactStat(
                   label: '10K',
                   value: avgPaceMinPerMile != null ? _formatTime(avgPaceMinPerMile * 6.214) : '—',
-                  icon: Icons.directions_run,
+                  unit: '',
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // PRs (manual input)
-          _SectionLabel(label: 'Personal Records', subtitle: 'Manual'),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _AttrTile(
-                  label: 'Pull-ups',
-                  value: user.pullUpsPR != null ? '${user.pullUpsPR} reps' : '—',
-                  icon: Icons.fitness_center,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _AttrTile(
-                  label: 'Bench',
-                  value: user.benchPressPR != null ? '${user.benchPressPR} lbs' : '—',
-                  icon: Icons.fitness_center,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _AttrTile(
-                  label: 'Squat',
-                  value: user.squatPR != null ? '${user.squatPR} lbs' : '—',
-                  icon: Icons.fitness_center,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
+  Widget _compactDivider(BuildContext context) {
+    return Container(width: 1, height: 28, margin: const EdgeInsets.symmetric(horizontal: 6), color: context.surfaceVariant);
+  }
+
   String _formatPace(double minPerMile) {
     final mins = minPerMile.floor();
     final secs = ((minPerMile - mins) * 60).round();
-    return '$mins:${secs.toString().padLeft(2, '0')}/mi';
+    return '${mins}:${secs.toString().padLeft(2, '0')}/mi';
   }
 
   String _formatTime(double totalMinutes) {
@@ -645,63 +676,231 @@ class _PersonalAttributes extends StatelessWidget {
   }
 }
 
-class _SectionLabel extends StatelessWidget {
+class _RadarStat {
   final String label;
-  final String subtitle;
+  final double value; // 0-99
+  final String detail;
 
-  const _SectionLabel({required this.label, required this.subtitle});
+  const _RadarStat(this.label, this.value, this.detail);
+}
+
+class _RadarChartPainter extends CustomPainter {
+  final List<_RadarStat> stats;
+  final Color primaryColor;
+  final Color gridColor;
+  final Color textColor;
+  final bool isDark;
+
+  _RadarChartPainter({
+    required this.stats,
+    required this.primaryColor,
+    required this.gridColor,
+    required this.textColor,
+    required this.isDark,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - 32;
+    final sides = stats.length;
+    final angleStep = (2 * math.pi) / sides;
+    // Rotate so first stat points up
+    const startAngle = -math.pi / 2;
+
+    // Grid rings
+    final gridPaint = Paint()
+      ..color = gridColor.withOpacity(0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    for (int ring = 1; ring <= 3; ring++) {
+      final r = radius * ring / 3;
+      final path = Path();
+      for (int i = 0; i <= sides; i++) {
+        final angle = startAngle + angleStep * (i % sides);
+        final point = Offset(center.dx + r * math.cos(angle), center.dy + r * math.sin(angle));
+        if (i == 0) {
+          path.moveTo(point.dx, point.dy);
+        } else {
+          path.lineTo(point.dx, point.dy);
+        }
+      }
+      canvas.drawPath(path, gridPaint);
+    }
+
+    // Spoke lines
+    for (int i = 0; i < sides; i++) {
+      final angle = startAngle + angleStep * i;
+      final outer = Offset(center.dx + radius * math.cos(angle), center.dy + radius * math.sin(angle));
+      canvas.drawLine(center, outer, gridPaint);
+    }
+
+    // Filled data polygon
+    final dataPath = Path();
+    final dataPoints = <Offset>[];
+    for (int i = 0; i <= sides; i++) {
+      final idx = i % sides;
+      final fraction = (stats[idx].value / 99).clamp(0.05, 1.0);
+      final r = radius * fraction;
+      final angle = startAngle + angleStep * idx;
+      final point = Offset(center.dx + r * math.cos(angle), center.dy + r * math.sin(angle));
+      if (i == 0) {
+        dataPath.moveTo(point.dx, point.dy);
+      } else {
+        dataPath.lineTo(point.dx, point.dy);
+      }
+      if (i < sides) dataPoints.add(point);
+    }
+
+    // Fill
+    final fillPaint = Paint()
+      ..color = primaryColor.withOpacity(0.15)
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(dataPath, fillPaint);
+
+    // Stroke
+    final strokePaint = Paint()
+      ..color = primaryColor.withOpacity(0.8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    canvas.drawPath(dataPath, strokePaint);
+
+    // Vertex dots
+    final dotPaint = Paint()
+      ..color = primaryColor
+      ..style = PaintingStyle.fill;
+    for (final point in dataPoints) {
+      canvas.drawCircle(point, 4, dotPaint);
+      canvas.drawCircle(point, 4, Paint()..color = (isDark ? Colors.black : Colors.white)..style = PaintingStyle.stroke..strokeWidth = 1.5);
+    }
+
+    // Labels + values at each vertex
+    for (int i = 0; i < sides; i++) {
+      final angle = startAngle + angleStep * i;
+      final labelRadius = radius + 22;
+      final lx = center.dx + labelRadius * math.cos(angle);
+      final ly = center.dy + labelRadius * math.sin(angle);
+
+      // Stat number
+      final valueSpan = TextSpan(
+        text: stats[i].value.round().toString(),
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w900,
+          color: isDark ? Colors.white : Colors.black87,
+        ),
+      );
+      final valuePainter = TextPainter(text: valueSpan, textDirection: TextDirection.ltr)..layout();
+
+      // Label text
+      final labelSpan = TextSpan(
+        text: ' ${stats[i].label}',
+        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: textColor),
+      );
+      final labelPainter = TextPainter(text: labelSpan, textDirection: TextDirection.ltr)..layout();
+
+      final totalWidth = valuePainter.width + labelPainter.width;
+      final xOffset = lx - totalWidth / 2;
+      final yOffset = ly - valuePainter.height / 2;
+
+      valuePainter.paint(canvas, Offset(xOffset, yOffset));
+      labelPainter.paint(canvas, Offset(xOffset + valuePainter.width, yOffset + (valuePainter.height - labelPainter.height) / 2));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RadarChartPainter old) =>
+      old.stats != stats || old.primaryColor != primaryColor;
+}
+
+class _StatBar extends StatelessWidget {
+  final _RadarStat stat;
+
+  const _StatBar({required this.stat});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-        const SizedBox(width: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: context.surfaceVariant,
-            borderRadius: BorderRadius.circular(4),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 32,
+            child: Text(
+              stat.label,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.textSecondary),
+            ),
           ),
-          child: Text(
-            subtitle,
-            style: TextStyle(fontSize: 10, color: context.textSecondary, fontWeight: FontWeight.w500),
+          const SizedBox(width: 6),
+          SizedBox(
+            width: 26,
+            child: Text(
+              stat.value.round().toString(),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+              textAlign: TextAlign.right,
+            ),
           ),
-        ),
-      ],
+          const SizedBox(width: 8),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: SizedBox(
+                height: 6,
+                child: LinearProgressIndicator(
+                  value: stat.value / 99,
+                  backgroundColor: context.surfaceVariant.withOpacity(0.5),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    _barColor(stat.value),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 68,
+            child: Text(
+              stat.detail,
+              style: TextStyle(fontSize: 10, color: context.textSecondary),
+              textAlign: TextAlign.right,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
+  }
+
+  Color _barColor(double value) {
+    if (value >= 80) return RivlColors.success;
+    if (value >= 60) return RivlColors.primary;
+    if (value >= 40) return RivlColors.warning;
+    return RivlColors.error;
   }
 }
 
-class _AttrTile extends StatelessWidget {
+class _CompactStat extends StatelessWidget {
   final String label;
   final String value;
-  final IconData icon;
+  final String unit;
 
-  const _AttrTile({required this.label, required this.value, required this.icon});
+  const _CompactStat({required this.label, required this.value, required this.unit});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-      decoration: BoxDecoration(
-        color: context.surfaceVariant.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(12),
-      ),
+    return Expanded(
       child: Column(
         children: [
-          Icon(icon, size: 18, color: context.textSecondary),
-          const SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 2),
           Text(
-            label,
-            style: TextStyle(fontSize: 11, color: context.textSecondary),
-            textAlign: TextAlign.center,
+            unit.isNotEmpty ? '$label ($unit)' : label,
+            style: TextStyle(fontSize: 9, color: context.textSecondary),
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
