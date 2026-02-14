@@ -73,13 +73,26 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
           final rivalName =
               isCreator ? (challenge.opponentName ?? 'Opponent') : challenge.creatorName;
 
-          final isWinning = userProgress > rivalProgress;
+          final bool isWinning;
           final isTied = userProgress == rivalProgress;
+          if (isTied) {
+            isWinning = false;
+          } else if (challenge.goalType.higherIsBetter) {
+            isWinning = userProgress > rivalProgress;
+          } else {
+            // Pace: lower is better, 0 means no data
+            if (userProgress == 0) {
+              isWinning = false;
+            } else if (rivalProgress == 0) {
+              isWinning = true;
+            } else {
+              isWinning = userProgress < rivalProgress;
+            }
+          }
           final hasWon =
               challenge.status == ChallengeStatus.completed &&
               challenge.winnerId == currentUserId;
-          final showCelebration =
-              (challenge.status == ChallengeStatus.active && isWinning) || hasWon;
+          final showCelebration = hasWon;
 
           // Compute timeline progress (how far through the challenge period)
           double timelineProgress = 0.0;
