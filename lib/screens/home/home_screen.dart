@@ -21,6 +21,8 @@ import '../challenges/challenge_detail_screen.dart';
 import '../main_screen.dart';
 import '../notifications/notifications_screen.dart';
 import 'health_metric_detail_screen.dart';
+import 'workout_detail_screen.dart';
+import 'steps_trend_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -344,6 +346,60 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: const _QuickGlanceRow(),
                   ),
                   const SizedBox(height: 16),
+
+                  // Demo data banner (when health data isn't authorized)
+                  Consumer<HealthProvider>(
+                    builder: (context, health, _) {
+                      if (!health.isDemoData) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: FadeIn(
+                          child: GestureDetector(
+                            onTap: () => health.requestAuthorization(),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.amber.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.science_outlined,
+                                      size: 18, color: Colors.amber[800]),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'Showing demo health data',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.amber[800],
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    'Tap to connect',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.amber[700],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(Icons.arrow_forward_ios,
+                                      size: 12, color: Colors.amber[700]),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
 
                   // Pending challenges banner (action required)
                   Consumer<ChallengeProvider>(
@@ -1650,15 +1706,31 @@ class _WeeklyStepsCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('This Week', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  Text(
-                    '${health.formatSteps(health.weeklyTotal)} total',
-                    style: TextStyle(color: context.textSecondary, fontSize: 14),
-                  ),
-                ],
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const StepsTrendScreen(),
+                    ),
+                  );
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('This Week', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Row(
+                      children: [
+                        Text(
+                          '${health.formatSteps(health.weeklyTotal)} total',
+                          style: TextStyle(color: context.textSecondary, fontSize: 14),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(Icons.chevron_right, size: 18, color: context.textSecondary),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 20),
               SizedBox(
@@ -1804,39 +1876,51 @@ class _WorkoutTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: RivlColors.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Icon(workout.iconData, color: RivlColors.primary, size: 22),
-            ),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => WorkoutDetailScreen(workout: workout),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(workout.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                Text(
-                  '${workout.formattedDuration} • ${workout.calories} cal',
-                  style: TextStyle(color: context.textSecondary, fontSize: 13),
-                ),
-              ],
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: workout.accentColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Icon(workout.iconData, color: workout.accentColor, size: 22),
+              ),
             ),
-          ),
-          Text(
-            _formatDate(workout.date),
-            style: TextStyle(color: context.textSecondary, fontSize: 12),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(workout.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  Text(
+                    '${workout.formattedDuration} • ${workout.calories} cal',
+                    style: TextStyle(color: context.textSecondary, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              _formatDate(workout.date),
+              style: TextStyle(color: context.textSecondary, fontSize: 12),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right, size: 18, color: context.textSecondary),
+          ],
+        ),
       ),
     );
   }

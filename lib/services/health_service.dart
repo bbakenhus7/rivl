@@ -389,12 +389,32 @@ class HealthService {
         if (point.value is WorkoutHealthValue) {
           final workout = point.value as WorkoutHealthValue;
           final duration = point.dateTo.difference(point.dateFrom);
+          final distanceMiles =
+              (workout.totalDistance ?? 0).toDouble() * 0.000621371;
+          final durationMinutes = duration.inMinutes;
+
+          // Derive pace from distance and duration (for distance-based workouts)
+          Duration? avgPace;
+          double? avgSpeed;
+          if (distanceMiles > 0 && durationMinutes > 0) {
+            final paceSeconds = (duration.inSeconds / distanceMiles).round();
+            avgPace = Duration(seconds: paceSeconds);
+            avgSpeed = distanceMiles / (duration.inSeconds / 3600);
+          }
+
           workouts.add(WorkoutData(
             type: workout.workoutActivityType.name.toUpperCase(),
             duration: duration,
             calories: workout.totalEnergyBurned ?? 0,
-            distance: (workout.totalDistance ?? 0).toDouble() * 0.000621371, // meters to miles
+            distance: distanceMiles,
             date: point.dateFrom,
+            elapsedTime: duration,
+            activeCalories: workout.totalEnergyBurned ?? 0,
+            totalCalories: workout.totalEnergyBurned != null
+                ? ((workout.totalEnergyBurned!) * 1.15).round()
+                : null,
+            avgPace: avgPace,
+            avgSpeed: avgSpeed,
           ));
         }
       }

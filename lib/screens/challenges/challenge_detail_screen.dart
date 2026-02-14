@@ -73,13 +73,26 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
           final rivalName =
               isCreator ? (challenge.opponentName ?? 'Opponent') : challenge.creatorName;
 
-          final isWinning = userProgress > rivalProgress;
+          final bool isWinning;
           final isTied = userProgress == rivalProgress;
+          if (isTied) {
+            isWinning = false;
+          } else if (challenge.goalType.higherIsBetter) {
+            isWinning = userProgress > rivalProgress;
+          } else {
+            // Pace: lower is better, 0 means no data
+            if (userProgress == 0) {
+              isWinning = false;
+            } else if (rivalProgress == 0) {
+              isWinning = true;
+            } else {
+              isWinning = userProgress < rivalProgress;
+            }
+          }
           final hasWon =
               challenge.status == ChallengeStatus.completed &&
               challenge.winnerId == currentUserId;
-          final showCelebration =
-              (challenge.status == ChallengeStatus.active && isWinning) || hasWon;
+          final showCelebration = hasWon;
 
           // Compute timeline progress (how far through the challenge period)
           double timelineProgress = 0.0;
@@ -398,8 +411,59 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // -- Accept / Decline for pending challenges --
+                  // -- Expiry countdown for pending challenges --
                   if (challenge.status == ChallengeStatus.pending)
+                    SlideIn(
+                      delay: const Duration(milliseconds: 380),
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: (challenge.isExpired
+                                    ? Colors.red
+                                    : Colors.orange)
+                                .withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: (challenge.isExpired
+                                      ? Colors.red
+                                      : Colors.orange)
+                                  .withOpacity(0.2),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.timer_outlined,
+                                size: 18,
+                                color: challenge.isExpired
+                                    ? Colors.red
+                                    : Colors.orange[700],
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  challenge.expiryTimeRemaining,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: challenge.isExpired
+                                        ? Colors.red
+                                        : Colors.orange[700],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // -- Accept / Decline for pending challenges --
+                  if (challenge.status == ChallengeStatus.pending &&
+                      !challenge.isExpired)
                     SlideIn(
                       delay: const Duration(milliseconds: 400),
                       child: _PendingActions(

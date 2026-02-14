@@ -164,6 +164,7 @@ class FirebaseService {
 
     final totalPot = stakeAmount * 2;
     final prizeAmount = _calculatePrize(totalPot, type);
+    final now = DateTime.now();
 
     final challenge = ChallengeModel(
       id: '',
@@ -179,8 +180,9 @@ class FirebaseService {
       goalType: goalType,
       goalValue: goalValue,
       duration: duration,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      expiresAt: now.add(const Duration(days: 7)),
+      createdAt: now,
+      updatedAt: now,
     );
 
     final docRef = await _db.collection('challenges').add(challenge.toFirestore());
@@ -223,6 +225,7 @@ class FirebaseService {
 
     final totalPot = stakeAmount * allParticipants.length;
     final prizeAmount = _calculatePrize(totalPot, ChallengeType.group);
+    final now = DateTime.now();
 
     final challenge = ChallengeModel(
       id: '',
@@ -241,8 +244,9 @@ class FirebaseService {
       maxParticipants: maxParticipants,
       minParticipants: minParticipants,
       payoutStructure: payoutStructure,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+      expiresAt: now.add(const Duration(days: 7)),
+      createdAt: now,
+      updatedAt: now,
     );
 
     final docRef = await _db.collection('challenges').add(challenge.toFirestore());
@@ -282,6 +286,13 @@ class FirebaseService {
     return ChallengeModel.fromFirestore(doc);
   }
 
+  /// Update arbitrary fields on a challenge document.
+  Future<void> updateChallenge(
+      String challengeId, Map<String, dynamic> data) async {
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    await _db.collection('challenges').doc(challengeId).update(data);
+  }
+
   Stream<ChallengeModel?> challengeStream(String challengeId) {
     return _db.collection('challenges').doc(challengeId).snapshots().map((doc) {
       if (!doc.exists) return null;
@@ -313,11 +324,242 @@ class FirebaseService {
     );
   }
 
-  Future<void> declineChallenge(String challengeId) async {
-    await _db.collection('challenges').doc(challengeId).update({
-      'status': ChallengeStatus.cancelled.name,
-      'updatedAt': FieldValue.serverTimestamp(),
+  /// Accept challenge and deduct stake atomically.
+  /// Returns true if succeeded, false if insufficient balance.
+  Future<bool> acceptChallengeWithStake({
+    required String challengeId,
+    required String userId,
+    required double stakeAmount,
+  }) async {
+    return await _db.runTransaction<bool>((txn) async {
+      // 1. Read challenge
+      final challengeRef = _db.collection('challenges').doc(challengeId);
+      final challengeDoc = await txn.get(challengeRef);
+      if (!challengeDoc.exists) throw Exception('Challenge not found');
+
+      final status = challengeDoc.data()?['status'];
+      if (status != ChallengeStatus.pending.name) {
+        throw Exception('Challenge is no longer available');
+      }
+
+      // 2. Read wallet & verify balance
+      if (stakeAmount > 0) {
+        final walletRef = _db.collection('wallets').doc(userId);
+        final walletDoc = await txn.get(walletRef);
+        if (!walletDoc.exists) throw Exception('Wallet not found');
+
+        final currentBalance = (walletDoc.data()?['balance'] ?? 0).toDouble();
+        if (currentBalance < stakeAmount) return false;
+
+        // Deduct stake (held funds, not a loss)
+        txn.update(walletRef, {
+          'balance': currentBalance - stakeAmount,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        // Record transaction
+        final txRef = walletRef.collection('transactions').doc();
+        txn.set(txRef, {
+          'userId': userId,
+          'type': 'stakeDebit',
+          'status': 'completed',
+          'amount': stakeAmount,
+          'fee': 0.0,
+          'netAmount': stakeAmount,
+          'challengeId': challengeId,
+          'description': 'Challenge entry fee',
+          'createdAt': FieldValue.serverTimestamp(),
+          'completedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // 3. Accept the challenge
+      final durationName = challengeDoc.data()?['duration'] ?? 'oneWeek';
+      final duration = ChallengeDuration.values.firstWhere(
+        (e) => e.name == durationName,
+        orElse: () => ChallengeDuration.oneWeek,
+      );
+      final startDate = DateTime.now();
+      final endDate = startDate.add(Duration(days: duration.days));
+
+      txn.update(challengeRef, {
+        'status': ChallengeStatus.active.name,
+        'startDate': Timestamp.fromDate(startDate),
+        'endDate': Timestamp.fromDate(endDate),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      return true;
     });
+  }
+
+  /// Create challenge and deduct stake atomically.
+  /// Returns the new challenge document ID.
+  Future<String> createChallengeWithStake({
+    required String opponentId,
+    required String opponentName,
+    required ChallengeType type,
+    required GoalType goalType,
+    required int goalValue,
+    required ChallengeDuration duration,
+    required double stakeAmount,
+  }) async {
+    final user = await getUser(currentUser!.uid);
+    if (user == null) throw Exception('User not found');
+
+    final totalPot = stakeAmount * 2;
+    final prizeAmount = _calculatePrize(totalPot, type);
+    final now = DateTime.now();
+    final expiresAt = now.add(const Duration(days: 7));
+
+    final challengeData = {
+      'creatorId': currentUser!.uid,
+      'opponentId': opponentId,
+      'creatorName': user.displayName,
+      'opponentName': opponentName,
+      'type': type.name,
+      'status': ChallengeStatus.pending.name,
+      'stakeAmount': stakeAmount,
+      'totalPot': totalPot,
+      'prizeAmount': prizeAmount,
+      'goalType': goalType.name,
+      'goalValue': goalValue,
+      'duration': duration.name,
+      'creatorProgress': 0,
+      'opponentProgress': 0,
+      'creatorStepHistory': [],
+      'opponentStepHistory': [],
+      'creatorAntiCheatScore': 1.0,
+      'opponentAntiCheatScore': 1.0,
+      'flagged': false,
+      'creatorPaymentStatus': PaymentStatus.pending.name,
+      'opponentPaymentStatus': PaymentStatus.pending.name,
+      'rewardStatus': RewardStatus.pending.name,
+      'expiresAt': Timestamp.fromDate(expiresAt),
+      'createdAt': Timestamp.fromDate(now),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    // For free challenges, no transaction needed
+    if (stakeAmount <= 0) {
+      final docRef = await _db.collection('challenges').add(challengeData);
+      await _sendNotification(
+        userId: opponentId,
+        type: 'challenge_invite',
+        title: 'New Challenge!',
+        body: '${user.displayName} challenged you!',
+        data: {'challengeId': docRef.id},
+      );
+      return docRef.id;
+    }
+
+    // Paid challenge: atomic create + deduct
+    final newChallengeRef = _db.collection('challenges').doc();
+
+    await _db.runTransaction((txn) async {
+      final walletRef = _db.collection('wallets').doc(currentUser!.uid);
+      final walletDoc = await txn.get(walletRef);
+
+      if (!walletDoc.exists) throw Exception('Wallet not found');
+
+      final balance = (walletDoc.data()?['balance'] ?? 0).toDouble();
+      if (balance < stakeAmount) {
+        throw Exception('Insufficient balance');
+      }
+
+      // Create the challenge
+      txn.set(newChallengeRef, challengeData);
+
+      // Deduct stake (held funds, not a loss)
+      txn.update(walletRef, {
+        'balance': balance - stakeAmount,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Record wallet transaction
+      final walletTxRef = walletRef.collection('transactions').doc();
+      txn.set(walletTxRef, {
+        'userId': currentUser!.uid,
+        'type': 'stakeDebit',
+        'status': 'completed',
+        'amount': stakeAmount,
+        'fee': 0.0,
+        'netAmount': stakeAmount,
+        'challengeId': newChallengeRef.id,
+        'description': 'Challenge entry fee',
+        'createdAt': FieldValue.serverTimestamp(),
+        'completedAt': FieldValue.serverTimestamp(),
+      });
+    });
+
+    // Send notification outside transaction
+    await _sendNotification(
+      userId: opponentId,
+      type: 'challenge_invite',
+      title: 'New Challenge!',
+      body: '${user.displayName} challenged you!',
+      data: {'challengeId': newChallengeRef.id},
+    );
+
+    return newChallengeRef.id;
+  }
+
+  /// Decline challenge and refund creator's stake atomically if paid.
+  Future<void> declineChallenge(String challengeId) async {
+    final challenge = await getChallenge(challengeId);
+    if (challenge == null) throw Exception('Challenge not found');
+
+    if (challenge.stakeAmount > 0) {
+      // Atomic decline + refund
+      await _db.runTransaction((txn) async {
+        final challengeRef = _db.collection('challenges').doc(challengeId);
+        txn.update(challengeRef, {
+          'status': ChallengeStatus.cancelled.name,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        // Refund the creator's stake
+        final walletRef = _db.collection('wallets').doc(challenge.creatorId);
+        final walletDoc = await txn.get(walletRef);
+        if (walletDoc.exists) {
+          final currentBalance =
+              (walletDoc.data()?['balance'] ?? 0).toDouble();
+          txn.update(walletRef, {
+            'balance': currentBalance + challenge.stakeAmount,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+          // Record refund transaction
+          final txRef = walletRef.collection('transactions').doc();
+          txn.set(txRef, {
+            'userId': challenge.creatorId,
+            'type': 'refund',
+            'status': 'completed',
+            'amount': challenge.stakeAmount,
+            'fee': 0.0,
+            'netAmount': challenge.stakeAmount,
+            'challengeId': challengeId,
+            'description': 'Challenge declined - refund',
+            'createdAt': FieldValue.serverTimestamp(),
+            'completedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      });
+    } else {
+      await _db.collection('challenges').doc(challengeId).update({
+        'status': ChallengeStatus.cancelled.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    // Notify the creator that their challenge was declined
+    await _sendNotification(
+      userId: challenge.creatorId,
+      type: 'challenge_declined',
+      title: 'Challenge Declined',
+      body: '${challenge.opponentName ?? 'Your opponent'} declined your challenge',
+      data: {'challengeId': challengeId},
+    );
   }
 
   Future<void> syncSteps({

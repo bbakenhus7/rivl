@@ -1,6 +1,8 @@
 // services/anti_cheat_service.dart
 
 import 'dart:math';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 import '../models/challenge_model.dart';
 
 /// AI-powered anti-cheat verification service
@@ -24,8 +26,72 @@ class AntiCheatService {
   static const int ACTIVE_HR_MIN = 90; // Minimum HR during activity
   static const int MAX_HR_SUSTAINED = 180; // Max sustainable HR
 
-  /// Calculate comprehensive anti-cheat score (0.0 = cheating, 1.0 = legitimate)
+  /// Calculate comprehensive anti-cheat score (0.0 = cheating, 1.0 = legitimate).
+  /// Tries server-side analysis first; falls back to local analysis if unavailable.
   Future<AntiCheatResult> analyzeActivity({
+    required List<DailySteps> stepHistory,
+    required String userId,
+    double? userReputation,
+    List<Map<String, dynamic>>? heartRateData,
+    String? challengeId,
+  }) async {
+    // Try server-side analysis first (scoring logic stays on server)
+    if (challengeId != null) {
+      try {
+        final result = await _tryServerAnalysis(
+          challengeId: challengeId,
+          stepHistory: stepHistory,
+        );
+        if (result != null) return result;
+      } catch (_) {
+        // Fall through to local analysis
+      }
+    }
+
+    return _analyzeLocally(
+      stepHistory: stepHistory,
+      userId: userId,
+      userReputation: userReputation,
+      heartRateData: heartRateData,
+    );
+  }
+
+  /// Call the server-side analyzeAntiCheat Cloud Function.
+  Future<AntiCheatResult?> _tryServerAnalysis({
+    required String challengeId,
+    required List<DailySteps> stepHistory,
+  }) async {
+    try {
+      final callable =
+          FirebaseFunctions.instance.httpsCallable('analyzeAntiCheat');
+      final response = await callable.call<Map<String, dynamic>>({
+        'challengeId': challengeId,
+        'stepHistory': stepHistory
+            .map((s) => {'steps': s.steps, 'date': s.date.toIso8601String()})
+            .toList(),
+      });
+
+      final data = response.data;
+      return AntiCheatResult(
+        overallScore: (data['overallScore'] as num).toDouble(),
+        individualScores: {},
+        flags: List<String>.from(data['flags'] ?? []),
+        isSuspicious: data['isSuspicious'] ?? false,
+        isCheating: data['isCheating'] ?? false,
+        recommendation: data['isCheating'] == true
+            ? 'Server flagged as cheating'
+            : data['isSuspicious'] == true
+                ? 'Server flagged as suspicious'
+                : 'Clean',
+      );
+    } catch (e) {
+      debugPrint('Server anti-cheat unavailable, falling back to local: $e');
+      return null;
+    }
+  }
+
+  /// Local fallback analysis (runs in-app when server is unavailable).
+  Future<AntiCheatResult> _analyzeLocally({
     required List<DailySteps> stepHistory,
     required String userId,
     double? userReputation,

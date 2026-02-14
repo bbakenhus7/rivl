@@ -161,7 +161,8 @@ class WalletProvider extends ChangeNotifier {
       _transactions = await _walletService.getTransactions(_wallet!.userId);
       notifyListeners();
     } catch (e) {
-      debugPrint('Transaction refresh error: $e');
+      _errorMessage = 'Failed to refresh transactions';
+      notifyListeners();
     }
   }
 

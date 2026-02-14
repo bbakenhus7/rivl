@@ -10,6 +10,7 @@ import 'firebase_options.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
+import 'config/env.dart';
 import 'providers/auth_provider.dart';
 import 'providers/challenge_provider.dart';
 import 'providers/health_provider.dart';
@@ -34,7 +35,7 @@ void main() async {
   // Initialize Stripe (only for non-web platforms)
   if (!kIsWeb) {
     try {
-      Stripe.publishableKey = 'pk_test_51SvOs4FJPVRByrQYaB8DqcSSobK4zBBV3rFO3YpCoTBk0s08yo9Aec1s95uxXnpOesn4Y6QnQItBKX4KnWvzSRwN007RkMUOCl';
+      Stripe.publishableKey = Env.stripePublishableKey;
       await Stripe.instance.applySettings();
     } catch (e) {
       // If Stripe fails to initialize, continue without blocking app startup.
@@ -196,15 +197,24 @@ class _WaitlistDialogState extends State<_WaitlistDialog> {
         'contact': _contactController.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
       });
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+          _submitted = true;
+        });
+      }
     } catch (_) {
-      // If Firestore is unavailable, still show success for demo
-    }
-
-    if (mounted) {
-      setState(() {
-        _submitting = false;
-        _submitted = true;
-      });
+      if (mounted) {
+        setState(() => _submitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to join waitlist. Check your connection and try again.'),
+            backgroundColor: Colors.red[700],
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
     }
   }
 

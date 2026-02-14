@@ -282,107 +282,122 @@ class WalletService {
   // CHALLENGE STAKES
   // ============================================
 
-  /// Deduct stake for challenge entry
+  /// Deduct stake for challenge entry (atomic transaction)
   Future<bool> deductStake({
     required String userId,
     required String challengeId,
     required double amount,
   }) async {
-    final wallet = await getOrCreateWallet(userId);
+    try {
+      return await _db.runTransaction<bool>((txn) async {
+        final walletRef = _db.collection('wallets').doc(userId);
+        final walletDoc = await txn.get(walletRef);
 
-    if (wallet.balance < amount) {
-      return false; // Insufficient balance
+        if (!walletDoc.exists) return false;
+
+        final currentBalance = (walletDoc.data()?['balance'] ?? 0).toDouble();
+        if (currentBalance < amount) return false;
+
+        // Create transaction record
+        final txRef = walletRef.collection('transactions').doc();
+        txn.set(txRef, {
+          'userId': userId,
+          'type': TransactionType.stakeDebit.name,
+          'status': TransactionStatus.completed.name,
+          'amount': amount,
+          'fee': 0.0,
+          'netAmount': amount,
+          'challengeId': challengeId,
+          'description': 'Challenge entry fee',
+          'createdAt': FieldValue.serverTimestamp(),
+          'completedAt': FieldValue.serverTimestamp(),
+        });
+
+        // Deduct from balance atomically (stake, not a loss)
+        txn.update(walletRef, {
+          'balance': currentBalance - amount,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        return true;
+      });
+    } catch (e) {
+      return false;
     }
-
-    final transaction = WalletTransaction(
-      id: '',
-      userId: userId,
-      type: TransactionType.stakeDebit,
-      status: TransactionStatus.completed,
-      amount: amount,
-      netAmount: amount,
-      challengeId: challengeId,
-      description: 'Challenge entry fee',
-      createdAt: DateTime.now(),
-      completedAt: DateTime.now(),
-    );
-
-    await _db
-        .collection('wallets')
-        .doc(userId)
-        .collection('transactions')
-        .add(transaction.toFirestore());
-
-    await _db.collection('wallets').doc(userId).update({
-      'balance': FieldValue.increment(-amount),
-      'lifetimeLosses': FieldValue.increment(amount),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-
-    return true;
   }
 
-  /// Credit winnings from challenge
+  /// Credit winnings from challenge (atomic transaction)
   Future<void> creditWinnings({
     required String userId,
     required String challengeId,
     required double amount,
   }) async {
-    final transaction = WalletTransaction(
-      id: '',
-      userId: userId,
-      type: TransactionType.winnings,
-      status: TransactionStatus.completed,
-      amount: amount,
-      netAmount: amount,
-      challengeId: challengeId,
-      description: 'Challenge winnings',
-      createdAt: DateTime.now(),
-      completedAt: DateTime.now(),
-    );
+    await _db.runTransaction((txn) async {
+      final walletRef = _db.collection('wallets').doc(userId);
+      final walletDoc = await txn.get(walletRef);
 
-    await _db
-        .collection('wallets')
-        .doc(userId)
-        .collection('transactions')
-        .add(transaction.toFirestore());
+      if (!walletDoc.exists) throw Exception('Wallet not found');
 
-    await _db.collection('wallets').doc(userId).update({
-      'balance': FieldValue.increment(amount),
-      'lifetimeWinnings': FieldValue.increment(amount),
-      'updatedAt': FieldValue.serverTimestamp(),
+      final currentBalance = (walletDoc.data()?['balance'] ?? 0).toDouble();
+
+      // Create transaction record
+      final txRef = walletRef.collection('transactions').doc();
+      txn.set(txRef, {
+        'userId': userId,
+        'type': TransactionType.winnings.name,
+        'status': TransactionStatus.completed.name,
+        'amount': amount,
+        'fee': 0.0,
+        'netAmount': amount,
+        'challengeId': challengeId,
+        'description': 'Challenge winnings',
+        'createdAt': FieldValue.serverTimestamp(),
+        'completedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Credit balance atomically
+      txn.update(walletRef, {
+        'balance': currentBalance + amount,
+        'lifetimeWinnings': FieldValue.increment(amount),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     });
   }
 
-  /// Refund stake for cancelled challenge
+  /// Refund stake for cancelled challenge (atomic transaction)
   Future<void> refundStake({
     required String userId,
     required String challengeId,
     required double amount,
   }) async {
-    final transaction = WalletTransaction(
-      id: '',
-      userId: userId,
-      type: TransactionType.refund,
-      status: TransactionStatus.completed,
-      amount: amount,
-      netAmount: amount,
-      challengeId: challengeId,
-      description: 'Challenge refund',
-      createdAt: DateTime.now(),
-      completedAt: DateTime.now(),
-    );
+    await _db.runTransaction((txn) async {
+      final walletRef = _db.collection('wallets').doc(userId);
+      final walletDoc = await txn.get(walletRef);
 
-    await _db
-        .collection('wallets')
-        .doc(userId)
-        .collection('transactions')
-        .add(transaction.toFirestore());
+      if (!walletDoc.exists) throw Exception('Wallet not found');
 
-    await _db.collection('wallets').doc(userId).update({
-      'balance': FieldValue.increment(amount),
-      'lifetimeLosses': FieldValue.increment(-amount),
-      'updatedAt': FieldValue.serverTimestamp(),
+      final currentBalance = (walletDoc.data()?['balance'] ?? 0).toDouble();
+
+      // Create refund transaction record
+      final txRef = walletRef.collection('transactions').doc();
+      txn.set(txRef, {
+        'userId': userId,
+        'type': TransactionType.refund.name,
+        'status': TransactionStatus.completed.name,
+        'amount': amount,
+        'fee': 0.0,
+        'netAmount': amount,
+        'challengeId': challengeId,
+        'description': 'Challenge refund',
+        'createdAt': FieldValue.serverTimestamp(),
+        'completedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Refund balance atomically
+      txn.update(walletRef, {
+        'balance': currentBalance + amount,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     });
   }
 
@@ -390,11 +405,13 @@ class WalletService {
   // TRANSACTION HISTORY
   // ============================================
 
-  /// Get transaction history
+  /// Get transaction history with pagination support.
+  /// Pass [startAfter] to get the next page.
   Future<List<WalletTransaction>> getTransactions(
     String userId, {
-    int limit = 50,
+    int limit = 20,
     TransactionType? filterType,
+    DocumentSnapshot? startAfter,
   }) async {
     Query query = _db
         .collection('wallets')
@@ -404,6 +421,10 @@ class WalletService {
 
     if (filterType != null) {
       query = query.where('type', isEqualTo: filterType.name);
+    }
+
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
     }
 
     final snapshot = await query.limit(limit).get();

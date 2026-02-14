@@ -58,9 +58,22 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
     }
   }
 
-  void _nextStep(ChallengeProvider provider) {
+  void _nextStep(ChallengeProvider provider) async {
     final total = _totalSteps(provider.isGroupMode);
     if (_currentStep < total - 1 && _canProceed(provider)) {
+      // Validate balance when leaving the stake step (step 2)
+      if (_currentStep == 2) {
+        final stakeAmount = provider.selectedStake.amount;
+        var walletBalance = context.read<WalletProvider>().balance;
+        if (stakeAmount > 0 && walletBalance < stakeAmount) {
+          final funded = await showAddFundsSheet(
+            context,
+            stakeAmount: stakeAmount,
+            currentBalance: walletBalance,
+          );
+          if (!funded || !mounted) return;
+        }
+      }
       setState(() => _currentStep++);
     }
   }
@@ -911,6 +924,66 @@ class _StepChooseStake extends StatelessWidget {
                 : _AnimatedPrizePool(stake: selectedStake),
           ),
           const SizedBox(height: 32),
+
+          // Wallet balance indicator
+          SlideIn(
+            delay: const Duration(milliseconds: 300),
+            child: Consumer<WalletProvider>(
+              builder: (context, wallet, _) {
+                final insufficient =
+                    selectedStake.amount > 0 && wallet.balance < selectedStake.amount;
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: insufficient
+                        ? Colors.orange.withOpacity(0.1)
+                        : RivlColors.success.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: insufficient
+                          ? Colors.orange.withOpacity(0.3)
+                          : RivlColors.success.withOpacity(0.2),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        insufficient
+                            ? Icons.warning_amber_rounded
+                            : Icons.account_balance_wallet,
+                        size: 18,
+                        color: insufficient ? Colors.orange[700] : RivlColors.success,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          insufficient
+                              ? 'Balance: \$${wallet.balance.toStringAsFixed(0)} — need \$${selectedStake.amount.toStringAsFixed(0)}'
+                              : 'Balance: \$${wallet.balance.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: insufficient ? Colors.orange[700] : RivlColors.success,
+                          ),
+                        ),
+                      ),
+                      if (insufficient)
+                        Text(
+                          'Add funds on next step',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.orange[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
 
           // Stake options
           SlideIn(
@@ -2106,10 +2179,37 @@ class _OpponentPickerSheetState extends State<_OpponentPickerSheet> {
                                           user.winPercentage,
                                           style: TextStyle(
                                             fontSize: 11,
-                                            color:
-                                                context.textSecondary,
+                                            color: context.textSecondary,
                                           ),
                                         ),
+                                        if (user.currentStreak > 0)
+                                          Padding(
+                                            padding:
+                                                const EdgeInsets.only(
+                                                    top: 2),
+                                            child: Row(
+                                              mainAxisSize:
+                                                  MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.whatshot,
+                                                    size: 11,
+                                                    color: Colors
+                                                        .orange[600]),
+                                                const SizedBox(
+                                                    width: 2),
+                                                Text(
+                                                  '${user.currentStreak} streak',
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    color: Colors
+                                                        .orange[600],
+                                                    fontWeight:
+                                                        FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                       ],
                                     ),
                                     onTap: () {
@@ -2257,6 +2357,27 @@ class _OpponentPickerSheetState extends State<_OpponentPickerSheet> {
                                   color: context.textSecondary,
                                 ),
                               ),
+                              if (user.currentStreak > 0)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.whatshot,
+                                          size: 11,
+                                          color: Colors.orange[600]),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        '${user.currentStreak} streak',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.orange[600],
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                             ],
                           ),
                           onTap: () {

@@ -11,6 +11,7 @@ import '../providers/streak_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/battle_pass_provider.dart';
 import '../providers/activity_feed_provider.dart';
+import '../models/activity_feed_model.dart';
 import '../models/battle_pass_model.dart';
 import '../widgets/streak_reward_popup.dart';
 import 'home/home_screen.dart';
@@ -30,7 +31,7 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
 
   final List<Widget> _screens = const [
@@ -44,6 +45,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     MainScreen.onTabSelected = (index) {
       if (mounted) setState(() => _currentIndex = index);
     };
@@ -78,6 +80,34 @@ class _MainScreenState extends State<MainScreen> {
         battlePassProvider.addXP(userId, xp, source);
       };
 
+      // Wire activity feed posting from challenge events
+      challengeProvider.onActivityFeedPost = (type, message, data) {
+        final user = authProvider.user;
+        if (user != null) {
+          activityFeedProvider.postActivity(
+            userId: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            type: ActivityType.challengeWon,
+            message: message,
+            data: data,
+          );
+        }
+      };
+
+      // Wire streak milestone posting
+      streakProvider.onStreakMilestone = (streakDays) {
+        final user = authProvider.user;
+        if (user != null) {
+          activityFeedProvider.postStreakMilestone(
+            userId: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            streakDays: streakDays,
+          );
+        }
+      };
+
       // New features
       streakProvider.loadStreak(userId);
       notificationProvider.initialize(userId);
@@ -93,6 +123,31 @@ class _MainScreenState extends State<MainScreen> {
       // Load demo data for unauthenticated users so UI isn't empty
       challengeProvider.loadDemoChallenges();
       challengeProvider.loadDemoOpponents();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final healthProvider = context.read<HealthProvider>();
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        // Pause health refresh to save battery
+        healthProvider.stopAutoRefresh();
+        break;
+      case AppLifecycleState.resumed:
+        // Resume refresh and do an immediate data pull
+        healthProvider.startAutoRefresh();
+        healthProvider.refreshData();
+        break;
     }
   }
 

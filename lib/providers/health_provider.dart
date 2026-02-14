@@ -32,6 +32,9 @@ class HealthProvider extends ChangeNotifier {
   HealthMetrics get metrics => _metrics;
   String? get errorMessage => _errorMessage;
 
+  /// True when displayed health data is demo/placeholder (not from HealthKit/Google Fit).
+  bool get isDemoData => !_isAuthorized;
+
   // Quick access to common metrics
   int get todaySteps => _metrics.steps;
   int get heartRate => _metrics.heartRate;
@@ -212,6 +215,16 @@ class HealthProvider extends ChangeNotifier {
   // ============================================
   // FORMATTING HELPERS
   // ============================================
+
+  /// Fetch daily step totals for the given number of days.
+  Future<List<DailySteps>> getDailySteps(int days) async {
+    try {
+      return await _healthService.getDailySteps(days);
+    } catch (e) {
+      debugPrint('HealthProvider: getDailySteps error: $e');
+      return [];
+    }
+  }
 
   String formatSteps(int steps) => _healthService.formatSteps(steps);
   String formatDistance(double miles) => _healthService.formatDistance(miles);

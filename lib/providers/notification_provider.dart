@@ -9,9 +9,15 @@ class NotificationProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final NotificationService _notificationService = NotificationService();
 
+  static const int _pageSize = 20;
+
   List<Map<String, dynamic>> _notifications = [];
   int _unreadCount = 0;
   bool _isLoading = false;
+  bool _hasMore = true;
+  bool _isLoadingMore = false;
+  String? _userId;
+  DocumentSnapshot? _lastDocument;
   StreamSubscription? _notificationsSubscription;
   StreamSubscription? _unreadSubscription;
 
@@ -19,19 +25,25 @@ class NotificationProvider with ChangeNotifier {
   int get unreadCount => _unreadCount;
   bool get isLoading => _isLoading;
   bool get hasUnread => _unreadCount > 0;
+  bool get hasMore => _hasMore;
+  bool get isLoadingMore => _isLoadingMore;
 
-  /// Initialize notifications for a user
+  /// Initialize notifications for a user (loads first page)
   Future<void> initialize(String userId) async {
+    _userId = userId;
+    _isLoading = true;
+    notifyListeners();
+
     // Initialize push notifications
     await _notificationService.initialize(userId);
 
-    // Listen to notification stream
+    // Listen to first page of notifications via stream
     _notificationsSubscription?.cancel();
     _notificationsSubscription = _firestore
         .collection('notifications')
         .where('userId', isEqualTo: userId)
         .orderBy('createdAt', descending: true)
-        .limit(50)
+        .limit(_pageSize)
         .snapshots()
         .listen((snapshot) {
       _notifications = snapshot.docs.map((doc) {
@@ -39,9 +51,13 @@ class NotificationProvider with ChangeNotifier {
         data['id'] = doc.id;
         return data;
       }).toList();
+      _lastDocument = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
+      _hasMore = snapshot.docs.length >= _pageSize;
+      _isLoading = false;
       notifyListeners();
     }, onError: (e) {
-      debugPrint('Notifications stream error: $e');
+      _isLoading = false;
+      notifyListeners();
     });
 
     // Listen to unread count
@@ -53,6 +69,41 @@ class NotificationProvider with ChangeNotifier {
     }, onError: (e) {
       debugPrint('Unread count stream error: $e');
     });
+  }
+
+  /// Load next page of notifications
+  Future<void> loadMore() async {
+    if (_isLoadingMore || !_hasMore || _userId == null || _lastDocument == null) {
+      return;
+    }
+
+    _isLoadingMore = true;
+    notifyListeners();
+
+    try {
+      final snapshot = await _firestore
+          .collection('notifications')
+          .where('userId', isEqualTo: _userId)
+          .orderBy('createdAt', descending: true)
+          .startAfterDocument(_lastDocument!)
+          .limit(_pageSize)
+          .get();
+
+      final newItems = snapshot.docs.map((doc) {
+        final data = Map<String, dynamic>.from(doc.data());
+        data['id'] = doc.id;
+        return data;
+      }).toList();
+
+      _notifications.addAll(newItems);
+      _lastDocument = snapshot.docs.isNotEmpty ? snapshot.docs.last : _lastDocument;
+      _hasMore = snapshot.docs.length >= _pageSize;
+    } catch (e) {
+      debugPrint('Load more notifications error: $e');
+    }
+
+    _isLoadingMore = false;
+    notifyListeners();
   }
 
   /// Mark a notification as read
