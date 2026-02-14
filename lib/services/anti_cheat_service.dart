@@ -67,7 +67,7 @@ class AntiCheatService {
       final response = await callable.call<Map<String, dynamic>>({
         'challengeId': challengeId,
         'stepHistory': stepHistory
-            .map((s) => {'steps': s.steps, 'date': s.date.toIso8601String()})
+            .map((s) => {'steps': s.steps, 'date': s.date})
             .toList(),
       });
 
