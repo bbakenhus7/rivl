@@ -22,9 +22,9 @@ class StepsCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         "Today's Steps",
-                        style: RivlTextStyles.bodySecondary,
+                        style: Theme.of(context).textTheme.bodyMedium,
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -45,7 +45,7 @@ class StepsCard extends StatelessWidget {
                           const SizedBox(width: 4),
                           Text(
                             'Goal: ${health.formatSteps(health.dailyGoal)}',
-                            style: RivlTextStyles.caption,
+                            style: Theme.of(context).textTheme.bodySmall,
                           ),
                           if (health.goalReached) ...[
                             const SizedBox(width: 8),

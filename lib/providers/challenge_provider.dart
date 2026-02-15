@@ -482,6 +482,7 @@ class ChallengeProvider extends ChangeNotifier {
   }
 
   Future<String?> createChallenge({double? walletBalance}) async {
+    if (_isCreating) return null; // Guard against double-tap
     if (_selectedOpponent == null) {
       _errorMessage = 'Please select an opponent';
       notifyListeners();
@@ -533,6 +534,7 @@ class ChallengeProvider extends ChangeNotifier {
   }
 
   Future<String?> createGroupChallenge({double? walletBalance}) async {
+    if (_isCreating) return null; // Guard against double-tap
     if (_selectedGroupMembers.isEmpty) {
       _errorMessage = 'Please add at least one member';
       notifyListeners();
@@ -611,7 +613,7 @@ class ChallengeProvider extends ChangeNotifier {
         return demoId;
       }
 
-      final challengeId = await _firebaseService.createGroupChallenge(
+      final challengeId = await _firebaseService.createGroupChallengeWithStake(
         invitedParticipants: invitedParticipants,
         goalType: _selectedGoalType,
         goalValue: suggestedGoalValue,
@@ -621,21 +623,6 @@ class ChallengeProvider extends ChangeNotifier {
         minParticipants: 3,
         payoutStructure: _selectedPayoutStructure,
       );
-
-      // Deduct creator's stake atomically for paid group challenges
-      if (_selectedStake.amount > 0 && _firebaseService.currentUser != null) {
-        final deducted = await _walletService.deductStake(
-          userId: _firebaseService.currentUser!.uid,
-          challengeId: challengeId,
-          amount: _selectedStake.amount,
-        );
-        if (!deducted) {
-          _isCreating = false;
-          _errorMessage = 'Failed to deduct stake. Challenge created but payment pending.';
-          notifyListeners();
-          return challengeId;
-        }
-      }
 
       _successMessage = 'Group challenge created!';
       onXPEarned?.call(15, 'challenge_created');
@@ -673,6 +660,7 @@ class ChallengeProvider extends ChangeNotifier {
   // ============================================
 
   Future<bool> acceptChallenge(String challengeId, {double? walletBalance}) async {
+    if (_isLoading) return false; // Guard against double-tap
     // Validate that the challenge is still pending before accepting
     final matches = _challenges.where((c) => c.id == challengeId).toList();
     if (matches.isEmpty) {
@@ -767,6 +755,7 @@ class ChallengeProvider extends ChangeNotifier {
   }
 
   Future<bool> declineChallenge(String challengeId) async {
+    if (_isLoading) return false; // Guard against double-tap
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -881,6 +870,7 @@ class ChallengeProvider extends ChangeNotifier {
   /// Settle a completed challenge: determine winner, run anti-cheat,
   /// credit winnings, and update the challenge document.
   Future<bool> settleChallenge(String challengeId) async {
+    if (_isLoading) return false; // Guard against double-tap
     final matches = _challenges.where((c) => c.id == challengeId).toList();
     if (matches.isEmpty) return false;
 

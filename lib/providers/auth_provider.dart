@@ -1,5 +1,6 @@
 // providers/auth_provider.dart
 
+import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -11,6 +12,7 @@ enum AuthState { initial, loading, authenticated, unauthenticated, error }
 
 class AuthProvider extends ChangeNotifier {
   final FirebaseService _firebaseService = FirebaseService();
+  StreamSubscription? _authSubscription;
 
   AuthState _state = AuthState.initial;
   UserModel? _user;
@@ -27,7 +29,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void _init() {
-    _firebaseService.authStateChanges.listen(
+    _authSubscription = _firebaseService.authStateChanges.listen(
       (firebaseUser) async {
         if (firebaseUser != null) {
           await _loadUser(firebaseUser.uid);
@@ -413,5 +415,11 @@ class AuthProvider extends ChangeNotifier {
     if (_user != null) {
       await _loadUser(_user!.id);
     }
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 }

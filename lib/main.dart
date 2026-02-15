@@ -40,7 +40,7 @@ void main() async {
     } catch (e) {
       // If Stripe fails to initialize, continue without blocking app startup.
       // Web and some desktop targets may not support the platform API used by the package.
-      debugPrint('Stripe init skipped: $e');
+      // Stripe init skipped — expected on web/desktop targets
     }
   }
   

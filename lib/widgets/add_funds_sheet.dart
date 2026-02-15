@@ -45,7 +45,6 @@ class _AddFundsSheet extends StatefulWidget {
 
 class _AddFundsSheetState extends State<_AddFundsSheet> {
   final _amountController = TextEditingController();
-  bool _depositSucceeded = false;
 
   double get _shortfall => (widget.stakeAmount - widget.currentBalance).ceilToDouble();
 
@@ -338,7 +337,6 @@ class _AddFundsSheetState extends State<_AddFundsSheet> {
     if (!mounted) return;
 
     if (tx != null) {
-      _depositSucceeded = true;
       Navigator.pop(context, true);
     } else if (provider.errorMessage != null) {
       ScaffoldMessenger.of(context).showSnackBar(

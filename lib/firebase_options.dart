@@ -56,13 +56,25 @@ class DefaultFirebaseOptions {
 
   // Android Configuration (for mobile app builds)
   // TODO: Add Android app in Firebase Console and update apiKey/appId
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'YOUR_ANDROID_API_KEY', // Get from Firebase Console → Android app
-    appId: 'YOUR_ANDROID_APP_ID', // Get from Firebase Console → Android app
-    messagingSenderId: '868172313930',
-    projectId: 'rivl-3bf21',
-    storageBucket: 'rivl-3bf21.firebasestorage.app',
-  );
+  static FirebaseOptions get android {
+    const apiKey = String.fromEnvironment('ANDROID_FIREBASE_API_KEY',
+        defaultValue: 'YOUR_ANDROID_API_KEY');
+    const appId = String.fromEnvironment('ANDROID_FIREBASE_APP_ID',
+        defaultValue: 'YOUR_ANDROID_APP_ID');
+    if (apiKey.startsWith('YOUR_') || appId.startsWith('YOUR_')) {
+      throw UnsupportedError(
+        'Android Firebase options are not configured. '
+        'Add your Android app in Firebase Console and update firebase_options.dart.',
+      );
+    }
+    return FirebaseOptions(
+      apiKey: apiKey,
+      appId: appId,
+      messagingSenderId: '868172313930',
+      projectId: 'rivl-3bf21',
+      storageBucket: 'rivl-3bf21.firebasestorage.app',
+    );
+  }
 }
 
 // VERIFICATION CHECKLIST:

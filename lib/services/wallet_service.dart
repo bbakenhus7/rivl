@@ -217,22 +217,31 @@ class WalletService {
       createdAt: DateTime.now(),
     );
 
-    final docRef = await _db
+    // Atomic: record transaction + deduct balance in a single transaction
+    final txDocRef = _db
         .collection('wallets')
         .doc(userId)
         .collection('transactions')
-        .add(transaction.toFirestore());
+        .doc();
 
-    // Deduct from balance
-    await _db.collection('wallets').doc(userId).update({
-      'balance': FieldValue.increment(-amount),
-      'updatedAt': FieldValue.serverTimestamp(),
+    await _db.runTransaction((txn) async {
+      final walletRef = _db.collection('wallets').doc(userId);
+      final walletDoc = await txn.get(walletRef);
+
+      if (!walletDoc.exists) throw Exception('Wallet not found');
+
+      final currentBalance = (walletDoc.data()?['balance'] ?? 0).toDouble();
+      if (currentBalance < amount) throw Exception('Insufficient balance');
+
+      txn.set(txDocRef, transaction.toFirestore());
+      txn.update(walletRef, {
+        'balance': currentBalance - amount,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     });
 
-    // In production, this would initiate Stripe payout
-
     return WalletTransaction(
-      id: docRef.id,
+      id: txDocRef.id,
       userId: userId,
       type: TransactionType.withdrawal,
       status: TransactionStatus.processing,

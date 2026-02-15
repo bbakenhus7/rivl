@@ -63,7 +63,7 @@ class HealthService {
       );
       return _isAuthorized;
     } catch (e) {
-      debugPrint('HealthService: authorization error: $e');
+      // authorization error — returning false
       _isAuthorized = false;
       return false;
     }
@@ -77,7 +77,7 @@ class HealthService {
       _isAuthorized = hasPerms ?? false;
       return _isAuthorized;
     } catch (e) {
-      debugPrint('HealthService: checkAuthorization error: $e');
+      // checkAuthorization error — returning cached state
       return _isAuthorized;
     }
   }
@@ -152,7 +152,7 @@ class HealthService {
         lastUpdated: now,
       );
     } catch (e) {
-      debugPrint('HealthService: getHealthMetrics error: $e');
+      // getHealthMetrics error — returning demo data
       return HealthMetrics.demo();
     }
   }
@@ -190,7 +190,7 @@ class HealthService {
           return _demoProgressForChallenge(goalType: goalType, startDate: startDate, endDate: endDate);
       }
     } catch (e) {
-      debugPrint('HealthService: getProgressForChallenge error: $e');
+      // getProgressForChallenge error — returning demo data
       return _demoProgressForChallenge(goalType: goalType, startDate: startDate, endDate: endDate);
     }
   }
@@ -209,7 +209,7 @@ class HealthService {
       final midnight = DateTime(now.year, now.month, now.day);
       return await _health.getTotalStepsInInterval(midnight, now) ?? 0;
     } catch (e) {
-      debugPrint('HealthService: getTodaySteps error: $e');
+      // getTodaySteps error — returning zero
       return 0;
     }
   }
@@ -223,7 +223,7 @@ class HealthService {
     try {
       return await _health.getTotalStepsInInterval(start, end) ?? 0;
     } catch (e) {
-      debugPrint('HealthService: getStepsInRange error: $e');
+      // getStepsInRange error — returning zero
       return 0;
     }
   }
@@ -236,7 +236,7 @@ class HealthService {
     try {
       return await _fetchDailyStepsForRange(days);
     } catch (e) {
-      debugPrint('HealthService: getDailySteps error: $e');
+      // getDailySteps error — returning demo data
       return _demoDailySteps(days);
     }
   }
@@ -251,7 +251,7 @@ class HealthService {
       final result = await _stepsProgressForRange(startDate, endDate);
       return result.history;
     } catch (e) {
-      debugPrint('HealthService: getStepsForChallenge error: $e');
+      // getStepsForChallenge error — returning demo data
       return _demoDailySteps(days);
     }
   }
@@ -423,7 +423,7 @@ class HealthService {
       workouts.sort((a, b) => b.date.compareTo(a.date));
       return workouts.take(5).toList();
     } catch (e) {
-      debugPrint('HealthService: _fetchRecentWorkouts error: $e');
+      // _fetchRecentWorkouts error — returning empty list
       return [];
     }
   }

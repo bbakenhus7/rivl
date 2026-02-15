@@ -65,20 +65,19 @@ class NotificationService {
         }
       }
     } catch (e) {
-      debugPrint('NotificationService init error: $e');
+      // Notification initialization error — push notifications unavailable
     }
   }
 
   void _handleForegroundMessage(RemoteMessage message) {
-    debugPrint('Foreground message: ${message.notification?.title}');
-    // Foreground messages can be shown as in-app banners
-    // The notification will still appear in the system tray on most platforms
+    // Foreground messages appear in the system tray on most platforms
+    // In-app banner handling can be added here if needed
   }
 
   void _handleMessageTap(RemoteMessage message) {
-    debugPrint('Message tap: ${message.data}');
     // Navigate to relevant screen based on message data
     // e.g., message.data['challengeId'] -> navigate to challenge detail
+    // TODO: implement deep link navigation from notification tap
   }
 
   /// Subscribe to topic-based notifications
@@ -86,7 +85,7 @@ class NotificationService {
     try {
       await _messaging.subscribeToTopic(topic);
     } catch (e) {
-      debugPrint('Subscribe to topic error: $e');
+      // Topic subscription error — silently ignored
     }
   }
 
@@ -95,7 +94,7 @@ class NotificationService {
     try {
       await _messaging.unsubscribeFromTopic(topic);
     } catch (e) {
-      debugPrint('Unsubscribe from topic error: $e');
+      // Topic unsubscription error — silently ignored
     }
   }
 

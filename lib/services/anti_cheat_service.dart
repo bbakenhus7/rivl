@@ -2,7 +2,6 @@
 
 import 'dart:math';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:flutter/foundation.dart';
 import '../models/challenge_model.dart';
 
 /// AI-powered anti-cheat verification service
@@ -85,7 +84,7 @@ class AntiCheatService {
                 : 'Clean',
       );
     } catch (e) {
-      debugPrint('Server anti-cheat unavailable, falling back to local: $e');
+      // Server anti-cheat unavailable — falling back to local analysis
       return null;
     }
   }

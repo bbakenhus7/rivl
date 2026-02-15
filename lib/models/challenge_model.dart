@@ -320,8 +320,9 @@ class ChallengeModel {
       'opponentStepHistory': opponentStepHistory.map((e) => e.toMap()).toList(),
       if (participants.isNotEmpty)
         'participants': participants.map((e) => e.toMap()).toList(),
-      if (participantIds.isNotEmpty)
-        'participantIds': participantIds,
+      'participantIds': participantIds.isNotEmpty
+          ? participantIds
+          : [creatorId, if (opponentId != null) opponentId],
       if (maxParticipants > 2) 'maxParticipants': maxParticipants,
       if (minParticipants > 2) 'minParticipants': minParticipants,
       if (payoutStructure != null)

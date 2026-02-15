@@ -278,13 +278,11 @@ class _BattlePassScreenState extends State<BattlePassScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
               final authProvider = context.read<AuthProvider>();
-              await provider.unlockPremium(authProvider.user!.id);
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Premium Pass unlocked!')),
-              );
+              final userId = authProvider.user?.id;
+              if (userId == null) return;
+              Navigator.pop(context);
+              await provider.unlockPremium(userId);
             },
             child: const Text('Unlock'),
           ),
@@ -295,8 +293,10 @@ class _BattlePassScreenState extends State<BattlePassScreen> {
 
   void _claimReward(BattlePassProvider provider, BattlePassReward reward) async {
     final authProvider = context.read<AuthProvider>();
+    final userId = authProvider.user?.id;
+    if (userId == null) return;
     final success = await provider.claimReward(
-      authProvider.user!.id,
+      userId,
       reward.level,
       reward.tier,
     );

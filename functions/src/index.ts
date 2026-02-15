@@ -24,8 +24,9 @@ const db = admin.firestore();
 const stripeSecretKey = defineSecret('STRIPE_SECRET_KEY');
 const stripeWebhookSecret = defineSecret('STRIPE_WEBHOOK_SECRET');
 
-// Platform fee percentage (15%)
-const PLATFORM_FEE_PERCENT = 0.15;
+// Platform fee percentage (3% for head-to-head, 5% for groups)
+const H2H_FEE_PERCENT = 0.03;
+const GROUP_FEE_PERCENT = 0.05;
 
 // Helper to get Stripe instance (must be called within function context)
 function getStripe(): Stripe {
@@ -98,8 +99,8 @@ export const createChallenge = functions
       participantIds: [creatorId, opponentId],
       stakeAmount,
       totalPot: stakeAmount * 2,
-      platformFee: stakeAmount * 2 * PLATFORM_FEE_PERCENT,
-      prizeAmount: stakeAmount * 2 * (1 - PLATFORM_FEE_PERCENT),
+      platformFee: stakeAmount * 2 * H2H_FEE_PERCENT,
+      prizeAmount: stakeAmount * 2 * (1 - H2H_FEE_PERCENT),
       goalType,
       targetValue: targetValue || 10000,
       duration,
@@ -130,7 +131,7 @@ export const createChallenge = functions
       clientSecret: creatorPaymentIntent.client_secret,
     };
   } catch (error: any) {
-    console.error('Error creating challenge:', error);
+    functions.logger.error('Error creating challenge:', error);
     throw new functions.https.HttpsError('internal', error.message);
   }
 });
@@ -187,18 +188,23 @@ export const acceptChallenge = functions
     const endDate = new Date(startDate);
 
     switch (challengeData.duration) {
+      case 'oneDay':
       case '1day':
         endDate.setDate(endDate.getDate() + 1);
         break;
+      case 'threeDays':
       case '3days':
         endDate.setDate(endDate.getDate() + 3);
         break;
+      case 'oneWeek':
       case '1week':
         endDate.setDate(endDate.getDate() + 7);
         break;
+      case 'twoWeeks':
       case '2weeks':
         endDate.setDate(endDate.getDate() + 14);
         break;
+      case 'oneMonth':
       case '1month':
         endDate.setMonth(endDate.getMonth() + 1);
         break;
@@ -227,7 +233,7 @@ export const acceptChallenge = functions
       endDate: endDate.toISOString(),
     };
   } catch (error: any) {
-    console.error('Error accepting challenge:', error);
+    functions.logger.error('Error accepting challenge:', error);
     throw new functions.https.HttpsError('internal', error.message);
   }
 });
@@ -246,7 +252,7 @@ export const stripeWebhook = functions
   try {
     event = stripe.webhooks.constructEvent(req.rawBody, sig, stripeWebhookSecret.value());
   } catch (err: any) {
-    console.error('Webhook signature verification failed:', err.message);
+    functions.logger.error('Webhook signature verification failed:', err.message);
     res.status(400).send(`Webhook Error: ${err.message}`);
     return;
   }
@@ -262,7 +268,7 @@ export const stripeWebhook = functions
       await handlePaymentFailure(failedPayment);
       break;
     default:
-      console.log(`Unhandled event type ${event.type}`);
+      functions.logger.warn(`Unhandled event type ${event.type}`);
   }
 
   res.json({ received: true });
@@ -364,7 +370,7 @@ export const completeChallengeScheduled = functions.pubsub
       .where('endDate', '<=', now)
       .get();
 
-    console.log(`Processing ${endedChallenges.size} ended challenges`);
+    functions.logger.info(`Processing ${endedChallenges.size} ended challenges`);
 
     const promises = endedChallenges.docs.map(doc => completeChallenge(doc.id));
     await Promise.all(promises);
@@ -383,7 +389,11 @@ async function completeChallenge(challengeId: string) {
     if (!challenge.exists) return;
 
     const challengeData = challenge.data()!;
-    const { creatorId, opponentId, goalType, prizeAmount } = challengeData;
+
+    // Guard: skip if already completed (prevents double-payout on overlapping runs)
+    if (challengeData.status !== 'active') return;
+
+    const { creatorId, opponentId, goalType, prizeAmount, stakeAmount } = challengeData;
 
     // Get final step counts for both participants
     const dailyStepsSnapshot = await challengeRef.collection('dailySteps').get();
@@ -512,8 +522,8 @@ async function completeChallenge(challengeId: string) {
     });
 
     if (isTie) {
-      // Tie: refund each participant their stake
-      const refundAmount = prizeAmount / 2;
+      // Tie: refund each participant their original stake (not prizeAmount which has fees deducted)
+      const refundAmount = stakeAmount || (prizeAmount / 2);
 
       await db.collection('users').doc(creatorId).collection('transactions').add({
         type: 'challenge_tie_refund',
@@ -558,7 +568,7 @@ async function completeChallenge(challengeId: string) {
         challengeId,
       });
 
-      console.log(`Challenge ${challengeId} completed. Result: Tie`);
+      functions.logger.info(`Challenge ${challengeId} completed. Result: Tie`);
     } else {
       // Transfer funds to winner
       // Note: In production, you'd create a Stripe Transfer or Payout
@@ -598,10 +608,10 @@ async function completeChallenge(challengeId: string) {
         challengeId,
       });
 
-      console.log(`Challenge ${challengeId} completed. Winner: ${winnerId}`);
+      functions.logger.info(`Challenge ${challengeId} completed. Winner: ${winnerId}`);
     }
   } catch (error) {
-    console.error(`Error completing challenge ${challengeId}:`, error);
+    functions.logger.error(`Error completing challenge ${challengeId}:`, error);
   }
 }
 
@@ -677,7 +687,7 @@ async function updateLeaderboard(userId: string) {
 
 function calculateWinRate(wins: number, losses: number): number {
   const total = wins + losses;
-  return total > 0 ? (wins / total) * 100 : 0;
+  return total > 0 ? wins / total : 0;
 }
 
 /**
@@ -803,10 +813,10 @@ async function createNotification(userId: string, notification: {
       };
 
       await admin.messaging().send(message);
-      console.log(`Push notification sent to user ${userId}`);
+      functions.logger.info(`Push notification sent to user ${userId}`);
     }
   } catch (error) {
-    console.error(`Failed to send push notification to user ${userId}:`, error);
+    functions.logger.error(`Failed to send push notification to user ${userId}:`, error);
     // Don't throw - notification failure shouldn't break the flow
   }
 }
@@ -943,9 +953,9 @@ export const verifyActivity = functions.firestore
         });
       }
 
-      console.log(`AI verification: User ${userId}, Score: ${aiScore.overallScore}`);
+      functions.logger.info(`AI verification: User ${userId}, Score: ${aiScore.overallScore}`);
     } catch (error) {
-      console.error('Error in AI verification:', error);
+      functions.logger.error('Error in AI verification:', error);
     }
   });
 
@@ -1141,7 +1151,7 @@ export const analyzeAntiCheat = functions.https.onCall(async (data, context) => 
       isCheating: result.isCheating,
     };
   } catch (error: any) {
-    console.error('Error in analyzeAntiCheat:', error);
+    functions.logger.error('Error in analyzeAntiCheat:', error);
     throw new functions.https.HttpsError('internal', error.message);
   }
 });
@@ -1156,6 +1166,13 @@ export const analyzeAntiCheat = functions.https.onCall(async (data, context) => 
 export const manualCompleteChallenge = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
+  }
+
+  // Only allow admins to manually complete challenges
+  const userDoc = await db.collection('users').doc(context.auth.uid).get();
+  const userData = userDoc.data();
+  if (!userData?.isAdmin) {
+    throw new functions.https.HttpsError('permission-denied', 'Admin access required');
   }
 
   const { challengeId } = data;
@@ -1175,10 +1192,12 @@ export const manualCompleteChallenge = functions.https.onCall(async (data, conte
 export const createDepositPaymentIntent = functions
   .runWith({ secrets: [stripeSecretKey] })
   .https.onCall(async (data, context) => {
-  const { amount, userId } = data;
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+  }
 
-  // Allow unauthenticated for demo mode, but prefer auth
-  const effectiveUserId = context.auth?.uid || userId || 'demo_user';
+  const { amount } = data;
+  const effectiveUserId = context.auth.uid;
 
   if (!amount || amount < 10) {
     throw new functions.https.HttpsError('invalid-argument', 'Minimum deposit is $10');
@@ -1263,7 +1282,7 @@ export const createDepositPaymentIntent = functions
       customerId: customerId,
     };
   } catch (error: any) {
-    console.error('Error creating deposit PaymentIntent:', error);
+    functions.logger.error('Error creating deposit PaymentIntent:', error);
     throw new functions.https.HttpsError('internal', error.message);
   }
 });
@@ -1275,9 +1294,12 @@ export const createDepositPaymentIntent = functions
 export const confirmWalletDeposit = functions
   .runWith({ secrets: [stripeSecretKey] })
   .https.onCall(async (data, context) => {
-  const { paymentIntentId, userId } = data;
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+  }
 
-  const effectiveUserId = context.auth?.uid || userId || 'demo_user';
+  const { paymentIntentId } = data;
+  const effectiveUserId = context.auth.uid;
 
   if (!paymentIntentId) {
     throw new functions.https.HttpsError('invalid-argument', 'Missing paymentIntentId');
@@ -1322,7 +1344,7 @@ export const confirmWalletDeposit = functions
 
     return { success: true, amount };
   } catch (error: any) {
-    console.error('Error confirming deposit:', error);
+    functions.logger.error('Error confirming deposit:', error);
     throw new functions.https.HttpsError('internal', error.message);
   }
 });
