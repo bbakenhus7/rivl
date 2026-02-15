@@ -233,7 +233,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                     ),
                   );
                 },
-                childCount: _entries.length - 3,
+                childCount: _entries.length > 3 ? _entries.length - 3 : 0,
               ),
             ),
           ),
@@ -374,7 +374,7 @@ class _PodiumCard extends StatelessWidget {
                     : null,
                 child: entry.profileImageUrl == null
                     ? Text(
-                        entry.displayName[0].toUpperCase(),
+                        (entry.displayName.isNotEmpty ? entry.displayName[0] : '?').toUpperCase(),
                         style: TextStyle(
                           fontSize: isFirst ? 28 : 22,
                           fontWeight: FontWeight.bold,
@@ -515,7 +515,7 @@ class _LeaderboardTile extends StatelessWidget {
                     : null,
                 child: entry.profileImageUrl == null
                     ? Text(
-                        entry.displayName[0].toUpperCase(),
+                        (entry.displayName.isNotEmpty ? entry.displayName[0] : '?').toUpperCase(),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: RivlColors.primary,
@@ -655,7 +655,7 @@ class _UserProfileSheet extends StatelessWidget {
                           : null,
                       child: entry.profileImageUrl == null
                           ? Text(
-                              entry.displayName[0].toUpperCase(),
+                              (entry.displayName.isNotEmpty ? entry.displayName[0] : '?').toUpperCase(),
                               style: const TextStyle(
                                 fontSize: 36,
                                 fontWeight: FontWeight.bold,

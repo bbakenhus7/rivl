@@ -90,6 +90,11 @@ class WalletProvider extends ChangeNotifier {
 
   Future<WalletTransaction?> initiateDeposit(double amount) async {
     if (_wallet == null) return null;
+    if (amount <= 0) {
+      _errorMessage = 'Deposit amount must be greater than zero';
+      notifyListeners();
+      return null;
+    }
 
     _isProcessing = true;
     _errorMessage = null;
@@ -123,6 +128,16 @@ class WalletProvider extends ChangeNotifier {
     WithdrawalMethod method = WithdrawalMethod.ach,
   }) async {
     if (_wallet == null) return null;
+    if (amount <= 0) {
+      _errorMessage = 'Withdrawal amount must be greater than zero';
+      notifyListeners();
+      return null;
+    }
+    if (amount > balance) {
+      _errorMessage = 'Insufficient balance';
+      notifyListeners();
+      return null;
+    }
 
     _isProcessing = true;
     _errorMessage = null;
