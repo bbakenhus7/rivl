@@ -66,14 +66,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        const Text(
+        Text(
           'Check Your Email',
-          style: RivlTextStyles.heading2,
+          style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 12),
         Text(
           'We sent password reset instructions to\n${_emailController.text}',
-          style: RivlTextStyles.bodySecondary,
+          style: Theme.of(context).textTheme.bodyMedium,
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 32),
@@ -111,15 +111,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           const SizedBox(height: 32),
 
           // Title
-          const Text(
+          Text(
             'Forgot Password?',
-            style: RivlTextStyles.heading2,
+            style: Theme.of(context).textTheme.headlineSmall,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             "Enter your email and we'll send you instructions to reset your password",
-            style: RivlTextStyles.bodySecondary,
+            style: Theme.of(context).textTheme.bodyMedium,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),

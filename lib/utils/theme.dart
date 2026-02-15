@@ -324,7 +324,7 @@ class RivlTheme {
         onSecondary: Colors.white,
         onSurface: RivlColors.darkTextPrimary,
         onError: Colors.white,
-        background: RivlColors.darkBackground,
+        surfaceContainerHighest: RivlColors.darkBackground,
       ),
 
       scaffoldBackgroundColor: RivlColors.darkBackground,

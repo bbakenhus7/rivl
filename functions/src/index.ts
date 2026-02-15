@@ -24,8 +24,9 @@ const db = admin.firestore();
 const stripeSecretKey = defineSecret('STRIPE_SECRET_KEY');
 const stripeWebhookSecret = defineSecret('STRIPE_WEBHOOK_SECRET');
 
-// Platform fee percentage (15%)
-const PLATFORM_FEE_PERCENT = 0.15;
+// Platform fee percentage (3% for head-to-head, 5% for groups)
+const H2H_FEE_PERCENT = 0.03;
+const GROUP_FEE_PERCENT = 0.05;
 
 // Helper to get Stripe instance (must be called within function context)
 function getStripe(): Stripe {
@@ -98,8 +99,8 @@ export const createChallenge = functions
       participantIds: [creatorId, opponentId],
       stakeAmount,
       totalPot: stakeAmount * 2,
-      platformFee: stakeAmount * 2 * PLATFORM_FEE_PERCENT,
-      prizeAmount: stakeAmount * 2 * (1 - PLATFORM_FEE_PERCENT),
+      platformFee: stakeAmount * 2 * H2H_FEE_PERCENT,
+      prizeAmount: stakeAmount * 2 * (1 - H2H_FEE_PERCENT),
       goalType,
       targetValue: targetValue || 10000,
       duration,
@@ -187,18 +188,23 @@ export const acceptChallenge = functions
     const endDate = new Date(startDate);
 
     switch (challengeData.duration) {
+      case 'oneDay':
       case '1day':
         endDate.setDate(endDate.getDate() + 1);
         break;
+      case 'threeDays':
       case '3days':
         endDate.setDate(endDate.getDate() + 3);
         break;
+      case 'oneWeek':
       case '1week':
         endDate.setDate(endDate.getDate() + 7);
         break;
+      case 'twoWeeks':
       case '2weeks':
         endDate.setDate(endDate.getDate() + 14);
         break;
+      case 'oneMonth':
       case '1month':
         endDate.setMonth(endDate.getMonth() + 1);
         break;
@@ -677,7 +683,7 @@ async function updateLeaderboard(userId: string) {
 
 function calculateWinRate(wins: number, losses: number): number {
   const total = wins + losses;
-  return total > 0 ? (wins / total) * 100 : 0;
+  return total > 0 ? wins / total : 0;
 }
 
 /**
@@ -1158,6 +1164,13 @@ export const manualCompleteChallenge = functions.https.onCall(async (data, conte
     throw new functions.https.HttpsError('unauthenticated', 'Must be authenticated');
   }
 
+  // Only allow admins to manually complete challenges
+  const userDoc = await db.collection('users').doc(context.auth.uid).get();
+  const userData = userDoc.data();
+  if (!userData?.isAdmin) {
+    throw new functions.https.HttpsError('permission-denied', 'Admin access required');
+  }
+
   const { challengeId } = data;
   await completeChallenge(challengeId);
 
@@ -1175,10 +1188,12 @@ export const manualCompleteChallenge = functions.https.onCall(async (data, conte
 export const createDepositPaymentIntent = functions
   .runWith({ secrets: [stripeSecretKey] })
   .https.onCall(async (data, context) => {
-  const { amount, userId } = data;
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+  }
 
-  // Allow unauthenticated for demo mode, but prefer auth
-  const effectiveUserId = context.auth?.uid || userId || 'demo_user';
+  const { amount } = data;
+  const effectiveUserId = context.auth.uid;
 
   if (!amount || amount < 10) {
     throw new functions.https.HttpsError('invalid-argument', 'Minimum deposit is $10');
@@ -1275,9 +1290,12 @@ export const createDepositPaymentIntent = functions
 export const confirmWalletDeposit = functions
   .runWith({ secrets: [stripeSecretKey] })
   .https.onCall(async (data, context) => {
-  const { paymentIntentId, userId } = data;
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+  }
 
-  const effectiveUserId = context.auth?.uid || userId || 'demo_user';
+  const { paymentIntentId } = data;
+  const effectiveUserId = context.auth.uid;
 
   if (!paymentIntentId) {
     throw new functions.https.HttpsError('invalid-argument', 'Missing paymentIntentId');

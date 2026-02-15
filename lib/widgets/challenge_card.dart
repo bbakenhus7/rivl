@@ -507,8 +507,4 @@ class _DailyGoalHint extends StatelessWidget {
     );
   }
 
-  String _formatNumber(int n) {
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
-    return '$n';
-  }
 }
