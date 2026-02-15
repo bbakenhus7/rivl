@@ -1,7 +1,6 @@
 // providers/wallet_provider.dart
 
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/wallet_model.dart';
 import '../services/wallet_service.dart';
@@ -71,7 +70,8 @@ class WalletProvider extends ChangeNotifier {
           notifyListeners();
         },
         onError: (error) {
-          debugPrint('Transaction stream error: $error');
+          _errorMessage = 'Failed to sync transactions';
+          notifyListeners();
         },
       );
 

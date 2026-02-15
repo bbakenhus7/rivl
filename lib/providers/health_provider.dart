@@ -185,7 +185,7 @@ class HealthProvider extends ChangeNotifier {
     try {
       return await _healthService.getStepsForChallenge(start, end);
     } catch (e) {
-      debugPrint('HealthProvider: getStepsForChallenge error: $e');
+      // getStepsForChallenge failed — returning empty list
       return [];
     }
   }
@@ -221,7 +221,7 @@ class HealthProvider extends ChangeNotifier {
     try {
       return await _healthService.getDailySteps(days);
     } catch (e) {
-      debugPrint('HealthProvider: getDailySteps error: $e');
+      // getDailySteps failed — returning empty list
       return [];
     }
   }

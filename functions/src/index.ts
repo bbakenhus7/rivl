@@ -131,7 +131,7 @@ export const createChallenge = functions
       clientSecret: creatorPaymentIntent.client_secret,
     };
   } catch (error: any) {
-    console.error('Error creating challenge:', error);
+    functions.logger.error('Error creating challenge:', error);
     throw new functions.https.HttpsError('internal', error.message);
   }
 });
@@ -233,7 +233,7 @@ export const acceptChallenge = functions
       endDate: endDate.toISOString(),
     };
   } catch (error: any) {
-    console.error('Error accepting challenge:', error);
+    functions.logger.error('Error accepting challenge:', error);
     throw new functions.https.HttpsError('internal', error.message);
   }
 });
@@ -252,7 +252,7 @@ export const stripeWebhook = functions
   try {
     event = stripe.webhooks.constructEvent(req.rawBody, sig, stripeWebhookSecret.value());
   } catch (err: any) {
-    console.error('Webhook signature verification failed:', err.message);
+    functions.logger.error('Webhook signature verification failed:', err.message);
     res.status(400).send(`Webhook Error: ${err.message}`);
     return;
   }
@@ -268,7 +268,7 @@ export const stripeWebhook = functions
       await handlePaymentFailure(failedPayment);
       break;
     default:
-      console.log(`Unhandled event type ${event.type}`);
+      functions.logger.warn(`Unhandled event type ${event.type}`);
   }
 
   res.json({ received: true });
@@ -370,7 +370,7 @@ export const completeChallengeScheduled = functions.pubsub
       .where('endDate', '<=', now)
       .get();
 
-    console.log(`Processing ${endedChallenges.size} ended challenges`);
+    functions.logger.info(`Processing ${endedChallenges.size} ended challenges`);
 
     const promises = endedChallenges.docs.map(doc => completeChallenge(doc.id));
     await Promise.all(promises);
@@ -389,7 +389,11 @@ async function completeChallenge(challengeId: string) {
     if (!challenge.exists) return;
 
     const challengeData = challenge.data()!;
-    const { creatorId, opponentId, goalType, prizeAmount } = challengeData;
+
+    // Guard: skip if already completed (prevents double-payout on overlapping runs)
+    if (challengeData.status !== 'active') return;
+
+    const { creatorId, opponentId, goalType, prizeAmount, stakeAmount } = challengeData;
 
     // Get final step counts for both participants
     const dailyStepsSnapshot = await challengeRef.collection('dailySteps').get();
@@ -518,8 +522,8 @@ async function completeChallenge(challengeId: string) {
     });
 
     if (isTie) {
-      // Tie: refund each participant their stake
-      const refundAmount = prizeAmount / 2;
+      // Tie: refund each participant their original stake (not prizeAmount which has fees deducted)
+      const refundAmount = stakeAmount || (prizeAmount / 2);
 
       await db.collection('users').doc(creatorId).collection('transactions').add({
         type: 'challenge_tie_refund',
@@ -564,7 +568,7 @@ async function completeChallenge(challengeId: string) {
         challengeId,
       });
 
-      console.log(`Challenge ${challengeId} completed. Result: Tie`);
+      functions.logger.info(`Challenge ${challengeId} completed. Result: Tie`);
     } else {
       // Transfer funds to winner
       // Note: In production, you'd create a Stripe Transfer or Payout
@@ -604,10 +608,10 @@ async function completeChallenge(challengeId: string) {
         challengeId,
       });
 
-      console.log(`Challenge ${challengeId} completed. Winner: ${winnerId}`);
+      functions.logger.info(`Challenge ${challengeId} completed. Winner: ${winnerId}`);
     }
   } catch (error) {
-    console.error(`Error completing challenge ${challengeId}:`, error);
+    functions.logger.error(`Error completing challenge ${challengeId}:`, error);
   }
 }
 
@@ -809,10 +813,10 @@ async function createNotification(userId: string, notification: {
       };
 
       await admin.messaging().send(message);
-      console.log(`Push notification sent to user ${userId}`);
+      functions.logger.info(`Push notification sent to user ${userId}`);
     }
   } catch (error) {
-    console.error(`Failed to send push notification to user ${userId}:`, error);
+    functions.logger.error(`Failed to send push notification to user ${userId}:`, error);
     // Don't throw - notification failure shouldn't break the flow
   }
 }
@@ -949,9 +953,9 @@ export const verifyActivity = functions.firestore
         });
       }
 
-      console.log(`AI verification: User ${userId}, Score: ${aiScore.overallScore}`);
+      functions.logger.info(`AI verification: User ${userId}, Score: ${aiScore.overallScore}`);
     } catch (error) {
-      console.error('Error in AI verification:', error);
+      functions.logger.error('Error in AI verification:', error);
     }
   });
 
@@ -1147,7 +1151,7 @@ export const analyzeAntiCheat = functions.https.onCall(async (data, context) => 
       isCheating: result.isCheating,
     };
   } catch (error: any) {
-    console.error('Error in analyzeAntiCheat:', error);
+    functions.logger.error('Error in analyzeAntiCheat:', error);
     throw new functions.https.HttpsError('internal', error.message);
   }
 });
@@ -1278,7 +1282,7 @@ export const createDepositPaymentIntent = functions
       customerId: customerId,
     };
   } catch (error: any) {
-    console.error('Error creating deposit PaymentIntent:', error);
+    functions.logger.error('Error creating deposit PaymentIntent:', error);
     throw new functions.https.HttpsError('internal', error.message);
   }
 });
@@ -1340,7 +1344,7 @@ export const confirmWalletDeposit = functions
 
     return { success: true, amount };
   } catch (error: any) {
-    console.error('Error confirming deposit:', error);
+    functions.logger.error('Error confirming deposit:', error);
     throw new functions.https.HttpsError('internal', error.message);
   }
 });

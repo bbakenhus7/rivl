@@ -64,7 +64,7 @@ class ActivityFeedProvider with ChangeNotifier {
 
       await _firestore.collection('activityFeed').add(item.toFirestore());
     } catch (e) {
-      debugPrint('Post activity error: $e');
+      // Post activity error — feed item not posted
     }
   }
 

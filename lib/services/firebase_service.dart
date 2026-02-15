@@ -265,6 +265,126 @@ class FirebaseService {
     return docRef.id;
   }
 
+  /// Create group challenge and deduct creator's stake atomically.
+  /// Returns the new challenge document ID.
+  Future<String> createGroupChallengeWithStake({
+    required List<GroupParticipant> invitedParticipants,
+    required GoalType goalType,
+    required int goalValue,
+    required ChallengeDuration duration,
+    required double stakeAmount,
+    required int maxParticipants,
+    required int minParticipants,
+    required GroupPayoutStructure payoutStructure,
+  }) async {
+    final user = await getUser(currentUser!.uid);
+    if (user == null) throw Exception('User not found');
+
+    final allParticipants = [
+      GroupParticipant(
+        userId: currentUser!.uid,
+        displayName: user.displayName,
+        username: user.username,
+        status: ParticipantStatus.accepted,
+      ),
+      ...invitedParticipants,
+    ];
+
+    final totalPot = stakeAmount * allParticipants.length;
+    final prizeAmount = _calculatePrize(totalPot, ChallengeType.group);
+    final now = DateTime.now();
+    final expiresAt = now.add(const Duration(days: 7));
+
+    final challengeData = ChallengeModel(
+      id: '',
+      creatorId: currentUser!.uid,
+      creatorName: user.displayName,
+      type: ChallengeType.group,
+      status: ChallengeStatus.pending,
+      stakeAmount: stakeAmount,
+      totalPot: totalPot,
+      prizeAmount: prizeAmount,
+      goalType: goalType,
+      goalValue: goalValue,
+      duration: duration,
+      participants: allParticipants,
+      participantIds: allParticipants.map((p) => p.userId).toList(),
+      maxParticipants: maxParticipants,
+      minParticipants: minParticipants,
+      payoutStructure: payoutStructure,
+      expiresAt: expiresAt,
+      createdAt: now,
+      updatedAt: now,
+    ).toFirestore();
+
+    // For free group challenges, no transaction needed
+    if (stakeAmount <= 0) {
+      final docRef = await _db.collection('challenges').add(challengeData);
+      for (final participant in invitedParticipants) {
+        await _sendNotification(
+          userId: participant.userId,
+          type: 'challenge_invite',
+          title: 'Group Challenge!',
+          body: '${user.displayName} invited you to a group challenge!',
+          data: {'challengeId': docRef.id},
+        );
+      }
+      return docRef.id;
+    }
+
+    // Paid group challenge: atomic create + deduct
+    final newChallengeRef = _db.collection('challenges').doc();
+
+    await _db.runTransaction((txn) async {
+      final walletRef = _db.collection('wallets').doc(currentUser!.uid);
+      final walletDoc = await txn.get(walletRef);
+
+      if (!walletDoc.exists) throw Exception('Wallet not found');
+
+      final balance = (walletDoc.data()?['balance'] ?? 0).toDouble();
+      if (balance < stakeAmount) {
+        throw Exception('Insufficient balance');
+      }
+
+      // Create the group challenge
+      txn.set(newChallengeRef, challengeData);
+
+      // Deduct creator's stake
+      txn.update(walletRef, {
+        'balance': balance - stakeAmount,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Record wallet transaction
+      final walletTxRef = walletRef.collection('transactions').doc();
+      txn.set(walletTxRef, {
+        'userId': currentUser!.uid,
+        'type': 'stakeDebit',
+        'status': 'completed',
+        'amount': stakeAmount,
+        'fee': 0.0,
+        'netAmount': stakeAmount,
+        'challengeId': newChallengeRef.id,
+        'description': 'Group challenge entry fee',
+        'createdAt': FieldValue.serverTimestamp(),
+        'completedAt': FieldValue.serverTimestamp(),
+      });
+    });
+
+    // Send notifications outside transaction
+    for (final participant in invitedParticipants) {
+      await _sendNotification(
+        userId: participant.userId,
+        type: 'challenge_invite',
+        title: 'Group Challenge!',
+        body: '${user.displayName} invited you to a group challenge!',
+        data: {'challengeId': newChallengeRef.id},
+      );
+    }
+
+    return newChallengeRef.id;
+  }
+
   Stream<List<ChallengeModel>> userChallengesStream(String userId) {
     // All challenges where user is creator, opponent, or group participant
     return _db
@@ -415,6 +535,7 @@ class FirebaseService {
     final challengeData = {
       'creatorId': currentUser!.uid,
       'opponentId': opponentId,
+      'participantIds': [currentUser!.uid, opponentId],
       'creatorName': user.displayName,
       'opponentName': opponentName,
       'type': type.name,
@@ -681,13 +802,13 @@ class FirebaseService {
   }
 
   double _calculatePrize(double totalPot, ChallengeType type) {
-    // Platform fees: 3% for 1v1 (headToHead), 5% for groups
+    // Platform fees: 3% for 1v1 (2.5% platform + 0.5% charity), 5% for groups (4% + 1%)
     final feeRate = type == ChallengeType.headToHead ? 0.03 : 0.05;
-    return (totalPot * (1 - feeRate)).roundToDouble();
+    return (totalPot * (1 - feeRate) * 100).roundToDouble() / 100;
   }
 
   double getPlatformFee(double totalPot, ChallengeType type) {
     final feeRate = type == ChallengeType.headToHead ? 0.03 : 0.05;
-    return (totalPot * feeRate).roundToDouble();
+    return (totalPot * feeRate * 100).roundToDouble() / 100;
   }
 }

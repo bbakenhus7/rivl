@@ -67,7 +67,7 @@ class NotificationProvider with ChangeNotifier {
       _unreadCount = count;
       notifyListeners();
     }, onError: (e) {
-      debugPrint('Unread count stream error: $e');
+      // Unread count stream error — count may be stale
     });
   }
 
@@ -99,7 +99,7 @@ class NotificationProvider with ChangeNotifier {
       _lastDocument = snapshot.docs.isNotEmpty ? snapshot.docs.last : _lastDocument;
       _hasMore = snapshot.docs.length >= _pageSize;
     } catch (e) {
-      debugPrint('Load more notifications error: $e');
+      // Load more error — pagination stopped
     }
 
     _isLoadingMore = false;
@@ -114,7 +114,7 @@ class NotificationProvider with ChangeNotifier {
           .doc(notificationId)
           .update({'read': true});
     } catch (e) {
-      debugPrint('Mark as read error: $e');
+      // Mark as read error — notification may still appear unread
     }
   }
 
@@ -133,7 +133,7 @@ class NotificationProvider with ChangeNotifier {
       }
       await batch.commit();
     } catch (e) {
-      debugPrint('Mark all as read error: $e');
+      // Mark all as read error — some may still appear unread
     }
   }
 
