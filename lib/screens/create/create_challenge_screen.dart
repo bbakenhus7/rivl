@@ -8,6 +8,7 @@ import '../../models/challenge_model.dart';
 import '../../models/user_model.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
+import '../main_screen.dart';
 import '../../widgets/confetti_celebration.dart';
 import '../../widgets/add_funds_sheet.dart';
 
@@ -110,7 +111,10 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
       setState(() => _challengeSent = true);
       await Future.delayed(const Duration(milliseconds: 2500));
       if (mounted) {
-        Navigator.of(context).pop();
+        // Switch to Challenges tab instead of pop — this screen is
+        // embedded in MainScreen's IndexedStack, not a pushed route,
+        // so pop() would remove MainScreen itself.
+        MainScreen.onTabSelected?.call(1);
       }
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

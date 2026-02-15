@@ -620,7 +620,9 @@ class _SeasonTab extends StatelessWidget {
                       ElevatedButton(
                         onPressed: () {
                           final auth = context.read<AuthProvider>();
-                          provider.unlockPremium(auth.user!.id);
+                          final userId = auth.user?.id;
+                          if (userId == null) return;
+                          provider.unlockPremium(userId);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.amber,
@@ -653,7 +655,9 @@ class _SeasonTab extends StatelessWidget {
                 isClaimed: (r) => provider.isRewardClaimed(r.level, r.tier),
                 onClaim: (r) {
                   final auth = context.read<AuthProvider>();
-                  provider.claimReward(auth.user!.id, r.level, r.tier);
+                  final userId = auth.user?.id;
+                  if (userId == null) return;
+                  provider.claimReward(userId, r.level, r.tier);
                 },
               );
             }),

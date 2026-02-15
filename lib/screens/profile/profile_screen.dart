@@ -16,6 +16,7 @@ import '../wallet/wallet_screen.dart';
 import '../notifications/notifications_screen.dart';
 import 'health_connection_screen.dart';
 import 'help_support_screen.dart';
+import '../auth/login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -1508,8 +1509,14 @@ class _SettingsSheet extends StatelessWidget {
             leading: const Icon(Icons.logout, color: RivlColors.error),
             title: const Text('Sign Out', style: TextStyle(color: RivlColors.error)),
             onTap: () async {
-              Navigator.pop(context);
+              Navigator.pop(context); // close bottom sheet
               await context.read<AuthProvider>().signOut();
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
+                );
+              }
             },
           ),
           SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
