@@ -561,6 +561,11 @@ class FirebaseService {
     final challenge = await getChallenge(challengeId);
     if (challenge == null) throw Exception('Challenge not found');
 
+    // Prevent creator from accepting their own challenge
+    if (challenge.creatorId == currentUser?.uid) {
+      throw Exception('Cannot accept your own challenge');
+    }
+
     final startDate = DateTime.now();
     final endDate = startDate.add(Duration(days: challenge.duration.days));
 
@@ -594,9 +599,16 @@ class FirebaseService {
       final challengeDoc = await txn.get(challengeRef);
       if (!challengeDoc.exists) throw Exception('Challenge not found');
 
-      final status = challengeDoc.data()?['status'];
+      final challengeData = challengeDoc.data();
+      final status = challengeData?['status'];
       if (status != ChallengeStatus.pending.name) {
         throw Exception('Challenge is no longer available');
+      }
+
+      // Prevent creator from accepting their own challenge
+      final creatorId = challengeData?['creatorId'];
+      if (creatorId == userId) {
+        throw Exception('Cannot accept your own challenge');
       }
 
       // 2. Read wallet & verify balance

@@ -562,14 +562,14 @@ async function completeChallenge(challengeId: string) {
         // But if someone has 0 progress, they didn't record and should lose
         if (creatorDocProgress === 0 && opponentDocProgress === 0) {
           isTie = true;
-          winnerId = creatorId;
         } else if (creatorDocProgress === 0) {
           winnerId = opponentId;
         } else if (opponentDocProgress === 0) {
           winnerId = creatorId;
+        } else if (creatorDocProgress === opponentDocProgress) {
+          isTie = true;
         } else {
-          isTie = creatorDocProgress === opponentDocProgress;
-          winnerId = creatorDocProgress <= opponentDocProgress ? creatorId : opponentId;
+          winnerId = creatorDocProgress < opponentDocProgress ? creatorId : opponentId;
         }
         winningScore = Math.min(creatorDocProgress || 999999, opponentDocProgress || 999999);
         losingScore = Math.max(creatorDocProgress, opponentDocProgress);
@@ -612,21 +612,11 @@ async function completeChallenge(challengeId: string) {
       // Tie: refund each participant their original stake (not prizeAmount which has fees deducted)
       const refundAmount = stakeAmount || (prizeAmount / 2);
 
-      await db.collection('users').doc(creatorId).collection('transactions').add({
-        type: 'challenge_tie_refund',
-        amount: refundAmount,
-        challengeId,
-        status: 'pending_transfer',
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      await db.collection('users').doc(opponentId).collection('transactions').add({
-        type: 'challenge_tie_refund',
-        amount: refundAmount,
-        challengeId,
-        status: 'pending_transfer',
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      // Credit wallet balances atomically and record transactions in the wallets collection
+      if (refundAmount > 0) {
+        await creditWallet(creatorId, refundAmount, challengeId, 'challenge_tie_refund', 'Challenge tie refund');
+        await creditWallet(opponentId, refundAmount, challengeId, 'challenge_tie_refund', 'Challenge tie refund');
+      }
 
       // Update user stats: draws + totalChallenges for both
       await updateUserStats(creatorId, { draws: 1, totalChallenges: 1 });
@@ -657,16 +647,10 @@ async function completeChallenge(challengeId: string) {
 
       functions.logger.info(`Challenge ${challengeId} completed. Result: Tie`);
     } else {
-      // Transfer funds to winner
-      // Note: In production, you'd create a Stripe Transfer or Payout
-      // For now, we'll just record the transaction
-      await db.collection('users').doc(winnerId).collection('transactions').add({
-        type: 'challenge_win',
-        amount: prizeAmount,
-        challengeId,
-        status: 'pending_transfer',
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      // Transfer prize to winner's wallet atomically
+      if (prizeAmount > 0 && winnerId) {
+        await creditWallet(winnerId, prizeAmount, challengeId, 'challenge_win', `Challenge winnings`);
+      }
 
       // Update user stats
       await updateUserStats(winnerId!, { wins: 1, totalChallenges: 1, earnings: prizeAmount });
@@ -775,6 +759,62 @@ async function updateLeaderboard(userId: string) {
 function calculateWinRate(wins: number, losses: number): number {
   const total = wins + losses;
   return total > 0 ? wins / total : 0;
+}
+
+/**
+ * Credit a user's wallet balance atomically and record a transaction.
+ * Uses a Firestore transaction so the balance read + increment is safe
+ * under concurrent writes.
+ */
+async function creditWallet(
+  userId: string,
+  amount: number,
+  challengeId: string,
+  txType: string,
+  description: string,
+) {
+  const walletRef = db.collection('wallets').doc(userId);
+
+  await db.runTransaction(async (transaction) => {
+    const walletDoc = await transaction.get(walletRef);
+
+    if (!walletDoc.exists) {
+      // Create wallet if it doesn't exist (edge case — should have been created on signup)
+      transaction.set(walletRef, {
+        userId,
+        balance: amount,
+        pendingBalance: 0,
+        lifetimeWinnings: amount,
+        lifetimeDeposits: 0,
+        lifetimeWithdrawals: 0,
+        isVerified: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } else {
+      const currentBalance = (walletDoc.data()?.balance || 0) as number;
+      transaction.update(walletRef, {
+        balance: currentBalance + amount,
+        lifetimeWinnings: admin.firestore.FieldValue.increment(amount),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    // Record wallet transaction
+    const txRef = walletRef.collection('transactions').doc();
+    transaction.set(txRef, {
+      userId,
+      type: txType,
+      status: 'completed',
+      amount,
+      fee: 0,
+      netAmount: amount,
+      challengeId,
+      description,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  });
 }
 
 /**

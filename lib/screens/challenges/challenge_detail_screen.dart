@@ -483,14 +483,54 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                       ),
                     ),
 
-                  // -- Accept / Decline for pending challenges --
+                  // -- Accept / Decline for pending challenges (opponent only) --
                   if (challenge.status == ChallengeStatus.pending &&
-                      !challenge.isExpired)
+                      !challenge.isExpired &&
+                      !isCreator)
                     SlideIn(
                       delay: const Duration(milliseconds: 400),
                       child: _PendingActions(
                         challenge: challenge,
                         provider: provider,
+                      ),
+                    ),
+
+                  // -- Waiting indicator for the creator of pending challenges --
+                  if (challenge.status == ChallengeStatus.pending &&
+                      !challenge.isExpired &&
+                      isCreator)
+                    SlideIn(
+                      delay: const Duration(milliseconds: 400),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: context.surfaceVariant,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(Icons.hourglass_top_rounded,
+                                size: 32, color: Colors.orange[400]),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Waiting for response',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: context.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              challenge.expiryTimeRemaining,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: context.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
 

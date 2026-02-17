@@ -1126,7 +1126,6 @@ class ChallengeProvider extends ChangeNotifier {
 
       final updates = <String, dynamic>{
         scoreField: result.overallScore,
-        'updatedAt': DateTime.now().toIso8601String(),
       };
 
       // Flag if suspicious
@@ -1208,9 +1207,10 @@ class ChallengeProvider extends ChangeNotifier {
         sideBProgress = challenge.opponentProgress;
       }
 
-      // For team challenges, use first Team B member as representative ID since opponentId is null
+      // For team challenges, use first Team B member as representative ID since opponentId is null.
+      // Falls back to a synthetic 'teamB' string if the team has no members to avoid null winnerId.
       final teamBRepId = challenge.isTeamVsTeam
-          ? challenge.teamB?.members.firstOrNull?.userId
+          ? (challenge.teamB?.members.firstOrNull?.userId ?? 'teamB_${challenge.id}')
           : challenge.opponentId;
 
       if (creatorFlagged && !opponentFlagged) {
@@ -1289,7 +1289,7 @@ class ChallengeProvider extends ChangeNotifier {
           'winnerName': isTie ? null : winnerName,
           'isTie': isTie,
           'rewardStatus': rewardStatus,
-          'resultDeclaredAt': DateTime.now().toIso8601String(),
+          'resultDeclaredAt': FieldValue.serverTimestamp(),
           'creatorAntiCheatScore': creatorResult?.overallScore ?? 1.0,
           'opponentAntiCheatScore': opponentResult?.overallScore ?? 1.0,
           'flagged': isFlagged,
