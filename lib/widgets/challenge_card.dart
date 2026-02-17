@@ -7,6 +7,7 @@ import '../utils/animations.dart';
 
 class ChallengeCard extends StatelessWidget {
   final ChallengeModel challenge;
+  final String currentUserId;
   final VoidCallback? onTap;
   final VoidCallback? onAccept;
   final VoidCallback? onDecline;
@@ -14,6 +15,7 @@ class ChallengeCard extends StatelessWidget {
   const ChallengeCard({
     super.key,
     required this.challenge,
+    required this.currentUserId,
     this.onTap,
     this.onAccept,
     this.onDecline,
@@ -21,15 +23,16 @@ class ChallengeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isWinning = challenge.isUserWinning && challenge.status == ChallengeStatus.active;
+    final onCreatorSide = challenge.isOnCreatorSide(currentUserId);
+    final isWinning = challenge.isWinningFor(currentUserId) && challenge.status == ChallengeStatus.active;
     final rivalHasProgress = challenge.isTeamVsTeam
-        ? challenge.teamBProgress > 0
-        : challenge.opponentProgress > 0;
-    final isLosing = !challenge.isUserWinning &&
+        ? (onCreatorSide ? challenge.teamBProgress > 0 : challenge.teamAProgress > 0)
+        : (onCreatorSide ? challenge.opponentProgress > 0 : challenge.creatorProgress > 0);
+    final isLosing = !challenge.isWinningFor(currentUserId) &&
         rivalHasProgress &&
         challenge.status == ChallengeStatus.active;
     final isCompleted = challenge.status == ChallengeStatus.completed;
-    final didWin = isCompleted && challenge.winnerId == challenge.creatorId;
+    final didWin = isCompleted && challenge.winnerId == currentUserId;
 
     // Dynamic accent color (Robinhood-style)
     final Color accentColor;
@@ -215,6 +218,7 @@ class ChallengeCard extends StatelessWidget {
                   // Head-to-head progress (improved)
                   _HeadToHeadProgress(
                     challenge: challenge,
+                    currentUserId: currentUserId,
                     accentColor: accentColor,
                     isWinning: isWinning,
                   ),
@@ -287,7 +291,7 @@ class ChallengeCard extends StatelessWidget {
                   if (challenge.status == ChallengeStatus.active &&
                       challenge.endDate != null) ...[
                     const SizedBox(height: 10),
-                    _DailyGoalHint(challenge: challenge),
+                    _DailyGoalHint(challenge: challenge, currentUserId: currentUserId),
                   ],
 
                   // Win/loss result badge for completed
@@ -335,17 +339,20 @@ class ChallengeCard extends StatelessWidget {
 
 class _HeadToHeadProgress extends StatelessWidget {
   final ChallengeModel challenge;
+  final String currentUserId;
   final Color accentColor;
   final bool isWinning;
 
   const _HeadToHeadProgress({
     required this.challenge,
+    required this.currentUserId,
     required this.accentColor,
     required this.isWinning,
   });
 
   @override
   Widget build(BuildContext context) {
+    final onCreatorSide = challenge.isOnCreatorSide(currentUserId);
     // For squad challenges, use team aggregate progress
     final int rawYou;
     final int rawRival;
@@ -353,15 +360,21 @@ class _HeadToHeadProgress extends StatelessWidget {
     final String rivalLabel;
 
     if (challenge.isTeamVsTeam) {
-      rawYou = challenge.teamAProgress;
-      rawRival = challenge.teamBProgress;
-      youLabel = challenge.teamA?.name ?? 'Your Squad';
-      rivalLabel = challenge.teamB?.name ?? 'Rival Squad';
+      rawYou = onCreatorSide ? challenge.teamAProgress : challenge.teamBProgress;
+      rawRival = onCreatorSide ? challenge.teamBProgress : challenge.teamAProgress;
+      youLabel = onCreatorSide
+          ? (challenge.teamA?.name ?? 'Your Squad')
+          : (challenge.teamB?.name ?? 'Your Squad');
+      rivalLabel = onCreatorSide
+          ? (challenge.teamB?.name ?? 'Rival Squad')
+          : (challenge.teamA?.name ?? 'Rival Squad');
     } else {
-      rawYou = challenge.creatorProgress;
-      rawRival = challenge.opponentProgress;
+      rawYou = onCreatorSide ? challenge.creatorProgress : challenge.opponentProgress;
+      rawRival = onCreatorSide ? challenge.opponentProgress : challenge.creatorProgress;
       youLabel = 'You';
-      rivalLabel = challenge.opponentName ?? 'Opponent';
+      rivalLabel = onCreatorSide
+          ? (challenge.opponentName ?? 'Opponent')
+          : challenge.creatorName;
     }
 
     final double youProgress;
@@ -493,8 +506,9 @@ class _HeadToHeadProgress extends StatelessWidget {
 /// Shows a small hint about daily pace needed to win
 class _DailyGoalHint extends StatelessWidget {
   final ChallengeModel challenge;
+  final String currentUserId;
 
-  const _DailyGoalHint({required this.challenge});
+  const _DailyGoalHint({required this.challenge, required this.currentUserId});
 
   @override
   Widget build(BuildContext context) {
@@ -502,7 +516,13 @@ class _DailyGoalHint extends StatelessWidget {
     if (remaining.isNegative || remaining.inDays == 0) return const SizedBox.shrink();
 
     final daysLeft = remaining.inDays.clamp(1, 999);
-    final currentProgress = challenge.isTeamVsTeam ? challenge.teamAProgress : challenge.creatorProgress;
+    final onCreatorSide = challenge.isOnCreatorSide(currentUserId);
+    final int currentProgress;
+    if (challenge.isTeamVsTeam) {
+      currentProgress = onCreatorSide ? challenge.teamAProgress : challenge.teamBProgress;
+    } else {
+      currentProgress = onCreatorSide ? challenge.creatorProgress : challenge.opponentProgress;
+    }
     final stepsNeeded = challenge.goalValue - currentProgress;
     if (stepsNeeded <= 0) {
       return Row(

@@ -71,7 +71,10 @@ class BattlePassProvider with ChangeNotifier {
     final now = DateTime.now();
     final quarter = ((now.month - 1) ~/ 3) + 1;
     final seasonStart = DateTime(now.year, ((quarter - 1) * 3) + 1, 1);
-    final seasonEnd = DateTime(now.year, (quarter * 3) + 1, 1);
+    final endMonth = (quarter * 3) + 1;
+    final seasonEnd = endMonth > 12
+        ? DateTime(now.year + 1, endMonth - 12, 1)
+        : DateTime(now.year, endMonth, 1);
 
     _progress = BattlePassProgress(
       userId: userId,
@@ -130,7 +133,11 @@ class BattlePassProvider with ChangeNotifier {
     final now = DateTime.now();
     final quarter = ((now.month - 1) ~/ 3) + 1; // 1=Winter, 2=Spring, 3=Summer, 4=Fall
     final seasonStart = DateTime(now.year, ((quarter - 1) * 3) + 1, 1);
-    final seasonEnd = DateTime(now.year, (quarter * 3) + 1, 1);
+    // Q4 end = Jan 1 of next year (month 13 is invalid, so use year+1 month 1)
+    final endMonth = (quarter * 3) + 1;
+    final seasonEnd = endMonth > 12
+        ? DateTime(now.year + 1, endMonth - 12, 1)
+        : DateTime(now.year, endMonth, 1);
 
     return BattlePassSeason(
       season: quarter,

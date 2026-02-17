@@ -33,6 +33,8 @@ class ChallengeProvider extends ChangeNotifier {
   bool _isCreating = false;
   bool _isSyncing = false;
   bool _isSearching = false;
+  bool _isSettling = false;
+  final Set<String> _settlingChallengeIds = {};
   String? _errorMessage;
   String? _successMessage;
 
@@ -1124,7 +1126,6 @@ class ChallengeProvider extends ChangeNotifier {
 
       final updates = <String, dynamic>{
         scoreField: result.overallScore,
-        'updatedAt': DateTime.now().toIso8601String(),
       };
 
       // Flag if suspicious
@@ -1147,7 +1148,10 @@ class ChallengeProvider extends ChangeNotifier {
   /// Settle a completed challenge: determine winner, run anti-cheat,
   /// credit winnings, and update the challenge document.
   Future<bool> settleChallenge(String challengeId) async {
+    // Per-challenge guard prevents concurrent settlement of the same challenge
+    if (_settlingChallengeIds.contains(challengeId)) return false;
     if (_isLoading) return false; // Guard against double-tap
+
     final matches = _challenges.where((c) => c.id == challengeId).toList();
     if (matches.isEmpty) return false;
 
@@ -1160,6 +1164,7 @@ class ChallengeProvider extends ChangeNotifier {
       return false; // Not yet ended
     }
 
+    _settlingChallengeIds.add(challengeId);
     _isLoading = true;
     notifyListeners();
 
@@ -1202,9 +1207,10 @@ class ChallengeProvider extends ChangeNotifier {
         sideBProgress = challenge.opponentProgress;
       }
 
-      // For team challenges, use first Team B member as representative ID since opponentId is null
+      // For team challenges, use first Team B member as representative ID since opponentId is null.
+      // Falls back to a synthetic 'teamB' string if the team has no members to avoid null winnerId.
       final teamBRepId = challenge.isTeamVsTeam
-          ? challenge.teamB?.members.firstOrNull?.userId
+          ? (challenge.teamB?.members.firstOrNull?.userId ?? 'teamB_${challenge.id}')
           : challenge.opponentId;
 
       if (creatorFlagged && !opponentFlagged) {
@@ -1283,7 +1289,7 @@ class ChallengeProvider extends ChangeNotifier {
           'winnerName': isTie ? null : winnerName,
           'isTie': isTie,
           'rewardStatus': rewardStatus,
-          'resultDeclaredAt': DateTime.now().toIso8601String(),
+          'resultDeclaredAt': FieldValue.serverTimestamp(),
           'creatorAntiCheatScore': creatorResult?.overallScore ?? 1.0,
           'opponentAntiCheatScore': opponentResult?.overallScore ?? 1.0,
           'flagged': isFlagged,
@@ -1430,6 +1436,7 @@ class ChallengeProvider extends ChangeNotifier {
       }
 
       _isLoading = false;
+      _settlingChallengeIds.remove(challengeId);
       _successMessage = isTie
           ? 'Challenge ended in a tie'
           : '$winnerName wins!';
@@ -1437,6 +1444,7 @@ class ChallengeProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _isLoading = false;
+      _settlingChallengeIds.remove(challengeId);
       _errorMessage = 'Failed to settle challenge';
       notifyListeners();
       return false;

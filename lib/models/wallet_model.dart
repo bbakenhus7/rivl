@@ -27,8 +27,6 @@ enum WithdrawalMethod {
 class WalletModel {
   final String id;
   final String userId;
-  @Deprecated('Use userId instead')
-  String get odId => userId;
   final double balance;            // Available balance
   final double pendingBalance;     // Funds in pending transactions
   final double lifetimeDeposits;
@@ -141,9 +139,6 @@ class WalletTransaction {
   final String? description;
   final DateTime createdAt;
   final DateTime? completedAt;
-
-  @Deprecated('Use userId instead')
-  String get odId => userId;
 
   WalletTransaction({
     required this.id,

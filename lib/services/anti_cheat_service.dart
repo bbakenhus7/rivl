@@ -293,7 +293,7 @@ class AntiCheatService {
     // 1. Check for HR data presence during high activity
     for (final day in stepHistory) {
       if (day.steps > 10000) {
-        final dayHRData = heartRateData.where((hr) => hr['date'] == day.date).toList();
+        final dayHRData = heartRateData.where((hr) => hr['date']?.toString() == day.date).toList();
         if (dayHRData.isEmpty) {
           score -= 0.1;
           flags.add('Missing HR data on high activity day: ${day.date}');

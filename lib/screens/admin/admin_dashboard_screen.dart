@@ -2,9 +2,20 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/challenge_model.dart';
 import '../../models/user_model.dart';
 import '../../utils/theme.dart';
+
+/// Hardcoded admin UIDs. In production, use a Firestore 'admins' collection or custom claims.
+const _adminUids = <String>{
+  // Add admin Firebase Auth UIDs here
+};
+
+bool _isAdmin(String? uid) {
+  if (uid == null) return false;
+  return _adminUids.contains(uid);
+}
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({Key? key}) : super(key: key);
@@ -25,6 +36,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (!_isAdmin(currentUid)) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Access Denied')),
+        body: const Center(
+          child: Text('You do not have permission to access this page.'),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Dashboard'),

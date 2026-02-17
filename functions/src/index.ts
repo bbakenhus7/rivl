@@ -280,9 +280,28 @@ export const stripeWebhook = functions
 async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
   const type = paymentIntent.metadata.type;
 
+  if (type === 'wallet_deposit') {
+    // Wallet deposits are handled by confirmWalletDeposit callable
+    return;
+  }
+
   if (type !== 'challenge_stake') return;
 
-  // Find challenge with this payment intent
+  // Idempotency: check if this payment intent was already processed
+  const processedRef = db.collection('processedWebhooks').doc(paymentIntent.id);
+  const processedDoc = await processedRef.get();
+  if (processedDoc.exists) {
+    functions.logger.info(`Payment ${paymentIntent.id} already processed, skipping`);
+    return;
+  }
+
+  // Mark as processed immediately to prevent duplicate processing
+  await processedRef.set({
+    processedAt: admin.firestore.FieldValue.serverTimestamp(),
+    type: 'payment_success',
+  });
+
+  // Find challenge with this payment intent (creator side)
   const challengesQuery = await db.collection('challenges')
     .where('creatorPaymentIntentId', '==', paymentIntent.id)
     .limit(1)
@@ -290,13 +309,49 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
 
   if (!challengesQuery.empty) {
     const challengeRef = challengesQuery.docs[0].ref;
-    await challengeRef.update({
-      creatorPaymentStatus: 'paid',
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+
+    // Use transaction to atomically update status and check if both paid
+    await db.runTransaction(async (transaction) => {
+      const challengeSnap = await transaction.get(challengeRef);
+      const challengeData = challengeSnap.data()!;
+
+      // Idempotency: skip if already paid
+      if (challengeData.creatorPaymentStatus === 'paid') return;
+
+      const updateData: any = {
+        creatorPaymentStatus: 'paid',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      // If opponent already paid, activate the challenge
+      if (challengeData.opponentPaymentStatus === 'paid') {
+        updateData.status = 'active';
+      }
+
+      transaction.update(challengeRef, updateData);
     });
+
+    // Check if challenge just became active and send notifications
+    const updatedChallenge = await challengeRef.get();
+    const updatedData = updatedChallenge.data()!;
+    if (updatedData.status === 'active') {
+      await createNotification(updatedData.creatorId, {
+        type: 'challenge_started',
+        title: 'Challenge Started!',
+        message: 'Your challenge is now active',
+        challengeId: updatedChallenge.id,
+      });
+      await createNotification(updatedData.opponentId, {
+        type: 'challenge_started',
+        title: 'Challenge Started!',
+        message: 'Your challenge is now active',
+        challengeId: updatedChallenge.id,
+      });
+    }
     return;
   }
 
+  // Check opponent side
   const opponentQuery = await db.collection('challenges')
     .where('opponentPaymentIntentId', '==', paymentIntent.id)
     .limit(1)
@@ -304,36 +359,47 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
 
   if (!opponentQuery.empty) {
     const challengeRef = opponentQuery.docs[0].ref;
-    const challenge = await challengeRef.get();
-    const challengeData = challenge.data()!;
 
-    await challengeRef.update({
-      opponentPaymentStatus: 'paid',
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    // Use transaction to atomically update status and check if both paid
+    await db.runTransaction(async (transaction) => {
+      const challengeSnap = await transaction.get(challengeRef);
+      const challengeData = challengeSnap.data()!;
+
+      // Idempotency: skip if already paid
+      if (challengeData.opponentPaymentStatus === 'paid') return;
+
+      const updateData: any = {
+        opponentPaymentStatus: 'paid',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      // If creator already paid, activate the challenge
+      if (challengeData.creatorPaymentStatus === 'paid') {
+        updateData.status = 'active';
+      }
+
+      transaction.update(challengeRef, updateData);
     });
 
-    // If both paid, start the challenge
-    if (challengeData.creatorPaymentStatus === 'paid') {
-      await challengeRef.update({
-        status: 'active',
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      // Notify both participants
-      await createNotification(challengeData.creatorId, {
+    // Check if challenge just became active and send notifications
+    const updatedChallenge = await challengeRef.get();
+    const updatedData = updatedChallenge.data()!;
+    if (updatedData.status === 'active') {
+      await createNotification(updatedData.creatorId, {
         type: 'challenge_started',
         title: 'Challenge Started!',
         message: 'Your challenge is now active',
-        challengeId: challenge.id,
+        challengeId: updatedChallenge.id,
       });
-
-      await createNotification(challengeData.opponentId, {
+      await createNotification(updatedData.opponentId, {
         type: 'challenge_started',
         title: 'Challenge Started!',
         message: 'Your challenge is now active',
-        challengeId: challenge.id,
+        challengeId: updatedChallenge.id,
       });
     }
+  } else {
+    functions.logger.warn(`No challenge found for payment intent ${paymentIntent.id}`);
   }
 }
 
@@ -384,14 +450,35 @@ export const completeChallengeScheduled = functions.pubsub
 async function completeChallenge(challengeId: string) {
   try {
     const challengeRef = db.collection('challenges').doc(challengeId);
-    const challenge = await challengeRef.get();
 
-    if (!challenge.exists) return;
+    // Atomically claim this challenge for completion using a transaction.
+    // This prevents double-payout if two cron instances run simultaneously.
+    let challengeData: any;
+    const claimed = await db.runTransaction(async (transaction) => {
+      const challenge = await transaction.get(challengeRef);
+      if (!challenge.exists) return false;
 
-    const challengeData = challenge.data()!;
+      const data = challenge.data()!;
+      // Guard: skip if already completed or not active
+      if (data.status !== 'active') return false;
 
-    // Guard: skip if already completed (prevents double-payout on overlapping runs)
-    if (challengeData.status !== 'active') return;
+      // Verify both participants actually paid before distributing prizes
+      if (data.stakeAmount > 0 &&
+          (data.creatorPaymentStatus !== 'paid' || data.opponentPaymentStatus !== 'paid')) {
+        functions.logger.warn(`Challenge ${challengeId}: payments not verified, skipping completion`);
+        return false;
+      }
+
+      // Atomically mark as completing to prevent concurrent processing
+      transaction.update(challengeRef, {
+        status: 'completing',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      challengeData = data;
+      return true;
+    });
+
+    if (!claimed || !challengeData) return;
 
     const { creatorId, opponentId, goalType, prizeAmount, stakeAmount } = challengeData;
 
@@ -475,14 +562,14 @@ async function completeChallenge(challengeId: string) {
         // But if someone has 0 progress, they didn't record and should lose
         if (creatorDocProgress === 0 && opponentDocProgress === 0) {
           isTie = true;
-          winnerId = creatorId;
         } else if (creatorDocProgress === 0) {
           winnerId = opponentId;
         } else if (opponentDocProgress === 0) {
           winnerId = creatorId;
+        } else if (creatorDocProgress === opponentDocProgress) {
+          isTie = true;
         } else {
-          isTie = creatorDocProgress === opponentDocProgress;
-          winnerId = creatorDocProgress <= opponentDocProgress ? creatorId : opponentId;
+          winnerId = creatorDocProgress < opponentDocProgress ? creatorId : opponentId;
         }
         winningScore = Math.min(creatorDocProgress || 999999, opponentDocProgress || 999999);
         losingScore = Math.max(creatorDocProgress, opponentDocProgress);
@@ -525,21 +612,11 @@ async function completeChallenge(challengeId: string) {
       // Tie: refund each participant their original stake (not prizeAmount which has fees deducted)
       const refundAmount = stakeAmount || (prizeAmount / 2);
 
-      await db.collection('users').doc(creatorId).collection('transactions').add({
-        type: 'challenge_tie_refund',
-        amount: refundAmount,
-        challengeId,
-        status: 'pending_transfer',
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      await db.collection('users').doc(opponentId).collection('transactions').add({
-        type: 'challenge_tie_refund',
-        amount: refundAmount,
-        challengeId,
-        status: 'pending_transfer',
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      // Credit wallet balances atomically and record transactions in the wallets collection
+      if (refundAmount > 0) {
+        await creditWallet(creatorId, refundAmount, challengeId, 'challenge_tie_refund', 'Challenge tie refund');
+        await creditWallet(opponentId, refundAmount, challengeId, 'challenge_tie_refund', 'Challenge tie refund');
+      }
 
       // Update user stats: draws + totalChallenges for both
       await updateUserStats(creatorId, { draws: 1, totalChallenges: 1 });
@@ -570,16 +647,10 @@ async function completeChallenge(challengeId: string) {
 
       functions.logger.info(`Challenge ${challengeId} completed. Result: Tie`);
     } else {
-      // Transfer funds to winner
-      // Note: In production, you'd create a Stripe Transfer or Payout
-      // For now, we'll just record the transaction
-      await db.collection('users').doc(winnerId).collection('transactions').add({
-        type: 'challenge_win',
-        amount: prizeAmount,
-        challengeId,
-        status: 'pending_transfer',
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      // Transfer prize to winner's wallet atomically
+      if (prizeAmount > 0 && winnerId) {
+        await creditWallet(winnerId, prizeAmount, challengeId, 'challenge_win', `Challenge winnings`);
+      }
 
       // Update user stats
       await updateUserStats(winnerId!, { wins: 1, totalChallenges: 1, earnings: prizeAmount });
@@ -691,6 +762,62 @@ function calculateWinRate(wins: number, losses: number): number {
 }
 
 /**
+ * Credit a user's wallet balance atomically and record a transaction.
+ * Uses a Firestore transaction so the balance read + increment is safe
+ * under concurrent writes.
+ */
+async function creditWallet(
+  userId: string,
+  amount: number,
+  challengeId: string,
+  txType: string,
+  description: string,
+) {
+  const walletRef = db.collection('wallets').doc(userId);
+
+  await db.runTransaction(async (transaction) => {
+    const walletDoc = await transaction.get(walletRef);
+
+    if (!walletDoc.exists) {
+      // Create wallet if it doesn't exist (edge case — should have been created on signup)
+      transaction.set(walletRef, {
+        userId,
+        balance: amount,
+        pendingBalance: 0,
+        lifetimeWinnings: amount,
+        lifetimeDeposits: 0,
+        lifetimeWithdrawals: 0,
+        isVerified: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } else {
+      const currentBalance = (walletDoc.data()?.balance || 0) as number;
+      transaction.update(walletRef, {
+        balance: currentBalance + amount,
+        lifetimeWinnings: admin.firestore.FieldValue.increment(amount),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    // Record wallet transaction
+    const txRef = walletRef.collection('transactions').doc();
+    transaction.set(txRef, {
+      userId,
+      type: txType,
+      status: 'completed',
+      amount,
+      fee: 0,
+      netAmount: amount,
+      challengeId,
+      description,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  });
+}
+
+/**
  * Award XP for battle pass progression
  */
 async function awardXP(userId: string, challengeData: any, won: boolean) {
@@ -714,46 +841,57 @@ async function awardXP(userId: string, challengeData: any, won: boolean) {
     else if (durationDays >= 7) baseXP += 15;
   }
 
-  // Award XP
+  // Award XP using a transaction to prevent lost writes under concurrent updates
   const userRef = db.collection('users').doc(userId);
-  const userDoc = await userRef.get();
-  const userData = userDoc.data() || {};
 
-  let currentXP = (userData.currentXP || 0) + baseXP;
-  let totalXP = (userData.totalXP || 0) + baseXP;
-  let battlePassLevel = userData.battlePassLevel || 1;
+  let leveledUp = false;
+  let newLevel = 1;
+  let previousLevel = 1;
 
-  // Level up logic
-  const xpForNextLevel = 100 + (battlePassLevel * 50);
-  while (currentXP >= xpForNextLevel) {
-    currentXP -= xpForNextLevel;
-    battlePassLevel++;
-  }
+  await db.runTransaction(async (transaction) => {
+    const userDoc = await transaction.get(userRef);
+    const userData = userDoc.data() || {};
 
-  // Update user
-  await userRef.update({
-    currentXP,
-    totalXP,
-    battlePassLevel,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    let currentXP = (userData.currentXP || 0) + baseXP;
+    let totalXP = (userData.totalXP || 0) + baseXP;
+    let battlePassLevel = userData.battlePassLevel || 1;
+    previousLevel = battlePassLevel;
+
+    // Level up logic
+    let xpForNextLevel = 100 + (battlePassLevel * 50);
+    while (currentXP >= xpForNextLevel) {
+      currentXP -= xpForNextLevel;
+      battlePassLevel++;
+      xpForNextLevel = 100 + (battlePassLevel * 50);
+    }
+
+    newLevel = battlePassLevel;
+    leveledUp = battlePassLevel > previousLevel;
+
+    transaction.update(userRef, {
+      currentXP,
+      totalXP,
+      battlePassLevel,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
   });
 
-  // Record XP transaction
+  // Record XP transaction (outside transaction — this is append-only, safe)
   await userRef.collection('xpHistory').add({
     amount: baseXP,
     source: won ? 'challenge_win' : 'challenge_participation',
     challengeId: challengeData.id,
-    levelBefore: userData.battlePassLevel || 1,
-    levelAfter: battlePassLevel,
+    levelBefore: previousLevel,
+    levelAfter: newLevel,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
   // Notify if leveled up
-  if (battlePassLevel > (userData.battlePassLevel || 1)) {
+  if (leveledUp) {
     await createNotification(userId, {
       type: 'level_up',
       title: 'Level Up!',
-      message: `You reached Battle Pass Level ${battlePassLevel}! Claim your rewards.`,
+      message: `You reached Battle Pass Level ${newLevel}! Claim your rewards.`,
     });
   }
 }
@@ -856,13 +994,8 @@ export const trackReferral = functions.firestore
       totalEarnings: admin.firestore.FieldValue.increment(REFERRAL_BONUS),
     });
 
-    // Record transaction
-    await db.collection('users').doc(referrerId).collection('transactions').add({
-      type: 'referral_bonus',
-      amount: REFERRAL_BONUS,
-      referredUserId: context.params.userId,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    // Credit the referral bonus to the referrer's wallet (not users/ collection)
+    await creditWallet(referrerId, REFERRAL_BONUS, '', 'bonus', 'Referral bonus');
 
     // Notify referrer
     await createNotification(referrerId, {
@@ -1317,7 +1450,7 @@ export const confirmWalletDeposit = functions
 
     const amount = paymentIntent.amount / 100; // Convert from cents
 
-    // Find and update the pending transaction
+    // Find the pending transaction
     const txQuery = await db
       .collection('wallets')
       .doc(effectiveUserId)
@@ -1328,13 +1461,23 @@ export const confirmWalletDeposit = functions
 
     if (!txQuery.empty) {
       const txDoc = txQuery.docs[0];
+      const txData = txDoc.data();
+
+      // Idempotency: if already completed, return success without double-crediting
+      if (txData.status === 'completed') {
+        functions.logger.info(`Deposit ${paymentIntentId} already confirmed, skipping`);
+        return { success: true, amount, alreadyProcessed: true };
+      }
+
       await txDoc.ref.update({
         status: 'completed',
         completedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
+    } else {
+      functions.logger.warn(`No pending transaction found for payment intent ${paymentIntentId}`);
     }
 
-    // Update wallet balance
+    // Update wallet balance atomically
     await db.collection('wallets').doc(effectiveUserId).update({
       balance: admin.firestore.FieldValue.increment(amount),
       pendingBalance: admin.firestore.FieldValue.increment(-amount),
