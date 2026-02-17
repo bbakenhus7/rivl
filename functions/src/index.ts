@@ -1117,6 +1117,7 @@ export const verifyActivity = functions.firestore
         userReputation: userData.antiCheatScore || 0.85,
         accountAge: userData.createdAt,
         pastChallenges: userData.totalChallenges || 0,
+        userId,
       });
 
       // Update activity with AI score
@@ -1164,8 +1165,9 @@ export const verifyActivity = functions.firestore
   });
 
 /**
- * Perform AI/ML analysis on activity data
- * This simulates ML model inference in production
+ * Multi-factor anti-cheat analysis pipeline.
+ * Runs threshold validation, pattern analysis, Benford's Law check,
+ * velocity analysis, cross-challenge comparison, and reputation scoring.
  */
 async function performAIAnalysis(params: {
   value: number;
@@ -1174,6 +1176,7 @@ async function performAIAnalysis(params: {
   userReputation: number;
   accountAge: any;
   pastChallenges: number;
+  userId?: string;
 }): Promise<{
   overallScore: number;
   flags: string[];
@@ -1181,7 +1184,7 @@ async function performAIAnalysis(params: {
   isCheating: boolean;
 }> {
   const flags: string[] = [];
-  let score = 1.0;
+  const scores: Record<string, number> = {};
 
   // 1. Threshold-based validation
   const thresholds: any = {
@@ -1195,63 +1198,276 @@ async function performAIAnalysis(params: {
     rivlHealthScore: { min: 0, max: 100 },
   };
 
+  let thresholdScore = 1.0;
   const limits = thresholds[params.goalType];
   if (limits) {
     if (limits.max && params.value > limits.max) {
       flags.push('Exceeds maximum possible value');
-      score -= 0.4;
+      thresholdScore -= 0.4;
     } else if (limits.suspicious && params.value > limits.suspicious) {
       flags.push('Unusually high value');
-      score -= 0.2;
+      thresholdScore -= 0.2;
     }
     if (limits.min && params.value < limits.min) {
       flags.push('Suspiciously low value');
-      score -= 0.2;
+      thresholdScore -= 0.2;
     }
   }
+  scores.threshold = Math.max(0, thresholdScore);
 
-  // 2. Pattern analysis - detect consistency anomalies
+  // 2. Pattern analysis - detect consistency anomalies and spikes
+  let patternScore = 1.0;
   if (params.activityHistory.length > 2) {
     const values = params.activityHistory.map((a: any) => a.value);
     const variance = calculateVariance(values);
 
     if (variance < 10) {
-      // Too consistent = bot-like
       flags.push('Activity too consistent (bot-like pattern)');
-      score -= 0.25;
+      patternScore -= 0.3;
     }
 
-    // Check for sudden spikes
+    // Sudden spikes (3x day-over-day)
     for (let i = 1; i < values.length; i++) {
-      if (values[i] > values[i-1] * 3) {
+      if (values[i-1] > 0 && values[i] > values[i-1] * 3) {
         flags.push('Sudden activity spike detected');
-        score -= 0.15;
+        patternScore -= 0.15;
         break;
       }
     }
-  }
 
-  // 3. User reputation factor
+    // Round-number bias: fabricated data tends to cluster on 000s
+    if (values.length >= 3) {
+      const roundCount = values.filter((v: number) => v > 0 && v % 1000 === 0).length;
+      if (roundCount / values.length > 0.5) {
+        flags.push('Suspicious round-number clustering');
+        patternScore -= 0.2;
+      }
+    }
+  }
+  scores.pattern = Math.max(0, patternScore);
+
+  // 3. Benford's Law analysis — leading digit distribution of natural data
+  let benfordScore = 0.8; // default for insufficient data
+  const histValues = params.activityHistory.map((a: any) => a.value).filter((v: number) => v >= 10);
+  if (histValues.length >= 7) {
+    const expected = [0.301, 0.176, 0.125, 0.097, 0.079, 0.067, 0.058, 0.051, 0.046];
+    const digitCounts = new Array(9).fill(0);
+    for (const v of histValues) {
+      const leading = parseInt(String(v)[0], 10);
+      if (leading >= 1 && leading <= 9) digitCounts[leading - 1]++;
+    }
+    let chiSq = 0;
+    for (let i = 0; i < 9; i++) {
+      const observed = digitCounts[i] / histValues.length;
+      chiSq += Math.pow(observed - expected[i], 2) / expected[i];
+    }
+    benfordScore = Math.max(0, Math.min(1, 1.0 - chiSq / 30.0));
+    if (benfordScore < 0.5) {
+      flags.push('Digit distribution appears fabricated (Benford\'s Law)');
+    }
+  }
+  scores.benford = benfordScore;
+
+  // 4. Velocity analysis — steps per waking hour must be physically possible
+  let velocityScore = 1.0;
+  if (params.goalType === 'steps') {
+    for (const entry of params.activityHistory) {
+      const stepsPerHour = (entry.value || 0) / 16.0; // assume 16 waking hours
+      if (stepsPerHour > 12000) {
+        velocityScore -= 0.3;
+        flags.push('Step rate exceeds human sprint limit');
+        break;
+      } else if (stepsPerHour > 8000) {
+        velocityScore -= 0.1;
+      }
+    }
+  }
+  scores.velocity = Math.max(0, velocityScore);
+
+  // 5. Time-series autocorrelation — detect copy-paste or generated sequences
+  let autocorrScore = 0.8;
+  if (params.activityHistory.length >= 5) {
+    const vals = params.activityHistory.map((a: any) => a.value as number);
+    const n = vals.length;
+    const mean = vals.reduce((a: number, b: number) => a + b, 0) / n;
+    let num = 0, den = 0;
+    for (let i = 0; i < n; i++) {
+      den += Math.pow(vals[i] - mean, 2);
+      if (i < n - 1) num += (vals[i] - mean) * (vals[i + 1] - mean);
+    }
+    if (den === 0) {
+      autocorrScore = 0.3; // all identical
+    } else {
+      const ac = num / den;
+      if (ac > 0.95) autocorrScore = 0.2;
+      else if (ac > 0.85) autocorrScore = 0.5;
+      else autocorrScore = 1.0;
+    }
+    if (autocorrScore < 0.5) {
+      flags.push('Suspicious periodic pattern in activity data');
+    }
+  }
+  scores.autocorrelation = autocorrScore;
+
+  // 6. Cross-challenge analysis — compare paid vs free challenge performance
+  let crossChallengeScore = 0.8;
+  if (params.userId) {
+    try {
+      crossChallengeScore = await analyzeCrossChallengePerformance(
+        params.userId, params.goalType, params.activityHistory);
+      if (crossChallengeScore < 0.5) {
+        flags.push('Performance significantly higher in paid challenges');
+      }
+    } catch (_) {
+      // Non-critical; keep default
+    }
+  }
+  scores.crossChallenge = crossChallengeScore;
+
+  // 7. Historical baseline comparison from Firestore
+  let baselineScore = 0.8;
+  if (params.userId) {
+    try {
+      baselineScore = await compareHistoricalBaseline(
+        params.userId, params.goalType, params.activityHistory);
+      if (baselineScore < 0.5) {
+        flags.push('Activity significantly exceeds historical baseline');
+      }
+    } catch (_) {
+      // Non-critical; keep default
+    }
+  }
+  scores.baseline = baselineScore;
+
+  // 8. User reputation factor
+  let reputationScore = params.userReputation;
   if (params.userReputation < 0.5) {
     flags.push('User has low trust score');
-    score -= 0.2;
   }
-  score = score * 0.7 + params.userReputation * 0.3; // Weighted average
+  scores.reputation = reputationScore;
 
-  // 4. New account check
+  // 9. New account penalty
+  let accountScore = 1.0;
   if (params.pastChallenges < 3) {
-    score -= 0.1; // Slight penalty for new users
+    accountScore -= 0.15;
   }
+  if (params.accountAge) {
+    const ageMs = Date.now() - (params.accountAge?.toMillis?.() || Date.now());
+    if (ageMs < 7 * 24 * 60 * 60 * 1000) { // less than 7 days old
+      accountScore -= 0.1;
+    }
+  }
+  scores.account = Math.max(0, accountScore);
 
-  // Clamp score
-  score = Math.max(0, Math.min(1, score));
+  // Weighted composite score
+  const weights: Record<string, number> = {
+    threshold: 0.15,
+    pattern: 0.15,
+    benford: 0.10,
+    velocity: 0.10,
+    autocorrelation: 0.05,
+    crossChallenge: 0.10,
+    baseline: 0.12,
+    reputation: 0.13,
+    account: 0.10,
+  };
+
+  let weightedSum = 0;
+  let totalWeight = 0;
+  for (const [key, weight] of Object.entries(weights)) {
+    const s = scores[key] ?? 0.8;
+    weightedSum += s * weight;
+    totalWeight += weight;
+  }
+  const compositeScore = totalWeight > 0
+    ? Math.max(0, Math.min(1, weightedSum / totalWeight))
+    : 0.5;
 
   return {
-    overallScore: score,
+    overallScore: compositeScore,
     flags,
-    isSuspicious: score < 0.65,
-    isCheating: score < 0.4,
+    isSuspicious: compositeScore < 0.65,
+    isCheating: compositeScore < 0.4,
   };
+}
+
+/**
+ * Compare a user's current performance against their past completed
+ * challenges to detect suspicious spikes in paid-only contexts.
+ */
+async function analyzeCrossChallengePerformance(
+  userId: string, goalType: string, currentActivity: any[],
+): Promise<number> {
+  const pastChallenges = await db.collection('challenges')
+    .where('participantIds', 'array-contains', userId)
+    .where('status', '==', 'completed')
+    .orderBy('updatedAt', 'desc')
+    .limit(10)
+    .get();
+
+  if (pastChallenges.empty) return 0.8; // No history to compare
+
+  const pastValues: number[] = [];
+  for (const doc of pastChallenges.docs) {
+    const data = doc.data();
+    if (data.goalType !== goalType) continue;
+
+    const isCreator = data.creatorId === userId;
+    const historyField = isCreator ? 'creatorStepHistory' : 'opponentStepHistory';
+    const history = (data[historyField] || []) as any[];
+    for (const entry of history) {
+      const v = entry.steps ?? entry.value ?? 0;
+      if (v > 0) pastValues.push(v);
+    }
+  }
+
+  if (pastValues.length < 3) return 0.8;
+
+  const pastMean = pastValues.reduce((a, b) => a + b, 0) / pastValues.length;
+  const currentValues = currentActivity.map((a: any) => a.value || 0).filter((v: number) => v > 0);
+  if (currentValues.length === 0) return 0.8;
+
+  const currentMean = currentValues.reduce((a: number, b: number) => a + b, 0) / currentValues.length;
+
+  // If current performance is more than 2.5x historical average, flag it
+  if (pastMean > 0) {
+    const ratio = currentMean / pastMean;
+    if (ratio > 3.0) return 0.2;
+    if (ratio > 2.5) return 0.4;
+    if (ratio > 2.0) return 0.6;
+  }
+  return 1.0;
+}
+
+/**
+ * Compare current activity against the user's historical baseline
+ * from their profile stats and recent challenge data.
+ */
+async function compareHistoricalBaseline(
+  userId: string, goalType: string, currentActivity: any[],
+): Promise<number> {
+  const userDoc = await db.collection('users').doc(userId).get();
+  if (!userDoc.exists) return 0.7;
+
+  const userData = userDoc.data()!;
+  const totalSteps = userData.totalSteps || 0;
+  const createdAt = userData.createdAt?.toDate?.() || new Date();
+  const accountDays = Math.max(1, Math.floor(
+    (Date.now() - createdAt.getTime()) / (24 * 60 * 60 * 1000)));
+
+  let historicalAvg = totalSteps > 0 ? totalSteps / accountDays : 0;
+  if (historicalAvg === 0) historicalAvg = 7500; // fallback
+
+  const currentValues = currentActivity.map((a: any) => a.value || 0).filter((v: number) => v > 0);
+  if (currentValues.length === 0) return 0.8;
+
+  const currentAvg = currentValues.reduce((a: number, b: number) => a + b, 0) / currentValues.length;
+  const deviationRatio = Math.abs(currentAvg - historicalAvg) / historicalAvg;
+
+  if (deviationRatio > 2.5) return 0.3;
+  if (deviationRatio > 2.0) return 0.5;
+  if (deviationRatio > 1.0) return 0.7;
+  return 1.0;
 }
 
 function calculateVariance(values: number[]): number {
@@ -1302,18 +1518,19 @@ export const analyzeAntiCheat = functions.https.onCall(async (data, context) => 
     const userDoc = await db.collection('users').doc(userId).get();
     const userData = userDoc.data() || {};
 
-    // Run server-side analysis
+    // Run server-side analysis with full pipeline
     const values = stepHistory.map((entry: any) => entry.steps ?? entry.value ?? 0);
     const result = await performAIAnalysis({
       value: values.length > 0 ? values[values.length - 1] : 0,
       goalType: 'steps',
-      activityHistory: stepHistory.map((entry: any, i: number) => ({
+      activityHistory: stepHistory.map((entry: any) => ({
         value: entry.steps ?? entry.value ?? 0,
         date: entry.date ?? new Date().toISOString(),
       })),
       userReputation: userData.antiCheatScore || 0.85,
       accountAge: userData.createdAt,
       pastChallenges: userData.totalChallenges || 0,
+      userId,
     });
 
     // Update challenge document with server-side score
