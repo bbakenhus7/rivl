@@ -22,8 +22,11 @@ class ChallengeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isWinning = challenge.isUserWinning && challenge.status == ChallengeStatus.active;
+    final rivalHasProgress = challenge.isTeamVsTeam
+        ? challenge.teamBProgress > 0
+        : challenge.opponentProgress > 0;
     final isLosing = !challenge.isUserWinning &&
-        challenge.opponentProgress > 0 &&
+        rivalHasProgress &&
         challenge.status == ChallengeStatus.active;
     final isCompleted = challenge.status == ChallengeStatus.completed;
     final didWin = isCompleted && challenge.winnerId == challenge.creatorId;
@@ -106,11 +109,15 @@ class ChallengeCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'vs ${challenge.opponentName ?? "Opponent"}',
+                              challenge.isTeamVsTeam
+                                  ? '${challenge.teamA?.name ?? "Squad"} vs ${challenge.teamB?.name ?? "Squad"}'
+                                  : 'vs ${challenge.opponentName ?? "Opponent"}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 2),
                             Row(
@@ -339,24 +346,40 @@ class _HeadToHeadProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // For squad challenges, use team aggregate progress
+    final int rawYou;
+    final int rawRival;
+    final String youLabel;
+    final String rivalLabel;
+
+    if (challenge.isTeamVsTeam) {
+      rawYou = challenge.teamAProgress;
+      rawRival = challenge.teamBProgress;
+      youLabel = challenge.teamA?.name ?? 'Your Squad';
+      rivalLabel = challenge.teamB?.name ?? 'Rival Squad';
+    } else {
+      rawYou = challenge.creatorProgress;
+      rawRival = challenge.opponentProgress;
+      youLabel = 'You';
+      rivalLabel = challenge.opponentName ?? 'Opponent';
+    }
+
     final double youProgress;
     final double opponentProgress;
 
     if (challenge.goalType.higherIsBetter) {
       youProgress = challenge.goalValue > 0
-          ? (challenge.creatorProgress / challenge.goalValue).clamp(0.0, 1.0)
+          ? (rawYou / challenge.goalValue).clamp(0.0, 1.0)
           : 0.0;
       opponentProgress = challenge.goalValue > 0
-          ? (challenge.opponentProgress / challenge.goalValue).clamp(0.0, 1.0)
+          ? (rawRival / challenge.goalValue).clamp(0.0, 1.0)
           : 0.0;
     } else {
-      // Pace-based: progress toward goal is inverse (lower value = closer to goal)
-      // Show how close to the goal pace the user is (goal / actual)
-      youProgress = challenge.creatorProgress > 0
-          ? (challenge.goalValue / challenge.creatorProgress).clamp(0.0, 1.0)
+      youProgress = rawYou > 0
+          ? (challenge.goalValue / rawYou).clamp(0.0, 1.0)
           : 0.0;
-      opponentProgress = challenge.opponentProgress > 0
-          ? (challenge.goalValue / challenge.opponentProgress).clamp(0.0, 1.0)
+      opponentProgress = rawRival > 0
+          ? (challenge.goalValue / rawRival).clamp(0.0, 1.0)
           : 0.0;
     }
 
@@ -366,33 +389,42 @@ class _HeadToHeadProgress extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                Text(
-                  'You',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: isWinning ? RivlColors.success : context.textSecondary,
+            Flexible(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      youLabel,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: isWinning ? RivlColors.success : context.textSecondary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-                if (isWinning) ...[
-                  const SizedBox(width: 4),
-                  Icon(Icons.arrow_upward, size: 12, color: RivlColors.success),
+                  if (isWinning) ...[
+                    const SizedBox(width: 4),
+                    Icon(Icons.arrow_upward, size: 12, color: RivlColors.success),
+                  ],
                 ],
-              ],
-            ),
-            Text(
-              challenge.opponentName ?? 'Opponent',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: !isWinning && challenge.opponentProgress > 0
-                    ? Colors.orange[700]
-                    : context.textSecondary,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            ),
+            Flexible(
+              child: Text(
+                rivalLabel,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: !isWinning && rawRival > 0
+                      ? Colors.orange[700]
+                      : context.textSecondary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
@@ -427,12 +459,12 @@ class _HeadToHeadProgress extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        // Step counts
+        // Progress values
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              _formatProgress(challenge.creatorProgress),
+              _formatProgress(rawYou),
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
@@ -440,7 +472,7 @@ class _HeadToHeadProgress extends StatelessWidget {
               ),
             ),
             Text(
-              _formatProgress(challenge.opponentProgress),
+              _formatProgress(rawRival),
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -470,7 +502,8 @@ class _DailyGoalHint extends StatelessWidget {
     if (remaining.isNegative || remaining.inDays == 0) return const SizedBox.shrink();
 
     final daysLeft = remaining.inDays.clamp(1, 999);
-    final stepsNeeded = challenge.goalValue - challenge.creatorProgress;
+    final currentProgress = challenge.isTeamVsTeam ? challenge.teamAProgress : challenge.creatorProgress;
+    final stepsNeeded = challenge.goalValue - currentProgress;
     if (stepsNeeded <= 0) {
       return Row(
         children: [

@@ -62,16 +62,36 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
           final challenge = matches.first;
 
           final isCreator = challenge.creatorId == currentUserId;
-          final userProgress = isCreator
-              ? challenge.creatorProgress
-              : challenge.opponentProgress;
-          final rivalProgress = isCreator
-              ? challenge.opponentProgress
-              : challenge.creatorProgress;
-          final userName =
-              isCreator ? challenge.creatorName : (challenge.opponentName ?? 'You');
-          final rivalName =
-              isCreator ? (challenge.opponentName ?? 'Opponent') : challenge.creatorName;
+
+          // For squad challenges, use team aggregate progress & names
+          final int userProgress;
+          final int rivalProgress;
+          final String userName;
+          final String rivalName;
+
+          if (challenge.isTeamVsTeam) {
+            final isOnTeamA = challenge.teamA?.memberIds.contains(currentUserId) ?? true;
+            if (isOnTeamA) {
+              userProgress = challenge.teamAProgress;
+              rivalProgress = challenge.teamBProgress;
+              userName = challenge.teamA?.name ?? 'Your Squad';
+              rivalName = challenge.teamB?.name ?? 'Rival Squad';
+            } else {
+              userProgress = challenge.teamBProgress;
+              rivalProgress = challenge.teamAProgress;
+              userName = challenge.teamB?.name ?? 'Your Squad';
+              rivalName = challenge.teamA?.name ?? 'Rival Squad';
+            }
+          } else {
+            userProgress = isCreator
+                ? challenge.creatorProgress
+                : challenge.opponentProgress;
+            rivalProgress = isCreator
+                ? challenge.opponentProgress
+                : challenge.creatorProgress;
+            userName = isCreator ? challenge.creatorName : (challenge.opponentName ?? 'You');
+            rivalName = isCreator ? (challenge.opponentName ?? 'Opponent') : challenge.creatorName;
+          }
 
           final bool isWinning;
           final isTied = userProgress == rivalProgress;
@@ -89,9 +109,16 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
               isWinning = userProgress < rivalProgress;
             }
           }
-          final hasWon =
-              challenge.status == ChallengeStatus.completed &&
-              challenge.winnerId == currentUserId;
+          final bool hasWon;
+          if (challenge.isTeamVsTeam && challenge.status == ChallengeStatus.completed) {
+            final teamAWon = challenge.winnerId == challenge.creatorId;
+            final isOnTeamA = challenge.teamA?.memberIds.contains(currentUserId) ?? false;
+            final isOnTeamB = challenge.teamB?.memberIds.contains(currentUserId) ?? false;
+            hasWon = (teamAWon && isOnTeamA) || (!teamAWon && isOnTeamB && challenge.winnerId != null);
+          } else {
+            hasWon = challenge.status == ChallengeStatus.completed &&
+                challenge.winnerId == currentUserId;
+          }
           final showCelebration = hasWon;
 
           // Compute timeline progress (how far through the challenge period)
@@ -226,6 +253,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                       rivalFraction: rivalBarFraction,
                       goalUnit: challenge.goalType.unit,
                       goalType: challenge.goalType,
+                      sectionLabel: challenge.isTeamVsTeam ? 'Squad vs Squad' : 'Head to Head',
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -246,13 +274,11 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                           children: [
                             Row(
                               children: [
-                                // Creator / user side
+                                // Current user / team side
                                 Expanded(
                                   child: _AvatarColumn(
-                                    name: isCreator ? userName : rivalName,
-                                    progress: isCreator
-                                        ? challenge.creatorProgress
-                                        : challenge.opponentProgress,
+                                    name: userName,
+                                    progress: userProgress,
                                     goalUnit: challenge.goalType.unit,
                                     goalType: challenge.goalType,
                                     color: RivlColors.primary,
@@ -333,15 +359,11 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                                   ),
                                 ),
 
-                                // Opponent side
+                                // Rival / opponent team side
                                 Expanded(
                                   child: _AvatarColumn(
-                                    name: isCreator
-                                        ? (challenge.opponentName ?? 'Opponent')
-                                        : challenge.creatorName,
-                                    progress: isCreator
-                                        ? challenge.opponentProgress
-                                        : challenge.creatorProgress,
+                                    name: rivalName,
+                                    progress: rivalProgress,
                                     goalUnit: challenge.goalType.unit,
                                     goalType: challenge.goalType,
                                     color: RivlColors.secondary,
@@ -553,8 +575,9 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                       ),
                     ),
 
-                  // -- Quick Rematch (completed challenges) --
-                  if (challenge.status == ChallengeStatus.completed) ...[
+                  // -- Quick Rematch (completed 1v1 challenges only) --
+                  if (challenge.status == ChallengeStatus.completed &&
+                      !challenge.isTeamVsTeam) ...[
                     const SizedBox(height: 16),
                     SlideIn(
                       delay: const Duration(milliseconds: 400),
@@ -593,6 +616,7 @@ class _HeadToHeadBars extends StatelessWidget {
   final double rivalFraction;
   final String goalUnit;
   final GoalType goalType;
+  final String sectionLabel;
 
   const _HeadToHeadBars({
     required this.userName,
@@ -603,6 +627,7 @@ class _HeadToHeadBars extends StatelessWidget {
     required this.rivalFraction,
     required this.goalUnit,
     required this.goalType,
+    this.sectionLabel = 'Head to Head',
   });
 
   @override
@@ -617,7 +642,7 @@ class _HeadToHeadBars extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Head to Head',
+              sectionLabel,
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,

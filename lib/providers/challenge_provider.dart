@@ -48,6 +48,15 @@ class ChallengeProvider extends ChangeNotifier {
   int _groupSize = 6;
   GroupPayoutStructure _selectedPayoutStructure = GroupPayoutStructure.standard;
 
+  // Team vs Team form state
+  String _teamAName = '';
+  String _teamBName = '';
+  String? _teamALabel; // "Run Club", "Team", "Business", etc.
+  String? _teamBLabel;
+  List<UserModel> _teamAMembers = [];
+  List<UserModel> _teamBMembers = [];
+  int _teamSize = 2; // Members per team (2-20)
+
   StreamSubscription? _challengesSubscription;
 
   // Getters
@@ -82,10 +91,28 @@ class ChallengeProvider extends ChangeNotifier {
   GroupPayoutStructure get selectedPayoutStructure => _selectedPayoutStructure;
   bool get isGroupMode => _selectedChallengeType == ChallengeType.group;
 
+  // Team vs Team getters
+  bool get isTeamMode => _selectedChallengeType == ChallengeType.teamVsTeam;
+  String get teamAName => _teamAName;
+  String get teamBName => _teamBName;
+  String? get teamALabel => _teamALabel;
+  String? get teamBLabel => _teamBLabel;
+  List<UserModel> get teamAMembers => _teamAMembers;
+  List<UserModel> get teamBMembers => _teamBMembers;
+  int get teamSize => _teamSize;
+
   /// Estimated group prize pool (all participants × stake, minus 5% fee)
   double get groupPrizePool {
     if (_selectedStake.amount <= 0) return 0;
     final totalPot = _selectedStake.amount * _groupSize;
+    return (totalPot * 0.95 * 100).roundToDouble() / 100;
+  }
+
+  /// Estimated team challenge prize pool (both teams × stake per person, minus 5% fee)
+  double get teamPrizePool {
+    if (_selectedStake.amount <= 0) return 0;
+    final totalParticipants = _teamSize * 2; // Both teams
+    final totalPot = _selectedStake.amount * totalParticipants;
     return (totalPot * 0.95 * 100).roundToDouble() / 100;
   }
 
@@ -340,6 +367,46 @@ class ChallengeProvider extends ChangeNotifier {
         createdAt: now.subtract(const Duration(days: 3)),
         updatedAt: now,
       ),
+      // Active: Squad vs Squad challenge
+      ChallengeModel(
+        id: 'demo-10',
+        creatorId: 'demo-user',
+        creatorName: 'You',
+        type: ChallengeType.teamVsTeam,
+        status: ChallengeStatus.active,
+        stakeAmount: 25,
+        totalPot: 200,
+        prizeAmount: 190,
+        goalType: GoalType.steps,
+        goalValue: 280000, // 4 members × 70K each
+        duration: ChallengeDuration.oneWeek,
+        startDate: now.subtract(const Duration(days: 2)),
+        endDate: now.add(const Duration(days: 5)),
+        participantIds: ['demo-user', 'demo-t1', 'demo-t2', 'demo-t3', 'demo-t4', 'demo-t5', 'demo-t6', 'demo-t7'],
+        teamA: ChallengeTeam(
+          name: 'Morning Runners',
+          label: 'Run Club',
+          members: [
+            GroupParticipant(userId: 'demo-user', displayName: 'You', status: ParticipantStatus.accepted, progress: 18200),
+            GroupParticipant(userId: 'demo-t1', displayName: 'Jake M.', status: ParticipantStatus.accepted, progress: 15400),
+            GroupParticipant(userId: 'demo-t2', displayName: 'Sarah K.', status: ParticipantStatus.accepted, progress: 21300),
+            GroupParticipant(userId: 'demo-t3', displayName: 'Mike R.', status: ParticipantStatus.accepted, progress: 12800),
+          ],
+        ),
+        teamB: ChallengeTeam(
+          name: 'Night Owls',
+          label: 'Run Club',
+          members: [
+            GroupParticipant(userId: 'demo-t4', displayName: 'Emma L.', status: ParticipantStatus.accepted, progress: 19100),
+            GroupParticipant(userId: 'demo-t5', displayName: 'Chris D.', status: ParticipantStatus.accepted, progress: 14600),
+            GroupParticipant(userId: 'demo-t6', displayName: 'Alex T.', status: ParticipantStatus.accepted, progress: 16900),
+            GroupParticipant(userId: 'demo-t7', displayName: 'Jordan B.', status: ParticipantStatus.accepted, progress: 11200),
+          ],
+        ),
+        teamSize: 4,
+        createdAt: now.subtract(const Duration(days: 2)),
+        updatedAt: now,
+      ),
     ];
     notifyListeners();
   }
@@ -457,6 +524,65 @@ class ChallengeProvider extends ChangeNotifier {
 
   void removeGroupMember(String userId) {
     _selectedGroupMembers.removeWhere((m) => m.id == userId);
+    notifyListeners();
+  }
+
+  // Team vs Team setters
+  void setTeamAName(String name) {
+    _teamAName = name;
+    notifyListeners();
+  }
+
+  void setTeamBName(String name) {
+    _teamBName = name;
+    notifyListeners();
+  }
+
+  void setTeamALabel(String? label) {
+    _teamALabel = label;
+    notifyListeners();
+  }
+
+  void setTeamBLabel(String? label) {
+    _teamBLabel = label;
+    notifyListeners();
+  }
+
+  void setTeamSize(int size) {
+    _teamSize = size.clamp(2, 20);
+    // Trim excess members if size was reduced
+    if (_teamAMembers.length > _teamSize - 1) {
+      _teamAMembers = _teamAMembers.sublist(0, _teamSize - 1);
+    }
+    if (_teamBMembers.length > _teamSize) {
+      _teamBMembers = _teamBMembers.sublist(0, _teamSize);
+    }
+    notifyListeners();
+  }
+
+  void addTeamAMember(UserModel user) {
+    if (_teamAMembers.any((m) => m.id == user.id)) return;
+    if (_teamBMembers.any((m) => m.id == user.id)) return; // Can't be on both teams
+    if (_teamAMembers.length >= _teamSize - 1) return; // minus creator
+    _teamAMembers.add(user);
+    notifyListeners();
+  }
+
+  void removeTeamAMember(String userId) {
+    _teamAMembers.removeWhere((m) => m.id == userId);
+    notifyListeners();
+  }
+
+  void addTeamBMember(UserModel user) {
+    if (_teamBMembers.any((m) => m.id == user.id)) return;
+    if (_teamAMembers.any((m) => m.id == user.id)) return; // Can't be on both teams
+    if (_teamBMembers.length >= _teamSize) return;
+    _teamBMembers.add(user);
+    notifyListeners();
+  }
+
+  void removeTeamBMember(String userId) {
+    _teamBMembers.removeWhere((m) => m.id == userId);
     notifyListeners();
   }
 
@@ -641,6 +767,142 @@ class ChallengeProvider extends ChangeNotifier {
     }
   }
 
+  Future<String?> createTeamChallenge({double? walletBalance}) async {
+    if (_isCreating) return null;
+    if (_teamAName.trim().isEmpty || _teamBName.trim().isEmpty) {
+      _errorMessage = 'Please name both squads';
+      notifyListeners();
+      return null;
+    }
+    if (_teamBMembers.isEmpty) {
+      _errorMessage = 'Please add at least one member to the opposing squad';
+      notifyListeners();
+      return null;
+    }
+
+    // Validate wallet balance for paid challenges
+    if (_selectedStake.amount > 0) {
+      final balance = walletBalance ?? 0.0;
+      if (balance < _selectedStake.amount) {
+        _errorMessage =
+            'Insufficient balance. You need \$${_selectedStake.amount.toStringAsFixed(0)} to enter this challenge.';
+        notifyListeners();
+        return null;
+      }
+    }
+
+    _isCreating = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final teamAParticipants = _teamAMembers
+          .map((m) => GroupParticipant(
+                userId: m.id,
+                displayName: m.displayName,
+                username: m.username,
+                status: ParticipantStatus.invited,
+              ))
+          .toList();
+
+      final teamBParticipants = _teamBMembers
+          .map((m) => GroupParticipant(
+                userId: m.id,
+                displayName: m.displayName,
+                username: m.username,
+                status: ParticipantStatus.invited,
+              ))
+          .toList();
+
+      // Demo mode: create locally
+      if (_teamAMembers.every((m) => m.id.startsWith('demo')) &&
+          _teamBMembers.every((m) => m.id.startsWith('demo'))) {
+        final now = DateTime.now();
+        final creatorParticipant = GroupParticipant(
+          userId: 'demo-user',
+          displayName: 'You',
+          status: ParticipantStatus.accepted,
+        );
+        final teamA = ChallengeTeam(
+          name: _teamAName,
+          label: _teamALabel,
+          members: [creatorParticipant, ...teamAParticipants],
+        );
+        final teamB = ChallengeTeam(
+          name: _teamBName,
+          label: _teamBLabel,
+          members: teamBParticipants,
+        );
+        final totalParticipants = teamA.members.length + teamB.members.length;
+        final totalPot = _selectedStake.amount * totalParticipants;
+        final prizeAmount = (totalPot * 0.95 * 100).roundToDouble() / 100;
+
+        final demoId = 'demo-team-${DateTime.now().millisecondsSinceEpoch}';
+        _challenges.insert(
+          0,
+          ChallengeModel(
+            id: demoId,
+            creatorId: 'demo-user',
+            creatorName: 'You',
+            type: ChallengeType.teamVsTeam,
+            status: ChallengeStatus.pending,
+            stakeAmount: _selectedStake.amount,
+            totalPot: totalPot,
+            prizeAmount: prizeAmount,
+            goalType: _selectedGoalType,
+            goalValue: suggestedGoalValue,
+            duration: _selectedDuration,
+            participantIds: [
+              ...teamA.memberIds,
+              ...teamB.memberIds,
+            ],
+            teamA: teamA,
+            teamB: teamB,
+            teamSize: _teamSize,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+
+        _successMessage = 'Squad challenge created!';
+        onXPEarned?.call(15, 'challenge_created');
+        resetCreateForm();
+        _isCreating = false;
+        notifyListeners();
+        return demoId;
+      }
+
+      final challengeId = await _firebaseService.createTeamChallengeWithStake(
+        teamAName: _teamAName,
+        teamALabel: _teamALabel,
+        teamAMembers: teamAParticipants,
+        teamBName: _teamBName,
+        teamBLabel: _teamBLabel,
+        teamBMembers: teamBParticipants,
+        goalType: _selectedGoalType,
+        goalValue: suggestedGoalValue,
+        duration: _selectedDuration,
+        stakeAmount: _selectedStake.amount,
+        teamSize: _teamSize,
+      );
+
+      _successMessage = 'Squad challenge created!';
+      onXPEarned?.call(15, 'challenge_created');
+      resetCreateForm();
+
+      _isCreating = false;
+      notifyListeners();
+      return challengeId;
+    } catch (e) {
+      _isCreating = false;
+      _errorMessage = e.toString().contains('Exception:')
+          ? e.toString().replaceFirst('Exception: ', '')
+          : 'Failed to create squad challenge. Please try again.';
+      notifyListeners();
+      return null;
+    }
+  }
+
   void resetCreateForm() {
     _selectedChallengeType = ChallengeType.headToHead;
     _selectedOpponent = null;
@@ -650,6 +912,13 @@ class ChallengeProvider extends ChangeNotifier {
     _selectedGroupMembers = [];
     _groupSize = 6;
     _selectedPayoutStructure = GroupPayoutStructure.standard;
+    _teamAName = '';
+    _teamBName = '';
+    _teamALabel = null;
+    _teamBLabel = null;
+    _teamAMembers = [];
+    _teamBMembers = [];
+    _teamSize = 2;
     _errorMessage = null;
     _successMessage = null;
     notifyListeners();
@@ -715,6 +984,14 @@ class ChallengeProvider extends ChangeNotifier {
             endDate: now.add(Duration(days: challenge.duration.days)),
             creatorProgress: challenge.creatorProgress,
             opponentProgress: challenge.opponentProgress,
+            participants: challenge.participants,
+            participantIds: challenge.participantIds,
+            maxParticipants: challenge.maxParticipants,
+            minParticipants: challenge.minParticipants,
+            payoutStructure: challenge.payoutStructure,
+            teamA: challenge.teamA,
+            teamB: challenge.teamB,
+            teamSize: challenge.teamSize,
             createdAt: challenge.createdAt,
             updatedAt: now,
           );
@@ -914,51 +1191,78 @@ class ChallengeProvider extends ChangeNotifier {
       final creatorFlagged = creatorResult?.isCheating ?? false;
       final opponentFlagged = opponentResult?.isCheating ?? false;
 
+      // For team challenges, use aggregate team progress
+      final int sideAProgress;
+      final int sideBProgress;
+      if (challenge.isTeamVsTeam) {
+        sideAProgress = challenge.teamAProgress;
+        sideBProgress = challenge.teamBProgress;
+      } else {
+        sideAProgress = challenge.creatorProgress;
+        sideBProgress = challenge.opponentProgress;
+      }
+
+      // For team challenges, use first Team B member as representative ID since opponentId is null
+      final teamBRepId = challenge.isTeamVsTeam
+          ? challenge.teamB?.members.firstOrNull?.userId
+          : challenge.opponentId;
+
       if (creatorFlagged && !opponentFlagged) {
-        winnerId = challenge.opponentId;
-        winnerName = challenge.opponentName;
+        winnerId = challenge.isTeamVsTeam ? teamBRepId : challenge.opponentId;
+        winnerName = challenge.isTeamVsTeam ? challenge.teamB?.name : challenge.opponentName;
         loserId = challenge.creatorId;
       } else if (!creatorFlagged && opponentFlagged) {
         winnerId = challenge.creatorId;
-        winnerName = challenge.creatorName;
-        loserId = challenge.opponentId;
+        winnerName = challenge.isTeamVsTeam ? challenge.teamA?.name : challenge.creatorName;
+        loserId = challenge.isTeamVsTeam ? teamBRepId : challenge.opponentId;
       } else {
         if (challenge.goalType.higherIsBetter) {
-          if (challenge.creatorProgress == challenge.opponentProgress) {
+          if (sideAProgress == sideBProgress) {
             isTie = true;
-          } else if (challenge.creatorProgress > challenge.opponentProgress) {
+          } else if (sideAProgress > sideBProgress) {
+            // Team A / creator wins
             winnerId = challenge.creatorId;
-            winnerName = challenge.creatorName;
-            loserId = challenge.opponentId;
+            winnerName = challenge.isTeamVsTeam
+                ? challenge.teamA?.name
+                : challenge.creatorName;
+            loserId = challenge.isTeamVsTeam ? teamBRepId : challenge.opponentId;
           } else {
-            winnerId = challenge.opponentId;
-            winnerName = challenge.opponentName;
+            // Team B / opponent wins
+            winnerId = challenge.isTeamVsTeam ? teamBRepId : challenge.opponentId;
+            winnerName = challenge.isTeamVsTeam
+                ? challenge.teamB?.name
+                : challenge.opponentName;
             loserId = challenge.creatorId;
           }
         } else {
           // Pace-based: lower is better
-          if (challenge.creatorProgress == 0 &&
-              challenge.opponentProgress == 0) {
+          if (sideAProgress == 0 && sideBProgress == 0) {
             isTie = true;
-          } else if (challenge.creatorProgress == 0) {
-            winnerId = challenge.opponentId;
-            winnerName = challenge.opponentName;
+          } else if (sideAProgress == 0) {
+            winnerId = challenge.isTeamVsTeam ? teamBRepId : challenge.opponentId;
+            winnerName = challenge.isTeamVsTeam
+                ? challenge.teamB?.name
+                : challenge.opponentName;
             loserId = challenge.creatorId;
-          } else if (challenge.opponentProgress == 0) {
+          } else if (sideBProgress == 0) {
             winnerId = challenge.creatorId;
-            winnerName = challenge.creatorName;
-            loserId = challenge.opponentId;
-          } else if (challenge.creatorProgress ==
-              challenge.opponentProgress) {
+            winnerName = challenge.isTeamVsTeam
+                ? challenge.teamA?.name
+                : challenge.creatorName;
+            loserId = challenge.isTeamVsTeam ? teamBRepId : challenge.opponentId;
+          } else if (sideAProgress == sideBProgress) {
             isTie = true;
-          } else if (challenge.creatorProgress <
-              challenge.opponentProgress) {
+          } else if (sideAProgress < sideBProgress) {
             winnerId = challenge.creatorId;
-            winnerName = challenge.creatorName;
-            loserId = challenge.opponentId;
+            winnerName = challenge.isTeamVsTeam
+                ? challenge.teamA?.name
+                : challenge.creatorName;
+            loserId = challenge.isTeamVsTeam ? teamBRepId : challenge.opponentId;
           } else {
-            winnerId = challenge.opponentId;
-            winnerName = challenge.opponentName;
+            winnerId = challenge.isTeamVsTeam ? teamBRepId : challenge.opponentId;
+            winnerName = challenge.isTeamVsTeam
+                ? challenge.teamB?.name
+                : challenge.opponentName;
             loserId = challenge.creatorId;
           }
         }
@@ -992,53 +1296,121 @@ class ChallengeProvider extends ChangeNotifier {
         });
 
         if (isTie) {
-          // Refund both stakes on tie
+          // Refund stakes on tie
           if (challenge.stakeAmount > 0) {
-            await _walletService.refundStake(
-              userId: challenge.creatorId,
-              challengeId: challengeId,
-              amount: challenge.stakeAmount,
-            );
-            if (challenge.opponentId != null) {
+            if (challenge.isTeamVsTeam) {
+              // Refund all team members
+              final allMembers = [
+                ...?challenge.teamA?.members,
+                ...?challenge.teamB?.members,
+              ];
+              for (final member in allMembers) {
+                await _walletService.refundStake(
+                  userId: member.userId,
+                  challengeId: challengeId,
+                  amount: challenge.stakeAmount,
+                );
+              }
+            } else {
               await _walletService.refundStake(
-                userId: challenge.opponentId!,
+                userId: challenge.creatorId,
                 challengeId: challengeId,
                 amount: challenge.stakeAmount,
               );
+              if (challenge.opponentId != null) {
+                await _walletService.refundStake(
+                  userId: challenge.opponentId!,
+                  challengeId: challengeId,
+                  amount: challenge.stakeAmount,
+                );
+              }
             }
           }
           // Update user stats: increment draws + totalChallenges
-          await _firebaseService.updateUser(challenge.creatorId, {
-            'draws': FieldValue.increment(1),
-            'totalChallenges': FieldValue.increment(1),
-          });
-          if (challenge.opponentId != null) {
-            await _firebaseService.updateUser(challenge.opponentId!, {
+          if (challenge.isTeamVsTeam) {
+            final allMembers = [
+              ...?challenge.teamA?.members,
+              ...?challenge.teamB?.members,
+            ];
+            for (final member in allMembers) {
+              await _firebaseService.updateUser(member.userId, {
+                'draws': FieldValue.increment(1),
+                'totalChallenges': FieldValue.increment(1),
+              });
+            }
+          } else {
+            await _firebaseService.updateUser(challenge.creatorId, {
               'draws': FieldValue.increment(1),
               'totalChallenges': FieldValue.increment(1),
             });
+            if (challenge.opponentId != null) {
+              await _firebaseService.updateUser(challenge.opponentId!, {
+                'draws': FieldValue.increment(1),
+                'totalChallenges': FieldValue.increment(1),
+              });
+            }
           }
         } else if (winnerId != null && !isFlagged) {
-          // Credit winnings
-          if (challenge.stakeAmount > 0) {
-            await _walletService.creditWinnings(
-              userId: winnerId,
-              challengeId: challengeId,
-              amount: challenge.prizeAmount,
-            );
-          }
-          // Update winner user stats
-          await _firebaseService.updateUser(winnerId, {
-            'wins': FieldValue.increment(1),
-            'totalChallenges': FieldValue.increment(1),
-            'totalEarnings': FieldValue.increment(challenge.prizeAmount),
-          });
-          // Update loser user stats
-          if (loserId != null) {
-            await _firebaseService.updateUser(loserId, {
-              'losses': FieldValue.increment(1),
+          if (challenge.isTeamVsTeam) {
+            // Determine winning and losing teams
+            final bool teamAWon = winnerId == challenge.creatorId;
+            final winningTeam = teamAWon ? challenge.teamA : challenge.teamB;
+            final losingTeam = teamAWon ? challenge.teamB : challenge.teamA;
+            final winningMembers = winningTeam?.members ?? [];
+            final losingMembers = losingTeam?.members ?? [];
+
+            // Credit per-member winnings to winning team
+            if (challenge.stakeAmount > 0 && winningMembers.isNotEmpty) {
+              final perMemberPrize = challenge.prizeAmount / winningMembers.length;
+              for (final member in winningMembers) {
+                await _walletService.creditWinnings(
+                  userId: member.userId,
+                  challengeId: challengeId,
+                  amount: perMemberPrize,
+                );
+              }
+            }
+            // Update winning team member stats
+            for (final member in winningMembers) {
+              await _firebaseService.updateUser(member.userId, {
+                'wins': FieldValue.increment(1),
+                'totalChallenges': FieldValue.increment(1),
+                'totalEarnings': FieldValue.increment(
+                    winningMembers.isNotEmpty
+                        ? challenge.prizeAmount / winningMembers.length
+                        : 0),
+              });
+            }
+            // Update losing team member stats
+            for (final member in losingMembers) {
+              await _firebaseService.updateUser(member.userId, {
+                'losses': FieldValue.increment(1),
+                'totalChallenges': FieldValue.increment(1),
+              });
+            }
+          } else {
+            // 1v1 settlement
+            // Credit winnings
+            if (challenge.stakeAmount > 0) {
+              await _walletService.creditWinnings(
+                userId: winnerId,
+                challengeId: challengeId,
+                amount: challenge.prizeAmount,
+              );
+            }
+            // Update winner user stats
+            await _firebaseService.updateUser(winnerId, {
+              'wins': FieldValue.increment(1),
               'totalChallenges': FieldValue.increment(1),
+              'totalEarnings': FieldValue.increment(challenge.prizeAmount),
             });
+            // Update loser user stats
+            if (loserId != null) {
+              await _firebaseService.updateUser(loserId, {
+                'losses': FieldValue.increment(1),
+                'totalChallenges': FieldValue.increment(1),
+              });
+            }
           }
         }
       }
