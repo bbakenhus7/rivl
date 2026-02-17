@@ -623,16 +623,21 @@ class StakeOption {
     required this.groupFee,
   });
 
+  /// Prize for 1v1 friend challenges (no fee).
+  double get friendPrize => amount <= 0 ? 0 : amount * 2;
+
   String get displayAmount => amount == 0 ? 'Free' : '\$${amount.toInt()}';
   String get displayPrize => prize == 0 ? 'Free' : '\$${prize.toInt()}';
   String get displayGroupPrize => groupPrize == 0 ? 'Free' : '\$${groupPrize.toInt()}';
 
-  // Calculate prize based on challenge type (3% for 1v1, 5% for groups/teams)
-  double getPrizeForType(ChallengeType type) {
+  // Calculate prize based on challenge type and friend status
+  double getPrizeForType(ChallengeType type, {bool isFriend = false}) {
+    if (type == ChallengeType.headToHead && isFriend) return friendPrize;
     return type == ChallengeType.headToHead ? prize : groupPrize;
   }
 
-  double getFeeForType(ChallengeType type) {
+  double getFeeForType(ChallengeType type, {bool isFriend = false}) {
+    if (type == ChallengeType.headToHead && isFriend) return 0;
     return type == ChallengeType.headToHead ? fee : groupFee;
   }
 

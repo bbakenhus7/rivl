@@ -11,6 +11,7 @@ import '../providers/streak_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/battle_pass_provider.dart';
 import '../providers/activity_feed_provider.dart';
+import '../providers/friend_provider.dart';
 import '../models/activity_feed_model.dart';
 import '../models/battle_pass_model.dart';
 import '../widgets/streak_reward_popup.dart';
@@ -113,6 +114,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       notificationProvider.initialize(userId);
       battlePassProvider.loadProgress(userId);
       activityFeedProvider.startListening();
+      context.read<FriendProvider>().startListening(userId);
 
       // Start periodic health data refresh
       healthProvider.startAutoRefresh();

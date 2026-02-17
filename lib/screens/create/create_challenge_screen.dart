@@ -12,6 +12,8 @@ import '../../utils/animations.dart';
 import '../main_screen.dart';
 import '../../widgets/confetti_celebration.dart';
 import '../../widgets/add_funds_sheet.dart';
+import '../../providers/friend_provider.dart';
+import '../../models/charity_model.dart';
 
 class CreateChallengeScreen extends StatefulWidget {
   const CreateChallengeScreen({super.key});
@@ -26,18 +28,21 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
   bool _challengeSent = false;
 
   // Step definitions change based on mode
-  List<String> _stepTitles(ChallengeType type) {
+  List<String> _stepTitles(ChallengeType type, {bool isCharity = false}) {
     switch (type) {
       case ChallengeType.group:
         return ['Challenge Type', 'Add Members', 'Choose Stake', 'Duration & Type', 'Review & Send'];
       case ChallengeType.teamVsTeam:
         return ['Challenge Type', 'Build Squads', 'Choose Stake', 'Duration & Type', 'Review & Send'];
       case ChallengeType.headToHead:
+        if (isCharity) {
+          return ['Challenge Type', 'Select Opponent', 'Choose Stake', 'Select Charity', 'Duration & Type', 'Review & Send'];
+        }
         return ['Challenge Type', 'Select Opponent', 'Choose Stake', 'Duration & Type', 'Review & Send'];
     }
   }
 
-  int _totalSteps(ChallengeType type) => _stepTitles(type).length;
+  int _totalSteps(ChallengeType type, {bool isCharity = false}) => _stepTitles(type, isCharity: isCharity).length;
 
   @override
   void initState() {
@@ -48,6 +53,8 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
   }
 
   bool _canProceed(ChallengeProvider provider) {
+    final isCharity = provider.isCharityMode;
+    final total = _totalSteps(provider.selectedChallengeType, isCharity: isCharity);
     switch (_currentStep) {
       case 0:
         return true; // Challenge type always selected
@@ -63,18 +70,25 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
         }
         return provider.selectedOpponent != null;
       case 2:
+        if (isCharity && provider.selectedStake.amount <= 0) return false;
         return true; // Stake always has a default
       case 3:
+        if (isCharity) return provider.selectedCharity != null;
         return true; // Duration and type always have defaults
       case 4:
+        if (isCharity) return true; // Duration & Type step for charity
         return !provider.isCreating;
-      default:
+      case 5:
+        if (isCharity) return !provider.isCreating;
         return false;
+      default:
+        return _currentStep == total - 1 ? !provider.isCreating : false;
     }
   }
 
   void _nextStep(ChallengeProvider provider) async {
-    final total = _totalSteps(provider.selectedChallengeType);
+    final isCharity = provider.isCharityMode;
+    final total = _totalSteps(provider.selectedChallengeType, isCharity: isCharity);
     if (_currentStep < total - 1 && _canProceed(provider)) {
       // Validate balance when leaving the stake step (step 2)
       if (_currentStep == 2) {
@@ -120,7 +134,12 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
     } else if (provider.isGroupMode) {
       challengeId = await provider.createGroupChallenge(walletBalance: walletBalance);
     } else {
-      challengeId = await provider.createChallenge(walletBalance: walletBalance);
+      final isFriend = provider.selectedOpponent != null &&
+          context.read<FriendProvider>().isFriend(provider.selectedOpponent!.id);
+      challengeId = await provider.createChallenge(
+        walletBalance: walletBalance,
+        isFriendChallenge: isFriend,
+      );
     }
 
     if (challengeId != null && mounted) {
@@ -147,8 +166,9 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
     return Consumer<ChallengeProvider>(
       builder: (context, provider, _) {
         final challengeType = provider.selectedChallengeType;
-        final totalSteps = _totalSteps(challengeType);
-        final titles = _stepTitles(challengeType);
+        final isCharity = provider.isCharityMode;
+        final totalSteps = _totalSteps(challengeType, isCharity: isCharity);
+        final titles = _stepTitles(challengeType, isCharity: isCharity);
 
         return ConfettiCelebration(
           celebrate: _challengeSent,
@@ -198,7 +218,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
                             );
                           },
                           child: KeyedSubtree(
-                            key: ValueKey('${challengeType.name}-$_currentStep'),
+                            key: ValueKey('${challengeType.name}-${isCharity ? 'charity' : 'normal'}-$_currentStep'),
                             child: _buildStepContent(provider),
                           ),
                         ),
@@ -226,13 +246,81 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
   Widget _buildStepContent(ChallengeProvider provider) {
     final isGroup = provider.isGroupMode;
     final isTeam = provider.isTeamMode;
+    final isCharity = provider.isCharityMode;
+
+    // For charity mode, steps are: 0-Type, 1-Opponent, 2-Stake, 3-Charity, 4-Duration, 5-Review
+    // For normal h2h:              0-Type, 1-Opponent, 2-Stake, 3-Duration, 4-Review
+    if (isCharity && !isGroup && !isTeam) {
+      switch (_currentStep) {
+        case 0:
+          return _StepChallengeType(
+            selectedType: provider.selectedChallengeType,
+            isCharityMode: true,
+            onChanged: (type) {
+              provider.setSelectedChallengeType(type);
+            },
+            onCharityToggled: (enabled) {
+              provider.setCharityMode(enabled);
+              if (!enabled) setState(() => _currentStep = 0);
+            },
+          );
+        case 1:
+          return _StepSelectOpponent(
+            selectedOpponent: provider.selectedOpponent,
+            suggestedOpponents: provider.demoOpponents,
+            onTap: () => _showOpponentPicker(context),
+            onClear: () => provider.setSelectedOpponent(null),
+            onSelectOpponent: (user) => provider.setSelectedOpponent(user),
+          );
+        case 2:
+          return _StepChooseStake(
+            selectedStake: provider.selectedStake,
+            onChanged: provider.setSelectedStake,
+            isCharity: true,
+          );
+        case 3:
+          return _StepSelectCharity(
+            selectedCharity: provider.selectedCharity,
+            onChanged: provider.setSelectedCharity,
+          );
+        case 4:
+          return _StepDurationAndType(
+            selectedDuration: provider.selectedDuration,
+            onDurationChanged: provider.setSelectedDuration,
+            selectedGoalType: provider.selectedGoalType,
+            onGoalTypeSelected: provider.setSelectedGoalType,
+          );
+        case 5:
+          final isFriend = provider.selectedOpponent != null &&
+              context.read<FriendProvider>().isFriend(provider.selectedOpponent!.id);
+          return _StepReview(
+            opponent: provider.selectedOpponent,
+            stake: provider.selectedStake,
+            duration: provider.selectedDuration,
+            goalType: provider.selectedGoalType,
+            onEditStep: (step) => setState(() => _currentStep = step),
+            isFriendChallenge: isFriend,
+            isCharityChallenge: true,
+            charity: provider.selectedCharity,
+          );
+        default:
+          return const SizedBox.shrink();
+      }
+    }
+
     switch (_currentStep) {
       case 0:
         return _StepChallengeType(
           selectedType: provider.selectedChallengeType,
+          isCharityMode: false,
           onChanged: (type) {
             provider.setSelectedChallengeType(type);
-            // Reset step to 0 when switching modes (UI adjusts)
+          },
+          onCharityToggled: (enabled) {
+            provider.setCharityMode(enabled);
+            if (enabled) {
+              provider.setSelectedChallengeType(ChallengeType.headToHead);
+            }
           },
         );
       case 1:
@@ -321,12 +409,15 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
             onEditStep: (step) => setState(() => _currentStep = step),
           );
         }
+        final isFriend = provider.selectedOpponent != null &&
+            context.read<FriendProvider>().isFriend(provider.selectedOpponent!.id);
         return _StepReview(
           opponent: provider.selectedOpponent,
           stake: provider.selectedStake,
           duration: provider.selectedDuration,
           goalType: provider.selectedGoalType,
           onEditStep: (step) => setState(() => _currentStep = step),
+          isFriendChallenge: isFriend,
         );
       default:
         return const SizedBox.shrink();
@@ -695,11 +786,33 @@ class _SuggestedOpponentCard extends StatelessWidget {
                               ),
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          '@${opponent.username}',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: context.textSecondary,
+                        Row(
+                          children: [
+                            Text(
+                              '@${opponent.username}',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: context.textSecondary,
+                                  ),
+                            ),
+                            if (context.read<FriendProvider>().isFriend(opponent.id)) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: RivlColors.success.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'Friend',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: RivlColors.success,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
+                            ],
+                          ],
                         ),
                       ],
                     ),
@@ -948,12 +1061,14 @@ class _StepChooseStake extends StatelessWidget {
   final Function(StakeOption) onChanged;
   final bool isGroup;
   final int groupSize;
+  final bool isCharity;
 
   const _StepChooseStake({
     required this.selectedStake,
     required this.onChanged,
     this.isGroup = false,
     this.groupSize = 2,
+    this.isCharity = false,
   });
 
   @override
@@ -976,22 +1091,62 @@ class _StepChooseStake extends StatelessWidget {
           SlideIn(
             delay: const Duration(milliseconds: 200),
             child: Text(
-              isGroup
-                  ? 'Each player stakes the same amount. Top 3 split the prize pool.'
-                  : 'Both players stake the same amount. Winner takes the prize pool.',
+              isCharity
+                  ? 'Both players stake the same amount. Winner keeps their stake. Loser\'s stake goes to charity.'
+                  : isGroup
+                      ? 'Each player stakes the same amount. Top 3 split the prize pool.'
+                      : 'Both players stake the same amount. Winner takes the prize pool.',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: context.textSecondary,
                   ),
             ),
           ),
+          if (isCharity && selectedStake.amount <= 0) ...[
+            const SizedBox(height: 16),
+            SlideIn(
+              delay: const Duration(milliseconds: 220),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: RivlColors.warning.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: RivlColors.warning.withOpacity(0.2)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 18, color: RivlColors.warning),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Charity challenges require a stake amount.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: RivlColors.warning,
+                              fontWeight: FontWeight.w500,
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 32),
 
           // Prize pool display
           SlideIn(
             delay: const Duration(milliseconds: 250),
-            child: isGroup
-                ? _GroupPrizePoolDisplay(stake: selectedStake, groupSize: groupSize)
-                : _AnimatedPrizePool(stake: selectedStake),
+            child: isCharity
+                ? _CharityPrizeDisplay(stake: selectedStake)
+                : isGroup
+                    ? _GroupPrizePoolDisplay(stake: selectedStake, groupSize: groupSize)
+                    : Builder(
+                        builder: (context) {
+                          final opponent = context.read<ChallengeProvider>().selectedOpponent;
+                          final isFriend = opponent != null &&
+                              context.read<FriendProvider>().isFriend(opponent.id);
+                          return _AnimatedPrizePool(stake: selectedStake, isFriendChallenge: isFriend);
+                        },
+                      ),
           ),
           const SizedBox(height: 32),
 
@@ -1071,12 +1226,14 @@ class _StepChooseStake extends StatelessWidget {
 
 class _AnimatedPrizePool extends StatelessWidget {
   final StakeOption stake;
+  final bool isFriendChallenge;
 
-  const _AnimatedPrizePool({required this.stake});
+  const _AnimatedPrizePool({required this.stake, this.isFriendChallenge = false});
 
   @override
   Widget build(BuildContext context) {
     final isFree = stake.amount == 0;
+    final displayPrize = isFriendChallenge ? stake.friendPrize : stake.prize;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
@@ -1105,7 +1262,7 @@ class _AnimatedPrizePool extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           AnimatedValue(
-            value: isFree ? 0 : stake.prize,
+            value: isFree ? 0 : displayPrize,
             prefix: isFree ? '' : '\$',
             decimals: isFree ? 0 : 0,
             duration: const Duration(milliseconds: 600),
@@ -1139,14 +1296,96 @@ class _AnimatedPrizePool extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: RivlColors.primary.withOpacity(0.1),
+                color: isFriendChallenge
+                    ? RivlColors.success.withOpacity(0.1)
+                    : RivlColors.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                'You stake ${stake.displayAmount}  |  3% platform fee',
+                isFriendChallenge
+                    ? 'You stake ${stake.displayAmount}  |  No fee (friend challenge)'
+                    : 'You stake ${stake.displayAmount}  |  3% AI Anti-Cheat Referee fee',
                 style: TextStyle(
                   fontSize: 12,
-                  color: RivlColors.primary.withOpacity(0.8),
+                  color: isFriendChallenge
+                      ? RivlColors.success.withOpacity(0.8)
+                      : RivlColors.primary.withOpacity(0.8),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CharityPrizeDisplay extends StatelessWidget {
+  final StakeOption stake;
+
+  const _CharityPrizeDisplay({required this.stake});
+
+  @override
+  Widget build(BuildContext context) {
+    final isFree = stake.amount <= 0;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.pink.withOpacity(0.08),
+            Colors.purple.withOpacity(0.04),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.pink.withOpacity(0.15),
+        ),
+      ),
+      child: Column(
+        children: [
+          Text(
+            'Charity Stake',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: context.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isFree ? '\$0' : '\$${stake.amount.toInt()}',
+            style: TextStyle(
+              fontSize: 48,
+              fontWeight: FontWeight.bold,
+              color: isFree ? Colors.grey : Colors.pink[600],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            isFree
+                ? 'Select a stake amount above'
+                : 'Loser\'s stake goes to charity',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.textSecondary,
+                ),
+          ),
+          if (!isFree) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: RivlColors.success.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Winner keeps their ${stake.displayAmount}  |  No platform fee',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: RivlColors.success.withOpacity(0.8),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -1767,6 +2006,9 @@ class _StepReview extends StatelessWidget {
   final ChallengeDuration duration;
   final GoalType goalType;
   final Function(int) onEditStep;
+  final bool isFriendChallenge;
+  final bool isCharityChallenge;
+  final CharityModel? charity;
 
   const _StepReview({
     required this.opponent,
@@ -1774,6 +2016,9 @@ class _StepReview extends StatelessWidget {
     required this.duration,
     required this.goalType,
     required this.onEditStep,
+    this.isFriendChallenge = false,
+    this.isCharityChallenge = false,
+    this.charity,
   });
 
   @override
@@ -1831,10 +2076,9 @@ class _StepReview extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [
-                          RivlColors.primary,
-                          RivlColors.primaryLight,
-                        ],
+                        colors: isCharityChallenge
+                            ? [Colors.pink[600]!, Colors.pink[400]!]
+                            : [RivlColors.primary, RivlColors.primaryLight],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -1844,9 +2088,9 @@ class _StepReview extends StatelessWidget {
                     ),
                     child: Column(
                       children: [
-                        const Text(
-                          'PRIZE POOL',
-                          style: TextStyle(
+                        Text(
+                          isCharityChallenge ? 'CHARITY CHALLENGE' : 'PRIZE POOL',
+                          style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -1855,19 +2099,32 @@ class _StepReview extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          stake.amount == 0
-                              ? 'Free'
-                              : '\$${stake.prize.toInt()}',
+                          isCharityChallenge
+                              ? '\$${stake.amount.toInt()}'
+                              : stake.amount == 0
+                                  ? 'Free'
+                                  : '\$${(isFriendChallenge ? stake.friendPrize : stake.prize).toInt()}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 40,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        if (stake.amount > 0) ...[
+                        if (isCharityChallenge) ...[
                           const SizedBox(height: 4),
                           Text(
-                            'You stake ${stake.displayAmount}',
+                            'Loser\'s ${stake.displayAmount} goes to charity',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ] else if (stake.amount > 0) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            isFriendChallenge
+                                ? 'You stake ${stake.displayAmount}  |  No fee'
+                                : 'You stake ${stake.displayAmount}  |  3% AI Anti-Cheat Referee fee',
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 13,
@@ -1899,12 +2156,22 @@ class _StepReview extends StatelessWidget {
                           value: stake.displayAmount,
                           onEdit: () => onEditStep(2),
                         ),
+                        if (isCharityChallenge && charity != null) ...[
+                          _buildDivider(context),
+                          _ReviewRow(
+                            icon: Icons.volunteer_activism,
+                            label: 'Charity',
+                            value: charity!.name,
+                            subtitle: charity!.category,
+                            onEdit: () => onEditStep(3),
+                          ),
+                        ],
                         _buildDivider(context),
                         _ReviewRow(
                           icon: Icons.schedule,
                           label: 'Duration',
                           value: duration.displayName,
-                          onEdit: () => onEditStep(3),
+                          onEdit: () => onEditStep(isCharityChallenge ? 4 : 3),
                         ),
                         _buildDivider(context),
                         _ReviewRow(
@@ -1912,7 +2179,7 @@ class _StepReview extends StatelessWidget {
                           label: 'Type',
                           value: goalType.displayName,
                           subtitle: goalType.description,
-                          onEdit: () => onEditStep(3),
+                          onEdit: () => onEditStep(isCharityChallenge ? 4 : 3),
                         ),
                       ],
                     ),
@@ -1947,9 +2214,13 @@ class _StepReview extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      stake.amount > 0
-                          ? 'Your stake of ${stake.displayAmount} will be held in escrow until the challenge ends. The winner receives the full prize pool.'
-                          : 'This is a free challenge. No money will be exchanged. Winner earns bragging rights and XP!',
+                      isCharityChallenge
+                          ? 'Your stake of ${stake.displayAmount} will be held in escrow. Winner keeps their stake. Loser\'s stake goes to ${charity?.name ?? 'charity'}. No platform fee.'
+                          : stake.amount > 0
+                              ? isFriendChallenge
+                                  ? 'Your stake of ${stake.displayAmount} will be held in escrow until the challenge ends. No fee for friend challenges — winner takes the full pot!'
+                                  : 'Your stake of ${stake.displayAmount} will be held in escrow until the challenge ends. 3% AI Anti-Cheat Referee fee applies.'
+                              : 'This is a free challenge. No money will be exchanged. Winner earns bragging rights and XP!',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             height: 1.4,
                           ),
@@ -2226,8 +2497,29 @@ class _OpponentPickerSheetState extends State<_OpponentPickerSheet> {
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                    subtitle:
+                                    subtitle: Row(
+                                      children: [
                                         Text('@${user.username}'),
+                                        if (context.read<FriendProvider>().isFriend(user.id)) ...[
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                            decoration: BoxDecoration(
+                                              color: RivlColors.success.withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              'Friend',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: RivlColors.success,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
                                     trailing: Column(
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
@@ -2469,16 +2761,167 @@ class _OpponentPickerSheetState extends State<_OpponentPickerSheet> {
 }
 
 // =============================================================================
+// CHARITY: SELECT CHARITY STEP
+// =============================================================================
+
+class _StepSelectCharity extends StatelessWidget {
+  final CharityModel? selectedCharity;
+  final Function(CharityModel?) onChanged;
+
+  const _StepSelectCharity({
+    this.selectedCharity,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SlideIn(
+            delay: const Duration(milliseconds: 100),
+            child: Text(
+              'Choose a\ncharity',
+              style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SlideIn(
+            delay: const Duration(milliseconds: 200),
+            child: Text(
+              'The winner chooses where the loser\'s stake goes. Select a charity.',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: context.textSecondary,
+                  ),
+            ),
+          ),
+          const SizedBox(height: 28),
+          ...List.generate(CharityModel.availableCharities.length, (index) {
+            final charity = CharityModel.availableCharities[index];
+            final isSelected = selectedCharity?.id == charity.id;
+            return SlideIn(
+              delay: Duration(milliseconds: 300 + (index * 80)),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: GestureDetector(
+                  onTap: () => onChanged(charity),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Colors.pink.withOpacity(0.08)
+                          : context.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isSelected ? Colors.pink : Colors.transparent,
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        if (!isSelected)
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.06),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? Colors.pink.withOpacity(0.15)
+                                : Colors.pink.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            charity.icon,
+                            size: 24,
+                            color: isSelected
+                                ? Colors.pink[600]
+                                : context.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                charity.name,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: isSelected ? Colors.pink[600] : null,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                charity.description,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: context.textSecondary,
+                                      height: 1.3,
+                                    ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (isSelected)
+                          Icon(Icons.check_circle, color: Colors.pink[600], size: 24)
+                        else
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.pink.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              charity.category,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.pink[400],
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
 // STEP 0: CHALLENGE TYPE SELECTOR (1v1 vs Group)
 // =============================================================================
 
 class _StepChallengeType extends StatelessWidget {
   final ChallengeType selectedType;
+  final bool isCharityMode;
   final Function(ChallengeType) onChanged;
+  final Function(bool) onCharityToggled;
 
   const _StepChallengeType({
     required this.selectedType,
+    required this.isCharityMode,
     required this.onChanged,
+    required this.onCharityToggled,
   });
 
   @override
@@ -2501,7 +2944,7 @@ class _StepChallengeType extends StatelessWidget {
           SlideIn(
             delay: const Duration(milliseconds: 200),
             child: Text(
-              'Choose a head-to-head battle, group league, or team vs team.',
+              'Choose a head-to-head battle, group league, team vs team, or give back with a charity challenge.',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: context.textSecondary,
                   ),
@@ -2513,31 +2956,54 @@ class _StepChallengeType extends StatelessWidget {
             child: _ChallengeTypeOption(
               icon: Icons.people_outline,
               title: '1v1 Challenge',
-              subtitle: 'Head-to-head. Winner takes all.\n3% platform fee.',
-              isSelected: selectedType == ChallengeType.headToHead,
-              onTap: () => onChanged(ChallengeType.headToHead),
+              subtitle: 'Head-to-head. Winner takes all.\nFree for friends | 3% AI Anti-Cheat Referee fee.',
+              isSelected: selectedType == ChallengeType.headToHead && !isCharityMode,
+              onTap: () {
+                onCharityToggled(false);
+                onChanged(ChallengeType.headToHead);
+              },
             ),
           ),
           const SizedBox(height: 16),
           SlideIn(
             delay: const Duration(milliseconds: 400),
             child: _ChallengeTypeOption(
-              icon: Icons.groups_outlined,
-              title: 'Group League',
-              subtitle: '3-20 players. Top 3 win payouts.\n5% platform fee.',
-              isSelected: selectedType == ChallengeType.group,
-              onTap: () => onChanged(ChallengeType.group),
+              icon: Icons.volunteer_activism,
+              title: '1v1 for Charity',
+              subtitle: 'Head-to-head. Winner keeps their stake.\nLoser\'s stake goes to a charity of the winner\'s choice.',
+              isSelected: isCharityMode,
+              onTap: () {
+                onCharityToggled(true);
+                onChanged(ChallengeType.headToHead);
+              },
             ),
           ),
           const SizedBox(height: 16),
           SlideIn(
             delay: const Duration(milliseconds: 500),
             child: _ChallengeTypeOption(
+              icon: Icons.groups_outlined,
+              title: 'Group League',
+              subtitle: '3-20 players. Top 3 win payouts.\n5% AI Anti-Cheat Referee fee.',
+              isSelected: selectedType == ChallengeType.group && !isCharityMode,
+              onTap: () {
+                onCharityToggled(false);
+                onChanged(ChallengeType.group);
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+          SlideIn(
+            delay: const Duration(milliseconds: 600),
+            child: _ChallengeTypeOption(
               icon: Icons.shield_outlined,
               title: 'Squad vs Squad',
-              subtitle: '2v2 up to 20v20. Squads compete.\nWinning squad splits the prize. 5% fee.',
-              isSelected: selectedType == ChallengeType.teamVsTeam,
-              onTap: () => onChanged(ChallengeType.teamVsTeam),
+              subtitle: '2v2 up to 20v20. Squads compete.\nWinning squad splits the prize. 5% AI Anti-Cheat Referee fee.',
+              isSelected: selectedType == ChallengeType.teamVsTeam && !isCharityMode,
+              onTap: () {
+                onCharityToggled(false);
+                onChanged(ChallengeType.teamVsTeam);
+              },
             ),
           ),
         ],
@@ -3118,7 +3584,7 @@ class _GroupPrizePoolDisplay extends StatelessWidget {
           if (!isFree) ...[
             const SizedBox(height: 4),
             Text(
-              '$groupSize players \u00d7 ${stake.displayAmount}  |  5% fee (\$${fee.toStringAsFixed(0)})',
+              '$groupSize players \u00d7 ${stake.displayAmount}  |  5% AI Anti-Cheat Referee fee (\$${fee.toStringAsFixed(0)})',
               style: TextStyle(
                 fontSize: 12,
                 color: RivlColors.primary.withOpacity(0.8),
@@ -3360,7 +3826,7 @@ class _StepGroupReview extends StatelessWidget {
                     child: Text(
                       isFree
                           ? 'This is a free group league. No money will be exchanged. Top 3 earn XP and bragging rights!'
-                          : 'Your entry fee of ${stake.displayAmount} will be held in escrow. 5% platform fee. 1st, 2nd, and 3rd place win payouts when the challenge ends.',
+                          : 'Your entry fee of ${stake.displayAmount} will be held in escrow. 5% AI Anti-Cheat Referee fee. 1st, 2nd, and 3rd place win payouts when the challenge ends.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.4),
                     ),
                   ),
