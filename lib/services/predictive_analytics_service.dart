@@ -26,12 +26,12 @@ class PredictiveAnalyticsService {
 
   /// Predict the outcome of a challenge before it starts
   Future<ChallengePrediction> predictOutcome({
-    required String odId,
+    required String userId,
     required String opponentId,
     required GoalType goalType,
     required ChallengeDuration duration,
   }) async {
-    final userProfile = await _getUserActivityProfile(odId);
+    final userProfile = await _getUserActivityProfile(userId);
     final opponentProfile = await _getUserActivityProfile(opponentId);
 
     // Calculate expected performance
@@ -180,7 +180,7 @@ class PredictiveAnalyticsService {
     }
 
     // Recommend based on recent performance
-    final recentWinRate = _calculateRecentWinRate(history);
+    final recentWinRate = _calculateRecentWinRate(history, userId);
     if (recentWinRate > 0.6) {
       recommendations.add(ChallengeRecommendation(
         type: 'hot_streak',
@@ -238,8 +238,8 @@ class PredictiveAnalyticsService {
     final recentLosses = history.where((c) =>
         c.winnerId != null &&
         c.winnerId != userId &&
-        c.completedAt != null &&
-        c.completedAt!.isAfter(DateTime.now().subtract(const Duration(days: 14)))
+        c.resultDeclaredAt != null &&
+        c.resultDeclaredAt!.isAfter(DateTime.now().subtract(const Duration(days: 14)))
     ).length;
 
     if (recentLosses >= 3) {
@@ -262,7 +262,7 @@ class PredictiveAnalyticsService {
     }
 
     // Factor 4: Win rate trend
-    final recentWinRate = _calculateRecentWinRate(history);
+    final recentWinRate = _calculateRecentWinRate(history, userId);
     if (recentWinRate < 0.3 && history.length > 5) {
       riskScore += 0.15;
       riskFactors.add('Low win rate');
@@ -298,8 +298,8 @@ class PredictiveAnalyticsService {
   // PRIVATE HELPER METHODS
   // ============================================
 
-  Future<UserActivityProfile> _getUserActivityProfile(String odId) async {
-    final userDoc = await _db.collection('users').doc(odId).get();
+  Future<UserActivityProfile> _getUserActivityProfile(String userId) async {
+    final userDoc = await _db.collection('users').doc(userId).get();
     if (!userDoc.exists) return UserActivityProfile.empty();
 
     final userData = userDoc.data()!;
@@ -475,7 +475,7 @@ class PredictiveAnalyticsService {
     return max(needed / daysRemaining, 0);
   }
 
-  double _calculateRecentWinRate(List<ChallengeModel> history) {
+  double _calculateRecentWinRate(List<ChallengeModel> history, String userId) {
     final recent = history.where((c) =>
         c.status == ChallengeStatus.completed &&
         c.createdAt.isAfter(DateTime.now().subtract(const Duration(days: 30)))
@@ -483,9 +483,7 @@ class PredictiveAnalyticsService {
 
     if (recent.isEmpty) return 0.5;
 
-    final wins = recent.where((c) =>
-        c.winnerId == c.creatorId || c.winnerId == c.opponentId
-    ).length;
+    final wins = recent.where((c) => c.winnerId == userId).length;
 
     return wins / recent.length;
   }

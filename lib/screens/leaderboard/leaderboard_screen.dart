@@ -59,7 +59,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
     final mockEntries = List.generate(50, (index) {
       return LeaderboardEntry(
         rank: index + 1,
-        odId: 'user_$index',
+        userId: 'user_$index',
         displayName: _getRandomName(index),
         username: 'user${index + 1}',
         profileImageUrl: null,
@@ -799,7 +799,7 @@ class _StatColumn extends StatelessWidget {
 
 class LeaderboardEntry {
   final int rank;
-  final String odId;
+  final String userId;
   final String displayName;
   final String username;
   final String? profileImageUrl;
@@ -811,7 +811,7 @@ class LeaderboardEntry {
 
   LeaderboardEntry({
     required this.rank,
-    required this.odId,
+    required this.userId,
     required this.displayName,
     required this.username,
     this.profileImageUrl,

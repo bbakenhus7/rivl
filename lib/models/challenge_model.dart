@@ -185,16 +185,30 @@ class ChallengeModel {
     return creatorProgress == opponentProgress;
   }
 
-  bool get isUserWinning {
+  /// Whether the given [userId] is on the creator / team-A side of this challenge.
+  bool isOnCreatorSide(String userId) {
+    if (isTeamVsTeam) {
+      return teamA?.memberIds.contains(userId) ?? (userId == creatorId);
+    }
+    return userId == creatorId;
+  }
+
+  /// Deprecated: assumes viewer is always the creator.
+  /// Prefer [isWinningFor] which takes the current user's ID.
+  bool get isUserWinning => isWinningFor(creatorId);
+
+  /// Whether the user identified by [userId] is currently winning.
+  bool isWinningFor(String userId) {
     if (isTied) return false;
+    final bool onCreatorSide = isOnCreatorSide(userId);
     final int userProg;
     final int rivalProg;
     if (isTeamVsTeam) {
-      userProg = teamAProgress;
-      rivalProg = teamBProgress;
+      userProg = onCreatorSide ? teamAProgress : teamBProgress;
+      rivalProg = onCreatorSide ? teamBProgress : teamAProgress;
     } else {
-      userProg = creatorProgress;
-      rivalProg = opponentProgress;
+      userProg = onCreatorSide ? creatorProgress : opponentProgress;
+      rivalProg = onCreatorSide ? opponentProgress : creatorProgress;
     }
     if (goalType.higherIsBetter) {
       return userProg > rivalProg;
@@ -206,11 +220,20 @@ class ChallengeModel {
     }
   }
 
-  double get progressPercentage {
+  /// Progress percentage for the given [userId]. Defaults to creator perspective.
+  double progressPercentageFor(String userId) {
     if (goalValue == 0) return 0;
-    final progress = isTeamVsTeam ? teamAProgress : creatorProgress;
+    final onCreatorSide = isOnCreatorSide(userId);
+    final int progress;
+    if (isTeamVsTeam) {
+      progress = onCreatorSide ? teamAProgress : teamBProgress;
+    } else {
+      progress = onCreatorSide ? creatorProgress : opponentProgress;
+    }
     return (progress / goalValue).clamp(0.0, 1.0);
   }
+
+  double get progressPercentage => progressPercentageFor(creatorId);
   
   String get timeRemaining {
     if (endDate == null) return 'Not started';

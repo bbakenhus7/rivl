@@ -33,6 +33,8 @@ class ChallengeProvider extends ChangeNotifier {
   bool _isCreating = false;
   bool _isSyncing = false;
   bool _isSearching = false;
+  bool _isSettling = false;
+  final Set<String> _settlingChallengeIds = {};
   String? _errorMessage;
   String? _successMessage;
 
@@ -1147,7 +1149,10 @@ class ChallengeProvider extends ChangeNotifier {
   /// Settle a completed challenge: determine winner, run anti-cheat,
   /// credit winnings, and update the challenge document.
   Future<bool> settleChallenge(String challengeId) async {
+    // Per-challenge guard prevents concurrent settlement of the same challenge
+    if (_settlingChallengeIds.contains(challengeId)) return false;
     if (_isLoading) return false; // Guard against double-tap
+
     final matches = _challenges.where((c) => c.id == challengeId).toList();
     if (matches.isEmpty) return false;
 
@@ -1160,6 +1165,7 @@ class ChallengeProvider extends ChangeNotifier {
       return false; // Not yet ended
     }
 
+    _settlingChallengeIds.add(challengeId);
     _isLoading = true;
     notifyListeners();
 
@@ -1430,6 +1436,7 @@ class ChallengeProvider extends ChangeNotifier {
       }
 
       _isLoading = false;
+      _settlingChallengeIds.remove(challengeId);
       _successMessage = isTie
           ? 'Challenge ended in a tie'
           : '$winnerName wins!';
@@ -1437,6 +1444,7 @@ class ChallengeProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _isLoading = false;
+      _settlingChallengeIds.remove(challengeId);
       _errorMessage = 'Failed to settle challenge';
       notifyListeners();
       return false;

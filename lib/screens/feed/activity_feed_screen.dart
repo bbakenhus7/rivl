@@ -165,7 +165,7 @@ class _LeaderboardTabState extends State<_LeaderboardTab>
     final mockEntries = List.generate(50, (index) {
       return LeaderboardEntry(
         rank: index + 1,
-        odId: 'user_$index',
+        userId: 'user_$index',
         displayName: _getRandomName(index),
         username: 'user${index + 1}',
         wins: 50 - index + (index % 3),

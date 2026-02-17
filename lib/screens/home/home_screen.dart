@@ -449,6 +449,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 delay: const Duration(milliseconds: 100),
                                 child: ChallengeCard(
                                   challenge: challenge,
+                                  currentUserId: context.read<AuthProvider>().user?.id ?? '',
                                   onTap: () {
                                     Navigator.push(
                                       context,
@@ -579,6 +580,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 padding: const EdgeInsets.only(bottom: 12),
                                 child: ChallengeCard(
                                   challenge: challenge,
+                                  currentUserId: context.read<AuthProvider>().user?.id ?? '',
                                   onTap: () {
                                     Navigator.push(
                                       context,

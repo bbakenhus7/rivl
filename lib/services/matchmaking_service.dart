@@ -344,7 +344,7 @@ class MatchmakingService {
 
 /// User profile for matchmaking calculations
 class UserProfile {
-  final String odId;
+  final String userId;
   final double skillRating;
   final int totalGames;
   final double winRate;
@@ -357,7 +357,7 @@ class UserProfile {
   final List<String> friends;
 
   UserProfile({
-    required this.odId,
+    required this.userId,
     required this.skillRating,
     required this.totalGames,
     required this.winRate,
@@ -370,11 +370,9 @@ class UserProfile {
     required this.friends,
   });
 
-  String get userId => odId;
-
   factory UserProfile.empty(String userId) {
     return UserProfile(
-      odId: userId,
+      userId: userId,
       skillRating: 1200.0,
       totalGames: 0,
       winRate: 0.5,
