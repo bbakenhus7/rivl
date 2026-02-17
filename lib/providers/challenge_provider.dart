@@ -609,7 +609,7 @@ class ChallengeProvider extends ChangeNotifier {
     }
   }
 
-  Future<String?> createChallenge({double? walletBalance}) async {
+  Future<String?> createChallenge({double? walletBalance, bool isFriendChallenge = false}) async {
     if (_isCreating) return null; // Guard against double-tap
     if (_selectedOpponent == null) {
       _errorMessage = 'Please select an opponent';
@@ -642,6 +642,7 @@ class ChallengeProvider extends ChangeNotifier {
         goalValue: suggestedGoalValue,
         duration: _selectedDuration,
         stakeAmount: _selectedStake.amount,
+        isFriendChallenge: isFriendChallenge,
       );
 
       _successMessage = 'Challenge sent to ${_selectedOpponent!.displayName}!';

@@ -76,6 +76,16 @@ export const createChallenge = functions
   }
 
   try {
+    // Check if creator and opponent are friends (no fee for friend 1v1 challenges)
+    const friendDoc = await db
+      .collection('users')
+      .doc(creatorId)
+      .collection('friends')
+      .doc(opponentId)
+      .get();
+    const isFriendChallenge = friendDoc.exists;
+    const effectiveFeePercent = isFriendChallenge ? 0 : H2H_FEE_PERCENT;
+
     // Create Stripe Payment Intent for creator
     const stripe = getStripe();
     const creatorPaymentIntent = await stripe.paymentIntents.create({
@@ -99,8 +109,9 @@ export const createChallenge = functions
       participantIds: [creatorId, opponentId],
       stakeAmount,
       totalPot: stakeAmount * 2,
-      platformFee: stakeAmount * 2 * H2H_FEE_PERCENT,
-      prizeAmount: stakeAmount * 2 * (1 - H2H_FEE_PERCENT),
+      platformFee: stakeAmount * 2 * effectiveFeePercent,
+      prizeAmount: stakeAmount * 2 * (1 - effectiveFeePercent),
+      isFriendChallenge,
       goalType,
       targetValue: targetValue || 10000,
       duration,

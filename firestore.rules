@@ -64,6 +64,31 @@ service cloud.firestore {
       match /subscription/{subscriptionId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+
+      // Friends subcollection — owner can read; writes handled by service
+      match /friends/{friendId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow delete: if request.auth != null && request.auth.uid == userId;
+        allow update: if false;
+      }
+    }
+
+    // ============================================
+    // FRIEND REQUESTS
+    // ============================================
+    match /friendRequests/{requestId} {
+      allow read: if request.auth != null
+                  && (resource.data.senderId == request.auth.uid
+                      || resource.data.receiverId == request.auth.uid);
+      allow create: if request.auth != null
+                    && request.resource.data.senderId == request.auth.uid
+                    && request.resource.data.keys().hasAll(['senderId', 'receiverId', 'status', 'senderName', 'receiverName'])
+                    && request.resource.data.status == 'pending';
+      allow update: if request.auth != null
+                    && resource.data.receiverId == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+      allow delete: if false;
     }
 
     // ============================================

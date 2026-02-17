@@ -158,12 +158,13 @@ class FirebaseService {
     required int goalValue,
     required ChallengeDuration duration,
     required double stakeAmount,
+    bool isFriendChallenge = false,
   }) async {
     final user = await getUser(currentUser!.uid);
     if (user == null) throw Exception('User not found');
 
     final totalPot = stakeAmount * 2;
-    final prizeAmount = _calculatePrize(totalPot, type);
+    final prizeAmount = _calculatePrize(totalPot, type, isFriendChallenge: isFriendChallenge);
     final now = DateTime.now();
 
     final challenge = ChallengeModel(
@@ -672,12 +673,13 @@ class FirebaseService {
     required int goalValue,
     required ChallengeDuration duration,
     required double stakeAmount,
+    bool isFriendChallenge = false,
   }) async {
     final user = await getUser(currentUser!.uid);
     if (user == null) throw Exception('User not found');
 
     final totalPot = stakeAmount * 2;
-    final prizeAmount = _calculatePrize(totalPot, type);
+    final prizeAmount = _calculatePrize(totalPot, type, isFriendChallenge: isFriendChallenge);
     final now = DateTime.now();
     final expiresAt = now.add(const Duration(days: 7));
 
@@ -699,6 +701,7 @@ class FirebaseService {
       'opponentProgress': 0,
       'creatorStepHistory': [],
       'opponentStepHistory': [],
+      'isFriendChallenge': isFriendChallenge,
       'creatorAntiCheatScore': 1.0,
       'opponentAntiCheatScore': 1.0,
       'flagged': false,
@@ -921,6 +924,185 @@ class FirebaseService {
   }
 
   // ============================================
+  // FRIENDS
+  // ============================================
+
+  /// Send a friend request to another user.
+  Future<String> sendFriendRequest({
+    required String receiverId,
+    required String receiverName,
+    required String receiverUsername,
+  }) async {
+    final user = await getUser(currentUser!.uid);
+    if (user == null) throw Exception('User not found');
+
+    // Check if already friends
+    final existingFriend = await _db
+        .collection('users')
+        .doc(currentUser!.uid)
+        .collection('friends')
+        .doc(receiverId)
+        .get();
+    if (existingFriend.exists) throw Exception('Already friends');
+
+    // Check for existing pending request in either direction
+    final existing = await _db
+        .collection('friendRequests')
+        .where('senderId', isEqualTo: currentUser!.uid)
+        .where('receiverId', isEqualTo: receiverId)
+        .where('status', isEqualTo: 'pending')
+        .limit(1)
+        .get();
+    if (existing.docs.isNotEmpty) throw Exception('Request already sent');
+
+    final docRef = await _db.collection('friendRequests').add({
+      'senderId': currentUser!.uid,
+      'senderName': user.displayName,
+      'senderUsername': user.username,
+      'receiverId': receiverId,
+      'receiverName': receiverName,
+      'receiverUsername': receiverUsername,
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    // Notify receiver
+    await _sendNotification(
+      userId: receiverId,
+      type: 'friend_request',
+      title: 'Friend Request',
+      body: '${user.displayName} wants to be your friend!',
+      data: {'friendRequestId': docRef.id},
+    );
+
+    return docRef.id;
+  }
+
+  /// Accept a friend request. Adds both users to each other's friends subcollection.
+  Future<void> acceptFriendRequest(String requestId) async {
+    final requestDoc = await _db.collection('friendRequests').doc(requestId).get();
+    if (!requestDoc.exists) throw Exception('Request not found');
+
+    final data = requestDoc.data()!;
+    if (data['receiverId'] != currentUser!.uid) {
+      throw Exception('Not authorized');
+    }
+
+    final senderId = data['senderId'] as String;
+    final senderName = data['senderName'] as String;
+    final senderUsername = data['senderUsername'] as String;
+    final receiverName = data['receiverName'] as String;
+    final receiverUsername = data['receiverUsername'] as String;
+
+    final batch = _db.batch();
+
+    // Update request status
+    batch.update(requestDoc.reference, {'status': 'accepted'});
+
+    // Add to sender's friends
+    batch.set(
+      _db.collection('users').doc(senderId).collection('friends').doc(currentUser!.uid),
+      {
+        'userId': currentUser!.uid,
+        'displayName': receiverName,
+        'username': receiverUsername,
+        'createdAt': FieldValue.serverTimestamp(),
+      },
+    );
+
+    // Add to receiver's friends
+    batch.set(
+      _db.collection('users').doc(currentUser!.uid).collection('friends').doc(senderId),
+      {
+        'userId': senderId,
+        'displayName': senderName,
+        'username': senderUsername,
+        'createdAt': FieldValue.serverTimestamp(),
+      },
+    );
+
+    await batch.commit();
+
+    // Notify sender
+    await _sendNotification(
+      userId: senderId,
+      type: 'friend_request_accepted',
+      title: 'Friend Request Accepted',
+      body: '$receiverName accepted your friend request!',
+    );
+  }
+
+  /// Decline a friend request.
+  Future<void> declineFriendRequest(String requestId) async {
+    await _db.collection('friendRequests').doc(requestId).update({
+      'status': 'declined',
+    });
+  }
+
+  /// Remove a friend (mutual removal).
+  Future<void> removeFriend(String friendId) async {
+    final batch = _db.batch();
+    batch.delete(
+      _db.collection('users').doc(currentUser!.uid).collection('friends').doc(friendId),
+    );
+    batch.delete(
+      _db.collection('users').doc(friendId).collection('friends').doc(currentUser!.uid),
+    );
+    await batch.commit();
+  }
+
+  /// Check if a user is a friend.
+  Future<bool> isFriend(String userId) async {
+    final doc = await _db
+        .collection('users')
+        .doc(currentUser!.uid)
+        .collection('friends')
+        .doc(userId)
+        .get();
+    return doc.exists;
+  }
+
+  /// Stream of current user's friends.
+  Stream<List<Map<String, dynamic>>> friendsStream(String userId) {
+    return _db
+        .collection('users')
+        .doc(userId)
+        .collection('friends')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) {
+              final data = doc.data();
+              data['id'] = doc.id;
+              return data;
+            }).toList());
+  }
+
+  /// Stream of pending friend requests received by the current user.
+  Stream<List<Map<String, dynamic>>> pendingFriendRequestsStream(String userId) {
+    return _db
+        .collection('friendRequests')
+        .where('receiverId', isEqualTo: userId)
+        .where('status', isEqualTo: 'pending')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) {
+              final data = doc.data();
+              data['id'] = doc.id;
+              return data;
+            }).toList());
+  }
+
+  /// Get the set of friend user IDs for the current user (one-shot).
+  Future<Set<String>> getFriendIds() async {
+    final snapshot = await _db
+        .collection('users')
+        .doc(currentUser!.uid)
+        .collection('friends')
+        .get();
+    return snapshot.docs.map((doc) => doc.id).toSet();
+  }
+
+  // ============================================
   // REFERRALS
   // ============================================
 
@@ -950,13 +1132,20 @@ class FirebaseService {
     return List.generate(6, (_) => chars[random.nextInt(chars.length)]).join();
   }
 
-  double _calculatePrize(double totalPot, ChallengeType type) {
-    // Platform fees: 3% for 1v1 (2.5% platform + 0.5% charity), 5% for groups (4% + 1%)
+  double _calculatePrize(double totalPot, ChallengeType type, {bool isFriendChallenge = false}) {
+    // No fee for 1v1 friend challenges
+    if (type == ChallengeType.headToHead && isFriendChallenge) {
+      return totalPot;
+    }
+    // Anti-Cheat Algorithm Referee fee: 3% for 1v1, 5% for groups/teams
     final feeRate = type == ChallengeType.headToHead ? 0.03 : 0.05;
     return (totalPot * (1 - feeRate) * 100).roundToDouble() / 100;
   }
 
-  double getPlatformFee(double totalPot, ChallengeType type) {
+  double getPlatformFee(double totalPot, ChallengeType type, {bool isFriendChallenge = false}) {
+    if (type == ChallengeType.headToHead && isFriendChallenge) {
+      return 0;
+    }
     final feeRate = type == ChallengeType.headToHead ? 0.03 : 0.05;
     return (totalPot * feeRate * 100).roundToDouble() / 100;
   }

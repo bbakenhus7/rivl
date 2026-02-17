@@ -16,6 +16,8 @@ import '../wallet/wallet_screen.dart';
 import '../notifications/notifications_screen.dart';
 import 'health_connection_screen.dart';
 import 'help_support_screen.dart';
+import 'friends_screen.dart';
+import '../../providers/friend_provider.dart';
 import '../auth/login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -1395,6 +1397,21 @@ class _AccountActions extends StatelessWidget {
       ),
       child: Column(
         children: [
+          Consumer<FriendProvider>(
+            builder: (context, friendProvider, _) {
+              final requestCount = friendProvider.pendingRequests.length;
+              return _ActionTile(
+                icon: Icons.people_outline,
+                label: 'Friends',
+                badge: requestCount > 0 ? '$requestCount' : null,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const FriendsScreen()),
+                ),
+              );
+            },
+          ),
+          Divider(height: 1, indent: 56, color: context.surfaceVariant),
           _ActionTile(
             icon: Icons.health_and_safety,
             label: 'Health App Connection',
@@ -1431,8 +1448,9 @@ class _ActionTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final String? badge;
 
-  const _ActionTile({required this.icon, required this.label, required this.onTap});
+  const _ActionTile({required this.icon, required this.label, required this.onTap, this.badge});
 
   @override
   Widget build(BuildContext context) {
@@ -1453,6 +1471,20 @@ class _ActionTile extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Expanded(child: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500))),
+            if (badge != null) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: RivlColors.error,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  badge!,
+                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
             Icon(Icons.chevron_right, color: context.textSecondary, size: 20),
           ],
         ),

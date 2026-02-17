@@ -12,6 +12,7 @@ import '../../utils/animations.dart';
 import '../main_screen.dart';
 import '../../widgets/confetti_celebration.dart';
 import '../../widgets/add_funds_sheet.dart';
+import '../../providers/friend_provider.dart';
 
 class CreateChallengeScreen extends StatefulWidget {
   const CreateChallengeScreen({super.key});
@@ -120,7 +121,12 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
     } else if (provider.isGroupMode) {
       challengeId = await provider.createGroupChallenge(walletBalance: walletBalance);
     } else {
-      challengeId = await provider.createChallenge(walletBalance: walletBalance);
+      final isFriend = provider.selectedOpponent != null &&
+          context.read<FriendProvider>().isFriend(provider.selectedOpponent!.id);
+      challengeId = await provider.createChallenge(
+        walletBalance: walletBalance,
+        isFriendChallenge: isFriend,
+      );
     }
 
     if (challengeId != null && mounted) {
@@ -321,12 +327,15 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
             onEditStep: (step) => setState(() => _currentStep = step),
           );
         }
+        final isFriend = provider.selectedOpponent != null &&
+            context.read<FriendProvider>().isFriend(provider.selectedOpponent!.id);
         return _StepReview(
           opponent: provider.selectedOpponent,
           stake: provider.selectedStake,
           duration: provider.selectedDuration,
           goalType: provider.selectedGoalType,
           onEditStep: (step) => setState(() => _currentStep = step),
+          isFriendChallenge: isFriend,
         );
       default:
         return const SizedBox.shrink();
@@ -695,11 +704,33 @@ class _SuggestedOpponentCard extends StatelessWidget {
                               ),
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          '@${opponent.username}',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: context.textSecondary,
+                        Row(
+                          children: [
+                            Text(
+                              '@${opponent.username}',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: context.textSecondary,
+                                  ),
+                            ),
+                            if (context.read<FriendProvider>().isFriend(opponent.id)) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: RivlColors.success.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'Friend',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: RivlColors.success,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
+                            ],
+                          ],
                         ),
                       ],
                     ),
@@ -991,7 +1022,14 @@ class _StepChooseStake extends StatelessWidget {
             delay: const Duration(milliseconds: 250),
             child: isGroup
                 ? _GroupPrizePoolDisplay(stake: selectedStake, groupSize: groupSize)
-                : _AnimatedPrizePool(stake: selectedStake),
+                : Builder(
+                    builder: (context) {
+                      final opponent = context.read<ChallengeProvider>().selectedOpponent;
+                      final isFriend = opponent != null &&
+                          context.read<FriendProvider>().isFriend(opponent.id);
+                      return _AnimatedPrizePool(stake: selectedStake, isFriendChallenge: isFriend);
+                    },
+                  ),
           ),
           const SizedBox(height: 32),
 
@@ -1071,12 +1109,14 @@ class _StepChooseStake extends StatelessWidget {
 
 class _AnimatedPrizePool extends StatelessWidget {
   final StakeOption stake;
+  final bool isFriendChallenge;
 
-  const _AnimatedPrizePool({required this.stake});
+  const _AnimatedPrizePool({required this.stake, this.isFriendChallenge = false});
 
   @override
   Widget build(BuildContext context) {
     final isFree = stake.amount == 0;
+    final displayPrize = isFriendChallenge ? stake.friendPrize : stake.prize;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
@@ -1105,7 +1145,7 @@ class _AnimatedPrizePool extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           AnimatedValue(
-            value: isFree ? 0 : stake.prize,
+            value: isFree ? 0 : displayPrize,
             prefix: isFree ? '' : '\$',
             decimals: isFree ? 0 : 0,
             duration: const Duration(milliseconds: 600),
@@ -1139,14 +1179,20 @@ class _AnimatedPrizePool extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: RivlColors.primary.withOpacity(0.1),
+                color: isFriendChallenge
+                    ? RivlColors.success.withOpacity(0.1)
+                    : RivlColors.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                'You stake ${stake.displayAmount}  |  3% platform fee',
+                isFriendChallenge
+                    ? 'You stake ${stake.displayAmount}  |  No fee (friend challenge)'
+                    : 'You stake ${stake.displayAmount}  |  3% Anti-Cheat Referee fee',
                 style: TextStyle(
                   fontSize: 12,
-                  color: RivlColors.primary.withOpacity(0.8),
+                  color: isFriendChallenge
+                      ? RivlColors.success.withOpacity(0.8)
+                      : RivlColors.primary.withOpacity(0.8),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -1767,6 +1813,7 @@ class _StepReview extends StatelessWidget {
   final ChallengeDuration duration;
   final GoalType goalType;
   final Function(int) onEditStep;
+  final bool isFriendChallenge;
 
   const _StepReview({
     required this.opponent,
@@ -1774,6 +1821,7 @@ class _StepReview extends StatelessWidget {
     required this.duration,
     required this.goalType,
     required this.onEditStep,
+    this.isFriendChallenge = false,
   });
 
   @override
@@ -1857,7 +1905,7 @@ class _StepReview extends StatelessWidget {
                         Text(
                           stake.amount == 0
                               ? 'Free'
-                              : '\$${stake.prize.toInt()}',
+                              : '\$${(isFriendChallenge ? stake.friendPrize : stake.prize).toInt()}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 40,
@@ -1867,7 +1915,9 @@ class _StepReview extends StatelessWidget {
                         if (stake.amount > 0) ...[
                           const SizedBox(height: 4),
                           Text(
-                            'You stake ${stake.displayAmount}',
+                            isFriendChallenge
+                                ? 'You stake ${stake.displayAmount}  |  No fee'
+                                : 'You stake ${stake.displayAmount}  |  3% Anti-Cheat Referee fee',
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 13,
@@ -1948,7 +1998,9 @@ class _StepReview extends StatelessWidget {
                   Expanded(
                     child: Text(
                       stake.amount > 0
-                          ? 'Your stake of ${stake.displayAmount} will be held in escrow until the challenge ends. The winner receives the full prize pool.'
+                          ? isFriendChallenge
+                              ? 'Your stake of ${stake.displayAmount} will be held in escrow until the challenge ends. No fee for friend challenges — winner takes the full pot!'
+                              : 'Your stake of ${stake.displayAmount} will be held in escrow until the challenge ends. 3% Anti-Cheat Referee fee applies.'
                           : 'This is a free challenge. No money will be exchanged. Winner earns bragging rights and XP!',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             height: 1.4,
@@ -2226,8 +2278,29 @@ class _OpponentPickerSheetState extends State<_OpponentPickerSheet> {
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                    subtitle:
+                                    subtitle: Row(
+                                      children: [
                                         Text('@${user.username}'),
+                                        if (context.read<FriendProvider>().isFriend(user.id)) ...[
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                            decoration: BoxDecoration(
+                                              color: RivlColors.success.withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              'Friend',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: RivlColors.success,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
                                     trailing: Column(
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
@@ -2513,7 +2586,7 @@ class _StepChallengeType extends StatelessWidget {
             child: _ChallengeTypeOption(
               icon: Icons.people_outline,
               title: '1v1 Challenge',
-              subtitle: 'Head-to-head. Winner takes all.\n3% platform fee.',
+              subtitle: 'Head-to-head. Winner takes all.\nFree for friends | 3% Anti-Cheat Referee fee.',
               isSelected: selectedType == ChallengeType.headToHead,
               onTap: () => onChanged(ChallengeType.headToHead),
             ),
@@ -2524,7 +2597,7 @@ class _StepChallengeType extends StatelessWidget {
             child: _ChallengeTypeOption(
               icon: Icons.groups_outlined,
               title: 'Group League',
-              subtitle: '3-20 players. Top 3 win payouts.\n5% platform fee.',
+              subtitle: '3-20 players. Top 3 win payouts.\n5% Anti-Cheat Referee fee.',
               isSelected: selectedType == ChallengeType.group,
               onTap: () => onChanged(ChallengeType.group),
             ),
@@ -2535,7 +2608,7 @@ class _StepChallengeType extends StatelessWidget {
             child: _ChallengeTypeOption(
               icon: Icons.shield_outlined,
               title: 'Squad vs Squad',
-              subtitle: '2v2 up to 20v20. Squads compete.\nWinning squad splits the prize. 5% fee.',
+              subtitle: '2v2 up to 20v20. Squads compete.\nWinning squad splits the prize. 5% Anti-Cheat Referee fee.',
               isSelected: selectedType == ChallengeType.teamVsTeam,
               onTap: () => onChanged(ChallengeType.teamVsTeam),
             ),
@@ -3118,7 +3191,7 @@ class _GroupPrizePoolDisplay extends StatelessWidget {
           if (!isFree) ...[
             const SizedBox(height: 4),
             Text(
-              '$groupSize players \u00d7 ${stake.displayAmount}  |  5% fee (\$${fee.toStringAsFixed(0)})',
+              '$groupSize players \u00d7 ${stake.displayAmount}  |  5% Anti-Cheat Referee fee (\$${fee.toStringAsFixed(0)})',
               style: TextStyle(
                 fontSize: 12,
                 color: RivlColors.primary.withOpacity(0.8),
@@ -3360,7 +3433,7 @@ class _StepGroupReview extends StatelessWidget {
                     child: Text(
                       isFree
                           ? 'This is a free group league. No money will be exchanged. Top 3 earn XP and bragging rights!'
-                          : 'Your entry fee of ${stake.displayAmount} will be held in escrow. 5% platform fee. 1st, 2nd, and 3rd place win payouts when the challenge ends.',
+                          : 'Your entry fee of ${stake.displayAmount} will be held in escrow. 5% Anti-Cheat Referee fee. 1st, 2nd, and 3rd place win payouts when the challenge ends.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.4),
                     ),
                   ),

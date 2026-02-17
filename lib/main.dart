@@ -21,6 +21,7 @@ import 'providers/battle_pass_provider.dart';
 import 'providers/subscription_provider.dart';
 import 'providers/activity_feed_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/friend_provider.dart';
 import 'screens/splash_screen.dart';
 import 'utils/theme.dart';
 
@@ -80,6 +81,7 @@ class RivlApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SubscriptionProvider()),
         ChangeNotifierProvider(create: (_) => ActivityFeedProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => FriendProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProv, _) {
