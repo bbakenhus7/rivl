@@ -1187,7 +1187,7 @@ class _AnimatedPrizePool extends StatelessWidget {
               child: Text(
                 isFriendChallenge
                     ? 'You stake ${stake.displayAmount}  |  No fee (friend challenge)'
-                    : 'You stake ${stake.displayAmount}  |  3% Anti-Cheat Referee fee',
+                    : 'You stake ${stake.displayAmount}  |  3% AI Anti-Cheat Referee fee',
                 style: TextStyle(
                   fontSize: 12,
                   color: isFriendChallenge
@@ -1917,7 +1917,7 @@ class _StepReview extends StatelessWidget {
                           Text(
                             isFriendChallenge
                                 ? 'You stake ${stake.displayAmount}  |  No fee'
-                                : 'You stake ${stake.displayAmount}  |  3% Anti-Cheat Referee fee',
+                                : 'You stake ${stake.displayAmount}  |  3% AI Anti-Cheat Referee fee',
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 13,
@@ -2000,7 +2000,7 @@ class _StepReview extends StatelessWidget {
                       stake.amount > 0
                           ? isFriendChallenge
                               ? 'Your stake of ${stake.displayAmount} will be held in escrow until the challenge ends. No fee for friend challenges — winner takes the full pot!'
-                              : 'Your stake of ${stake.displayAmount} will be held in escrow until the challenge ends. 3% Anti-Cheat Referee fee applies.'
+                              : 'Your stake of ${stake.displayAmount} will be held in escrow until the challenge ends. 3% AI Anti-Cheat Referee fee applies.'
                           : 'This is a free challenge. No money will be exchanged. Winner earns bragging rights and XP!',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             height: 1.4,
@@ -2586,7 +2586,7 @@ class _StepChallengeType extends StatelessWidget {
             child: _ChallengeTypeOption(
               icon: Icons.people_outline,
               title: '1v1 Challenge',
-              subtitle: 'Head-to-head. Winner takes all.\nFree for friends | 3% Anti-Cheat Referee fee.',
+              subtitle: 'Head-to-head. Winner takes all.\nFree for friends | 3% AI Anti-Cheat Referee fee.',
               isSelected: selectedType == ChallengeType.headToHead,
               onTap: () => onChanged(ChallengeType.headToHead),
             ),
@@ -2597,7 +2597,7 @@ class _StepChallengeType extends StatelessWidget {
             child: _ChallengeTypeOption(
               icon: Icons.groups_outlined,
               title: 'Group League',
-              subtitle: '3-20 players. Top 3 win payouts.\n5% Anti-Cheat Referee fee.',
+              subtitle: '3-20 players. Top 3 win payouts.\n5% AI Anti-Cheat Referee fee.',
               isSelected: selectedType == ChallengeType.group,
               onTap: () => onChanged(ChallengeType.group),
             ),
@@ -2608,7 +2608,7 @@ class _StepChallengeType extends StatelessWidget {
             child: _ChallengeTypeOption(
               icon: Icons.shield_outlined,
               title: 'Squad vs Squad',
-              subtitle: '2v2 up to 20v20. Squads compete.\nWinning squad splits the prize. 5% Anti-Cheat Referee fee.',
+              subtitle: '2v2 up to 20v20. Squads compete.\nWinning squad splits the prize. 5% AI Anti-Cheat Referee fee.',
               isSelected: selectedType == ChallengeType.teamVsTeam,
               onTap: () => onChanged(ChallengeType.teamVsTeam),
             ),
@@ -3191,7 +3191,7 @@ class _GroupPrizePoolDisplay extends StatelessWidget {
           if (!isFree) ...[
             const SizedBox(height: 4),
             Text(
-              '$groupSize players \u00d7 ${stake.displayAmount}  |  5% Anti-Cheat Referee fee (\$${fee.toStringAsFixed(0)})',
+              '$groupSize players \u00d7 ${stake.displayAmount}  |  5% AI Anti-Cheat Referee fee (\$${fee.toStringAsFixed(0)})',
               style: TextStyle(
                 fontSize: 12,
                 color: RivlColors.primary.withOpacity(0.8),
@@ -3433,7 +3433,7 @@ class _StepGroupReview extends StatelessWidget {
                     child: Text(
                       isFree
                           ? 'This is a free group league. No money will be exchanged. Top 3 earn XP and bragging rights!'
-                          : 'Your entry fee of ${stake.displayAmount} will be held in escrow. 5% Anti-Cheat Referee fee. 1st, 2nd, and 3rd place win payouts when the challenge ends.',
+                          : 'Your entry fee of ${stake.displayAmount} will be held in escrow. 5% AI Anti-Cheat Referee fee. 1st, 2nd, and 3rd place win payouts when the challenge ends.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(height: 1.4),
                     ),
                   ),

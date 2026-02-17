@@ -1137,7 +1137,7 @@ class FirebaseService {
     if (type == ChallengeType.headToHead && isFriendChallenge) {
       return totalPot;
     }
-    // Anti-Cheat Algorithm Referee fee: 3% for 1v1, 5% for groups/teams
+    // AI Anti-Cheat Algorithm Referee fee: 3% for 1v1, 5% for groups/teams
     final feeRate = type == ChallengeType.headToHead ? 0.03 : 0.05;
     return (totalPot * (1 - feeRate) * 100).roundToDouble() / 100;
   }
