@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RIVL Icon Generator</title>
+<style>
+  body { font-family: -apple-system, sans-serif; background: #1a1a2e; color: #eee; padding: 24px; }
+  h1 { margin-bottom: 4px; }
+  p.sub { color: #999; margin-top: 0; }
+  .preview { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-end; margin: 24px 0; }
+  .preview-item { text-align: center; }
+  .preview-item canvas { border-radius: 18%; }
+  .preview-item span { display: block; color: #888; font-size: 12px; margin-top: 4px; }
+  button { background: #6C5CE7; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; margin: 4px; }
+  button:hover { background: #8B7CF6; }
+  .section { margin: 32px 0; padding: 16px; background: #16213e; border-radius: 12px; }
+  #status { color: #4ecdc4; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<h1>RIVL Icon Generator</h1>
+<p class="sub">Purple split background &middot; White R &middot; Green heartbeat line</p>
+
+<div class="preview" id="previewArea"></div>
+
+<div class="section">
+  <h3>Download Individual Sizes</h3>
+  <div id="iosButtons"></div>
+  <div id="androidButtons" style="margin-top:12px"></div>
+  <div id="assetButtons" style="margin-top:12px"></div>
+</div>
+
+<div class="section">
+  <h3>Download All</h3>
+  <button onclick="downloadAll()">Download All Icons (ZIP not available — downloads individually)</button>
+  <div id="status"></div>
+</div>
+
+<!-- Hidden master canvas -->
+<canvas id="master" width="1024" height="1024" style="display:none"></canvas>
+
+<script>
+// =============================================
+// ICON DRAWING
+// =============================================
+
+function drawIcon(ctx, size) {
+  const s = size / 1024; // scale factor
+  ctx.save();
+  ctx.scale(s, s);
+
+  // --- Background: diagonal split purple ---
+  // Left/top triangle — darker purple
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(1024, 0);
+  ctx.lineTo(0, 1024);
+  ctx.closePath();
+  ctx.fillStyle = '#5B4BC4';
+  ctx.fill();
+
+  // Right/bottom triangle — lighter purple
+  ctx.beginPath();
+  ctx.moveTo(1024, 0);
+  ctx.lineTo(1024, 1024);
+  ctx.lineTo(0, 1024);
+  ctx.closePath();
+  ctx.fillStyle = '#7C6DD8';
+  ctx.fill();
+
+  // Subtle gradient overlay for smoothness
+  const bgGrad = ctx.createLinearGradient(0, 0, 1024, 1024);
+  bgGrad.addColorStop(0, 'rgba(91, 75, 196, 0.3)');
+  bgGrad.addColorStop(0.5, 'rgba(0,0,0,0)');
+  bgGrad.addColorStop(1, 'rgba(124, 109, 216, 0.3)');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  // --- White R lettermark (scaled from 512 viewBox to 1024) ---
+  // Using the SVG path scaled 2x and centered
+  const rScale = 1.7;
+  const rOffsetX = (1024 - 512 * rScale) / 2;
+  const rOffsetY = (1024 - 512 * rScale) / 2 + 10;
+
+  ctx.save();
+  ctx.translate(rOffsetX, rOffsetY);
+  ctx.scale(rScale, rScale);
+
+  const rPath = new Path2D(`
+    M 80 448 V 64 H 292
+    C 408 64, 440 120, 440 192
+    C 440 268, 396 308, 312 316
+    L 432 448 H 340 L 228 324 H 164 V 448 Z
+    M 164 140 H 278
+    C 348 140, 364 168, 364 196
+    C 364 224, 348 252, 278 252 H 164 Z
+  `);
+
+  // Fade effect: R's bottom-right leg fades out
+  const fadeMask = ctx.createLinearGradient(0, 0, 460, 480);
+  fadeMask.addColorStop(0, 'rgba(255,255,255,1)');
+  fadeMask.addColorStop(0.55, 'rgba(255,255,255,1)');
+  fadeMask.addColorStop(0.85, 'rgba(255,255,255,0.3)');
+  fadeMask.addColorStop(1, 'rgba(255,255,255,0)');
+
+  ctx.fillStyle = 'white';
+  ctx.fill(rPath, 'evenodd');
+
+  ctx.restore();
+
+  // --- Green heartbeat / ECG line ---
+  drawHeartbeatLine(ctx);
+
+  ctx.restore();
+}
+
+function drawHeartbeatLine(ctx) {
+  const centerY = 512;
+  const lineWidth = 5;
+
+  ctx.save();
+  ctx.strokeStyle = '#4ADE80';
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.shadowColor = '#4ADE80';
+  ctx.shadowBlur = 8;
+
+  ctx.beginPath();
+
+  // Flat lead-in from left edge
+  ctx.moveTo(60, centerY);
+  ctx.lineTo(340, centerY);
+
+  // First small bump
+  ctx.lineTo(360, centerY - 20);
+  ctx.lineTo(380, centerY + 10);
+  ctx.lineTo(395, centerY);
+
+  // Flat segment
+  ctx.lineTo(430, centerY);
+
+  // Main QRS complex (tall spike)
+  ctx.lineTo(450, centerY + 30);
+  ctx.lineTo(475, centerY - 140);
+  ctx.lineTo(510, centerY + 80);
+  ctx.lineTo(535, centerY - 15);
+  ctx.lineTo(555, centerY);
+
+  // Flat segment
+  ctx.lineTo(590, centerY);
+
+  // T-wave (small rounded bump)
+  ctx.lineTo(620, centerY);
+  ctx.quadraticCurveTo(650, centerY - 50, 680, centerY);
+
+  // Flat lead-out to right edge
+  ctx.lineTo(960, centerY);
+
+  ctx.stroke();
+
+  // Second pass without shadow for crispness
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 0.6;
+  ctx.lineWidth = lineWidth + 2;
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// =============================================
+// RENDERING & EXPORT
+// =============================================
+
+function renderToCanvas(canvas, size) {
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, size, size);
+  drawIcon(ctx, size);
+  return canvas;
+}
+
+function downloadCanvas(canvas, filename) {
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+// =============================================
+// SIZE DEFINITIONS
+// =============================================
+
+const iosSizes = [
+  { name: 'Icon-App-1024x1024@1x.png', size: 1024 },
+  { name: 'Icon-App-20x20@1x.png', size: 20 },
+  { name: 'Icon-App-20x20@2x.png', size: 40 },
+  { name: 'Icon-App-20x20@3x.png', size: 60 },
+  { name: 'Icon-App-29x29@1x.png', size: 29 },
+  { name: 'Icon-App-29x29@2x.png', size: 58 },
+  { name: 'Icon-App-29x29@3x.png', size: 87 },
+  { name: 'Icon-App-40x40@1x.png', size: 40 },
+  { name: 'Icon-App-40x40@2x.png', size: 80 },
+  { name: 'Icon-App-40x40@3x.png', size: 120 },
+  { name: 'Icon-App-60x60@2x.png', size: 120 },
+  { name: 'Icon-App-60x60@3x.png', size: 180 },
+  { name: 'Icon-App-76x76@1x.png', size: 76 },
+  { name: 'Icon-App-76x76@2x.png', size: 152 },
+  { name: 'Icon-App-83.5x83.5@2x.png', size: 167 },
+];
+
+const androidSizes = [
+  { name: 'mipmap-mdpi/ic_launcher.png', size: 48 },
+  { name: 'mipmap-hdpi/ic_launcher.png', size: 72 },
+  { name: 'mipmap-xhdpi/ic_launcher.png', size: 96 },
+  { name: 'mipmap-xxhdpi/ic_launcher.png', size: 144 },
+  { name: 'mipmap-xxxhdpi/ic_launcher.png', size: 192 },
+];
+
+const assetSizes = [
+  { name: 'rivl_logo.png (1x)', size: 128, file: 'rivl_logo.png' },
+  { name: 'rivl_logo.png (2x)', size: 256, file: 'rivl_logo@2x.png' },
+  { name: 'rivl_logo.png (3x)', size: 384, file: 'rivl_logo@3x.png' },
+];
+
+// =============================================
+// UI SETUP
+// =============================================
+
+const tempCanvas = document.createElement('canvas');
+
+function init() {
+  // Render master preview
+  const masterCanvas = document.getElementById('master');
+  renderToCanvas(masterCanvas, 1024);
+
+  // Preview sizes
+  const previewSizes = [1024, 180, 120, 76, 48];
+  const previewArea = document.getElementById('previewArea');
+
+  for (const size of previewSizes) {
+    const div = document.createElement('div');
+    div.className = 'preview-item';
+    const c = document.createElement('canvas');
+    renderToCanvas(c, size);
+    c.style.width = Math.min(size, 200) + 'px';
+    c.style.height = Math.min(size, 200) + 'px';
+    div.appendChild(c);
+    const label = document.createElement('span');
+    label.textContent = size + 'x' + size;
+    div.appendChild(label);
+    previewArea.appendChild(div);
+  }
+
+  // iOS buttons
+  const iosDiv = document.getElementById('iosButtons');
+  iosDiv.innerHTML = '<strong>iOS:</strong> ';
+  for (const item of iosSizes) {
+    const btn = document.createElement('button');
+    btn.textContent = item.name.replace('Icon-App-', '').replace('.png', '');
+    btn.onclick = () => {
+      renderToCanvas(tempCanvas, item.size);
+      downloadCanvas(tempCanvas, item.name);
+    };
+    iosDiv.appendChild(btn);
+  }
+
+  // Android buttons
+  const androidDiv = document.getElementById('androidButtons');
+  androidDiv.innerHTML = '<strong>Android:</strong> ';
+  for (const item of androidSizes) {
+    const btn = document.createElement('button');
+    btn.textContent = item.name.split('/')[0].replace('mipmap-', '') + ' (' + item.size + ')';
+    btn.onclick = () => {
+      renderToCanvas(tempCanvas, item.size);
+      downloadCanvas(tempCanvas, 'ic_launcher.png');
+    };
+    androidDiv.appendChild(btn);
+  }
+
+  // Asset buttons
+  const assetDiv = document.getElementById('assetButtons');
+  assetDiv.innerHTML = '<strong>In-app logo:</strong> ';
+  for (const item of assetSizes) {
+    const btn = document.createElement('button');
+    btn.textContent = item.name;
+    btn.onclick = () => {
+      renderToCanvas(tempCanvas, item.size);
+      downloadCanvas(tempCanvas, item.file);
+    };
+    assetDiv.appendChild(btn);
+  }
+}
+
+async function downloadAll() {
+  const status = document.getElementById('status');
+  const allSizes = [...iosSizes, ...androidSizes, ...assetSizes.map(a => ({ name: a.file, size: a.size }))];
+  let count = 0;
+
+  for (const item of allSizes) {
+    renderToCanvas(tempCanvas, item.size);
+    downloadCanvas(tempCanvas, item.name);
+    count++;
+    status.textContent = `Downloaded ${count}/${allSizes.length}...`;
+    await new Promise(r => setTimeout(r, 200)); // small delay so browser doesn't block
+  }
+
+  status.textContent = `Done! Downloaded ${count} icons.`;
+}
+
+init();
+</script>
+</body>
+</html>
