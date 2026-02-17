@@ -1531,11 +1531,16 @@ function crossValidateMetrics(activityHistory: any[]): number {
     }
 
     // Steps vs Heart Rate
+    // Wearable is required — missing HR on any active day is suspicious
     const hr = day.avgHeartRate as number | undefined;
     if (hr && hr > 0) {
       daysWithHR++;
       if (steps > 15000 && hr < 65) hrFails++;
       if (steps > 25000 && hr < 75) hrFails++;
+    } else if (steps > 2000) {
+      // Wearable required — no HR on an active day
+      daysWithHR++;
+      hrFails++;
     }
   }
 
@@ -1557,15 +1562,19 @@ function crossValidateMetrics(activityHistory: any[]): number {
     else if (rate > 0.25) score -= 0.1;
   }
 
-  // All corroborating metrics missing on high-step days = likely fabricated
-  const highStepDays = activityHistory.filter((d: any) => (d.steps ?? d.value ?? 0) > 10000);
-  if (highStepDays.length >= 2) {
+  // Wearable is required — fully uncorroborated active days are almost
+  // certainly fabricated (manual entry or spoofing app without wearable)
+  const highStepDays = activityHistory.filter((d: any) => (d.steps ?? d.value ?? 0) > 5000);
+  if (highStepDays.length > 0) {
     const uncorroborated = highStepDays.filter((d: any) =>
       (!d.distance || d.distance === 0) &&
       (!d.activeCalories || d.activeCalories === 0) &&
       (!d.avgHeartRate || d.avgHeartRate === 0)
     ).length;
-    if (uncorroborated / highStepDays.length > 0.5) {
+    const uncorroboratedRate = uncorroborated / highStepDays.length;
+    if (uncorroboratedRate > 0.5) {
+      score -= 0.35; // Harsh — wearable should always produce these metrics
+    } else if (uncorroboratedRate > 0.25) {
       score -= 0.2;
     }
   }

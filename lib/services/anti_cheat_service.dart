@@ -152,13 +152,17 @@ class AntiCheatService {
       flags.add('Inconsistent device or sensor data');
     }
 
-    // 5. Cross-Reference Heart Rate (if available)
+    // 5. Cross-Reference Heart Rate (wearable is required — missing HR is suspicious)
     if (heartRateData != null && heartRateData.isNotEmpty) {
       final hrScore = _crossReferenceHeartRate(stepHistory, heartRateData);
       scores['heartRate'] = hrScore;
       if (hrScore < 0.6) {
         flags.add('Heart rate data inconsistent with step count');
       }
+    } else {
+      // Wearable is required — absent HR data is a strong cheat signal
+      scores['heartRate'] = 0.3;
+      flags.add('No heart rate data from required wearable');
     }
 
     // 6. User Reputation Score (fetched from Firestore)
@@ -442,11 +446,12 @@ class AntiCheatService {
   // ============================================
 
   /// Cross-reference step data with heart rate data.
+  /// A fitness wearable is required, so missing HR data is penalized heavily.
   double _crossReferenceHeartRate(
     List<DailySteps> stepHistory,
     List<Map<String, dynamic>> heartRateData,
   ) {
-    if (heartRateData.isEmpty) return 0.7;
+    if (heartRateData.isEmpty) return 0.3; // Wearable required — missing HR is suspicious
 
     double score = 1.0;
 
@@ -509,7 +514,7 @@ class AntiCheatService {
       }
     }
 
-    if (matchedData.length < 3) return 0.7;
+    if (matchedData.length < 3) return 0.4; // Wearable required — too few HR/step matches
 
     final n = matchedData.length;
     final sumSteps =
@@ -536,9 +541,10 @@ class AntiCheatService {
   }
 
   /// Validate that heart rate patterns are physiologically possible.
+  /// Wearable is required, so empty HR data is penalized.
   double _validateHeartRatePhysiology(
       List<Map<String, dynamic>> heartRateData) {
-    if (heartRateData.isEmpty) return 0.8;
+    if (heartRateData.isEmpty) return 0.3;
 
     double score = 1.0;
 
@@ -870,6 +876,7 @@ class AntiCheatService {
       }
 
       // --- Steps vs Heart Rate ---
+      // Wearable is required, so HR data should always be present on active days
       if (day.avgHeartRate != null && day.avgHeartRate! > 0) {
         daysWithHR++;
         // On a 15K+ step day, average HR should be at least 70 bpm
@@ -881,6 +888,10 @@ class AntiCheatService {
         if (day.steps > 25000 && day.avgHeartRate! < 75) {
           hrFailures++;
         }
+      } else if (day.steps > 2000) {
+        // Wearable is required — missing HR on any active day is suspicious
+        daysWithHR++;
+        hrFailures++;
       }
     }
 
@@ -912,15 +923,19 @@ class AntiCheatService {
       }
     }
 
-    // Bonus penalty: if ALL three corroborating metrics are missing on
-    // high-step days, that's very likely manual entry or a spoofing app
-    final highStepDays = history.where((d) => d.steps > 10000).toList();
-    if (highStepDays.length >= 2) {
+    // Wearable is required — fully uncorroborated high-step days (no
+    // distance, no calories, no HR) are almost certainly fabricated data
+    // entered manually or via a spoofing app without a wearable connected
+    final highStepDays = history.where((d) => d.steps > 5000).toList();
+    if (highStepDays.isNotEmpty) {
       final fullyUncorroborated = highStepDays.where((d) =>
           (d.distance == null || d.distance == 0) &&
           (d.activeCalories == null || d.activeCalories == 0) &&
           (d.avgHeartRate == null || d.avgHeartRate == 0)).length;
-      if (fullyUncorroborated / highStepDays.length > 0.5) {
+      final uncorroboratedRate = fullyUncorroborated / highStepDays.length;
+      if (uncorroboratedRate > 0.5) {
+        score -= 0.35; // Harsh — wearable should always produce these metrics
+      } else if (uncorroboratedRate > 0.25) {
         score -= 0.2;
       }
     }
