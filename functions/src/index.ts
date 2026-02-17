@@ -994,13 +994,8 @@ export const trackReferral = functions.firestore
       totalEarnings: admin.firestore.FieldValue.increment(REFERRAL_BONUS),
     });
 
-    // Record transaction
-    await db.collection('users').doc(referrerId).collection('transactions').add({
-      type: 'referral_bonus',
-      amount: REFERRAL_BONUS,
-      referredUserId: context.params.userId,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    // Credit the referral bonus to the referrer's wallet (not users/ collection)
+    await creditWallet(referrerId, REFERRAL_BONUS, '', 'bonus', 'Referral bonus');
 
     // Notify referrer
     await createNotification(referrerId, {

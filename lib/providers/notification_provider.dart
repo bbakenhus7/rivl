@@ -118,20 +118,27 @@ class NotificationProvider with ChangeNotifier {
     }
   }
 
-  /// Mark all as read
+  /// Mark all as read (batched in chunks of 500 — Firestore batch limit)
   Future<void> markAllAsRead(String userId) async {
     try {
-      final batch = _firestore.batch();
       final unread = await _firestore
           .collection('notifications')
           .where('userId', isEqualTo: userId)
           .where('read', isEqualTo: false)
           .get();
 
-      for (final doc in unread.docs) {
-        batch.update(doc.reference, {'read': true});
+      // Firestore batches support max 500 writes
+      const batchLimit = 500;
+      for (var i = 0; i < unread.docs.length; i += batchLimit) {
+        final batch = _firestore.batch();
+        final end = (i + batchLimit < unread.docs.length)
+            ? i + batchLimit
+            : unread.docs.length;
+        for (var j = i; j < end; j++) {
+          batch.update(unread.docs[j].reference, {'read': true});
+        }
+        await batch.commit();
       }
-      await batch.commit();
     } catch (e) {
       // Mark all as read error — some may still appear unread
     }
