@@ -426,12 +426,23 @@ class DailySteps {
   final DateTime syncedAt;
   final bool verified;
 
+  /// Cross-validation metrics (populated during challenge sync).
+  /// Distance in miles for the same day the steps were recorded.
+  final double? distance;
+  /// Active calories burned for the same day.
+  final int? activeCalories;
+  /// Average heart rate for the same day.
+  final int? avgHeartRate;
+
   DailySteps({
     required this.date,
     required this.steps,
     required this.source,
     required this.syncedAt,
     this.verified = true,
+    this.distance,
+    this.activeCalories,
+    this.avgHeartRate,
   });
 
   factory DailySteps.fromMap(Map<String, dynamic> map) {
@@ -441,6 +452,9 @@ class DailySteps {
       source: map['source'] ?? 'unknown',
       syncedAt: (map['syncedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       verified: map['verified'] ?? true,
+      distance: (map['distance'] as num?)?.toDouble(),
+      activeCalories: map['activeCalories'] as int?,
+      avgHeartRate: map['avgHeartRate'] as int?,
     );
   }
 
@@ -451,6 +465,9 @@ class DailySteps {
       'source': source,
       'syncedAt': Timestamp.fromDate(syncedAt),
       'verified': verified,
+      if (distance != null) 'distance': distance,
+      if (activeCalories != null) 'activeCalories': activeCalories,
+      if (avgHeartRate != null) 'avgHeartRate': avgHeartRate,
     };
   }
 }

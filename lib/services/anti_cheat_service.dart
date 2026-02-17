@@ -86,7 +86,13 @@ class AntiCheatService {
       final response = await callable.call<Map<String, dynamic>>({
         'challengeId': challengeId,
         'stepHistory': stepHistory
-            .map((s) => {'steps': s.steps, 'date': s.date})
+            .map((s) => {
+              final m = <String, dynamic>{'steps': s.steps, 'date': s.date};
+              if (s.distance != null) m['distance'] = s.distance;
+              if (s.activeCalories != null) m['activeCalories'] = s.activeCalories;
+              if (s.avgHeartRate != null) m['avgHeartRate'] = s.avgHeartRate;
+              return m;
+            })
             .toList(),
       });
 
@@ -196,6 +202,13 @@ class AntiCheatService {
     scores['freshness'] = freshnessScore;
     if (freshnessScore < 0.6) {
       flags.add('Data sync timestamps are suspicious');
+    }
+
+    // 12. Cross-Metric Validation - steps vs distance vs calories vs HR
+    final crossMetricScore = _crossValidateMetrics(stepHistory);
+    scores['crossMetric'] = crossMetricScore;
+    if (crossMetricScore < 0.5) {
+      flags.add('Step count inconsistent with distance, calories, or heart rate');
     }
 
     // Calculate weighted composite score
@@ -792,23 +805,148 @@ class AntiCheatService {
   }
 
   // ============================================
+  // CROSS-METRIC VALIDATION
+  // ============================================
+
+  /// Cross-validate steps against distance, active calories, and heart rate
+  /// from the same HealthKit/Health Connect source. These metrics come from
+  /// independent sensors on the device, so inconsistencies between them are
+  /// a strong signal of data fabrication.
+  ///
+  /// Expected relationships:
+  /// - ~2,000 steps per mile (1,800-2,500 depending on stride length)
+  /// - ~40-80 active calories per 1,000 steps
+  /// - Average HR should be elevated on high-step days
+  double _crossValidateMetrics(List<DailySteps> history) {
+    if (history.isEmpty) return 0.8;
+
+    double score = 1.0;
+    int daysWithDistance = 0;
+    int daysWithCalories = 0;
+    int daysWithHR = 0;
+    int distanceFailures = 0;
+    int calorieFailures = 0;
+    int hrFailures = 0;
+
+    for (final day in history) {
+      if (day.steps < 500) continue; // skip negligible days
+
+      // --- Steps vs Distance ---
+      if (day.distance != null && day.distance! > 0) {
+        daysWithDistance++;
+        final stepsPerMile = day.steps / day.distance!;
+
+        // Normal range: 1,400-3,200 steps per mile
+        // Below 1,400 = likely driving (lots of distance, few steps)
+        // Above 3,200 = likely faking steps (many steps, no distance)
+        if (stepsPerMile > 4000) {
+          distanceFailures++; // Steps way too high for distance traveled
+        } else if (stepsPerMile < 1000) {
+          distanceFailures++; // Distance way too high for steps taken
+        }
+      } else if (day.steps > 5000) {
+        // High steps but no distance data at all is suspicious
+        // (manual entry in Apple Health adds steps but not distance)
+        daysWithDistance++;
+        distanceFailures++;
+      }
+
+      // --- Steps vs Active Calories ---
+      if (day.activeCalories != null && day.activeCalories! > 0) {
+        daysWithCalories++;
+        final calsPerKSteps = day.activeCalories! / (day.steps / 1000.0);
+
+        // Normal range: ~30-120 cal per 1,000 steps
+        // (varies by weight, pace, terrain — generous bounds)
+        if (calsPerKSteps < 10) {
+          calorieFailures++; // Steps high but virtually no calories burned
+        } else if (calsPerKSteps > 200) {
+          calorieFailures++; // Calories way too high for step count
+        }
+      } else if (day.steps > 5000) {
+        // High steps with zero active calories = likely manual entry
+        daysWithCalories++;
+        calorieFailures++;
+      }
+
+      // --- Steps vs Heart Rate ---
+      if (day.avgHeartRate != null && day.avgHeartRate! > 0) {
+        daysWithHR++;
+        // On a 15K+ step day, average HR should be at least 70 bpm
+        // (resting HR is ~60, walking elevates it)
+        if (day.steps > 15000 && day.avgHeartRate! < 65) {
+          hrFailures++;
+        }
+        // On a 25K+ step day, average HR should be noticeably elevated
+        if (day.steps > 25000 && day.avgHeartRate! < 75) {
+          hrFailures++;
+        }
+      }
+    }
+
+    // Score each cross-validation dimension
+    if (daysWithDistance > 0) {
+      final failRate = distanceFailures / daysWithDistance;
+      if (failRate > 0.5) {
+        score -= 0.3;
+      } else if (failRate > 0.25) {
+        score -= 0.15;
+      }
+    }
+
+    if (daysWithCalories > 0) {
+      final failRate = calorieFailures / daysWithCalories;
+      if (failRate > 0.5) {
+        score -= 0.25;
+      } else if (failRate > 0.25) {
+        score -= 0.12;
+      }
+    }
+
+    if (daysWithHR > 0) {
+      final failRate = hrFailures / daysWithHR;
+      if (failRate > 0.5) {
+        score -= 0.2;
+      } else if (failRate > 0.25) {
+        score -= 0.1;
+      }
+    }
+
+    // Bonus penalty: if ALL three corroborating metrics are missing on
+    // high-step days, that's very likely manual entry or a spoofing app
+    final highStepDays = history.where((d) => d.steps > 10000).toList();
+    if (highStepDays.length >= 2) {
+      final fullyUncorroborated = highStepDays.where((d) =>
+          (d.distance == null || d.distance == 0) &&
+          (d.activeCalories == null || d.activeCalories == 0) &&
+          (d.avgHeartRate == null || d.avgHeartRate == 0)).length;
+      if (fullyUncorroborated / highStepDays.length > 0.5) {
+        score -= 0.2;
+      }
+    }
+
+    return score.clamp(0.0, 1.0);
+  }
+
+  // ============================================
   // COMPOSITE SCORING
   // ============================================
 
   /// Calculate weighted composite score from all analysis factors.
   double _calculateCompositeScore(Map<String, double> scores) {
     final weights = {
-      'pattern': 0.15,
-      'anomaly': 0.15,
-      'behavior': 0.12,
-      'device': 0.10,
-      'heartRate': 0.10,
-      'reputation': 0.08,
-      'threshold': 0.08,
-      'benford': 0.07,
-      'velocity': 0.07,
+      'pattern': 0.12,
+      'anomaly': 0.12,
+      'behavior': 0.10,
+      'device': 0.08,
+      'heartRate': 0.08,
+      'reputation': 0.07,
+      'threshold': 0.07,
+      'benford': 0.06,
+      'velocity': 0.06,
       'autocorrelation': 0.04,
       'freshness': 0.04,
+      'crossMetric': 0.16, // strongest signal - internal sensor consistency
     };
 
     double weightedSum = 0.0;

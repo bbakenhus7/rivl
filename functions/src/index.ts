@@ -1359,17 +1359,28 @@ async function performAIAnalysis(params: {
   }
   scores.account = Math.max(0, accountScore);
 
+  // 10. Cross-metric validation — steps vs distance vs calories vs heart rate
+  let crossMetricScore = 0.8;
+  if (params.goalType === 'steps' && params.activityHistory.length > 0) {
+    crossMetricScore = crossValidateMetrics(params.activityHistory);
+    if (crossMetricScore < 0.5) {
+      flags.push('Step count inconsistent with distance, calories, or heart rate');
+    }
+  }
+  scores.crossMetric = crossMetricScore;
+
   // Weighted composite score
   const weights: Record<string, number> = {
-    threshold: 0.15,
-    pattern: 0.15,
-    benford: 0.10,
-    velocity: 0.10,
-    autocorrelation: 0.05,
-    crossChallenge: 0.10,
-    baseline: 0.12,
-    reputation: 0.13,
-    account: 0.10,
+    threshold: 0.12,
+    pattern: 0.12,
+    benford: 0.08,
+    velocity: 0.08,
+    autocorrelation: 0.04,
+    crossChallenge: 0.08,
+    baseline: 0.10,
+    reputation: 0.10,
+    account: 0.08,
+    crossMetric: 0.20, // strongest signal — independent sensor consistency
   };
 
   let weightedSum = 0;
@@ -1470,6 +1481,98 @@ async function compareHistoricalBaseline(
   return 1.0;
 }
 
+/**
+ * Cross-validate steps against distance, active calories, and heart rate
+ * that were synced alongside the step data from HealthKit/Health Connect.
+ *
+ * Expected relationships:
+ * - ~2,000 steps per mile (1,800-2,500 depending on stride)
+ * - ~40-80 active calories per 1,000 steps
+ * - Average HR elevated on high-step days
+ */
+function crossValidateMetrics(activityHistory: any[]): number {
+  let score = 1.0;
+  let daysWithDistance = 0;
+  let daysWithCalories = 0;
+  let daysWithHR = 0;
+  let distanceFails = 0;
+  let calorieFails = 0;
+  let hrFails = 0;
+
+  for (const day of activityHistory) {
+    const steps = day.steps ?? day.value ?? 0;
+    if (steps < 500) continue;
+
+    // Steps vs Distance
+    const dist = day.distance as number | undefined;
+    if (dist && dist > 0) {
+      daysWithDistance++;
+      const stepsPerMile = steps / dist;
+      if (stepsPerMile > 4000 || stepsPerMile < 1000) {
+        distanceFails++;
+      }
+    } else if (steps > 5000) {
+      // High steps with no distance = likely manual entry
+      daysWithDistance++;
+      distanceFails++;
+    }
+
+    // Steps vs Active Calories
+    const cals = day.activeCalories as number | undefined;
+    if (cals && cals > 0) {
+      daysWithCalories++;
+      const calsPerKSteps = cals / (steps / 1000.0);
+      if (calsPerKSteps < 10 || calsPerKSteps > 200) {
+        calorieFails++;
+      }
+    } else if (steps > 5000) {
+      daysWithCalories++;
+      calorieFails++;
+    }
+
+    // Steps vs Heart Rate
+    const hr = day.avgHeartRate as number | undefined;
+    if (hr && hr > 0) {
+      daysWithHR++;
+      if (steps > 15000 && hr < 65) hrFails++;
+      if (steps > 25000 && hr < 75) hrFails++;
+    }
+  }
+
+  if (daysWithDistance > 0) {
+    const rate = distanceFails / daysWithDistance;
+    if (rate > 0.5) score -= 0.3;
+    else if (rate > 0.25) score -= 0.15;
+  }
+
+  if (daysWithCalories > 0) {
+    const rate = calorieFails / daysWithCalories;
+    if (rate > 0.5) score -= 0.25;
+    else if (rate > 0.25) score -= 0.12;
+  }
+
+  if (daysWithHR > 0) {
+    const rate = hrFails / daysWithHR;
+    if (rate > 0.5) score -= 0.2;
+    else if (rate > 0.25) score -= 0.1;
+  }
+
+  // All corroborating metrics missing on high-step days = likely fabricated
+  const highStepDays = activityHistory.filter((d: any) => (d.steps ?? d.value ?? 0) > 10000);
+  if (highStepDays.length >= 2) {
+    const uncorroborated = highStepDays.filter((d: any) =>
+      (!d.distance || d.distance === 0) &&
+      (!d.activeCalories || d.activeCalories === 0) &&
+      (!d.avgHeartRate || d.avgHeartRate === 0)
+    ).length;
+    if (uncorroborated / highStepDays.length > 0.5) {
+      score -= 0.2;
+    }
+  }
+
+  return Math.max(0, Math.min(1, score));
+}
+
 function calculateVariance(values: number[]): number {
   if (values.length === 0) return 0;
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
@@ -1518,14 +1621,18 @@ export const analyzeAntiCheat = functions.https.onCall(async (data, context) => 
     const userDoc = await db.collection('users').doc(userId).get();
     const userData = userDoc.data() || {};
 
-    // Run server-side analysis with full pipeline
+    // Run server-side analysis with full pipeline including cross-metric data
     const values = stepHistory.map((entry: any) => entry.steps ?? entry.value ?? 0);
     const result = await performAIAnalysis({
       value: values.length > 0 ? values[values.length - 1] : 0,
       goalType: 'steps',
       activityHistory: stepHistory.map((entry: any) => ({
         value: entry.steps ?? entry.value ?? 0,
+        steps: entry.steps ?? entry.value ?? 0,
         date: entry.date ?? new Date().toISOString(),
+        distance: entry.distance ?? null,
+        activeCalories: entry.activeCalories ?? null,
+        avgHeartRate: entry.avgHeartRate ?? null,
       })),
       userReputation: userData.antiCheatScore || 0.85,
       accountAge: userData.createdAt,

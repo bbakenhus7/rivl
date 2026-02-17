@@ -439,6 +439,16 @@ class HealthService {
     final days = endDate.difference(startDate).inDays + 1;
     final history = <DailySteps>[];
 
+    // Determine platform-specific types
+    final distanceType = defaultTargetPlatform == TargetPlatform.iOS
+        ? HealthDataType.DISTANCE_WALKING_RUNNING
+        : HealthDataType.DISTANCE_DELTA;
+    final crossRefTypes = [
+      distanceType,
+      HealthDataType.ACTIVE_ENERGY_BURNED,
+      HealthDataType.HEART_RATE,
+    ];
+
     for (var i = 0; i < days; i++) {
       final dayStart = DateTime(startDate.year, startDate.month, startDate.day).add(Duration(days: i));
       if (dayStart.isAfter(now)) break;
@@ -447,11 +457,54 @@ class HealthService {
           : dayStart.add(const Duration(days: 1));
 
       final steps = await _health.getTotalStepsInInterval(dayStart, dayEnd) ?? 0;
+
+      // Fetch cross-validation metrics for this day
+      double? distanceMiles;
+      int? activeCalories;
+      int? avgHeartRate;
+      try {
+        final crossRefData = await _health.getHealthDataFromTypes(
+          types: crossRefTypes,
+          startTime: dayStart,
+          endTime: dayEnd,
+        );
+
+        // Distance (meters -> miles)
+        final distanceMeters = crossRefData
+            .where((p) => p.type == distanceType)
+            .fold(0.0, (sum, p) => sum + _numericValue(p));
+        if (distanceMeters > 0) {
+          distanceMiles = distanceMeters * 0.000621371;
+        }
+
+        // Active calories
+        final calTotal = crossRefData
+            .where((p) => p.type == HealthDataType.ACTIVE_ENERGY_BURNED)
+            .fold(0.0, (sum, p) => sum + _numericValue(p));
+        if (calTotal > 0) {
+          activeCalories = calTotal.toInt();
+        }
+
+        // Average heart rate
+        final hrPoints = crossRefData
+            .where((p) => p.type == HealthDataType.HEART_RATE)
+            .toList();
+        if (hrPoints.isNotEmpty) {
+          final hrSum = hrPoints.fold(0.0, (sum, p) => sum + _numericValue(p));
+          avgHeartRate = (hrSum / hrPoints.length).round();
+        }
+      } catch (_) {
+        // Cross-ref metrics are best-effort; steps are the primary data
+      }
+
       history.add(DailySteps(
         date: dayStart.toIso8601String().split('T').first,
         steps: steps,
         source: _sourceTag,
         syncedAt: now,
+        distance: distanceMiles,
+        activeCalories: activeCalories,
+        avgHeartRate: avgHeartRate,
       ));
     }
 
