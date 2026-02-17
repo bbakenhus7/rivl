@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/challenge_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../models/challenge_model.dart';
@@ -25,11 +26,18 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
   bool _challengeSent = false;
 
   // Step definitions change based on mode
-  List<String> _stepTitles(bool isGroup) => isGroup
-      ? ['Challenge Type', 'Add Members', 'Choose Stake', 'Duration & Type', 'Review & Send']
-      : ['Challenge Type', 'Select Opponent', 'Choose Stake', 'Duration & Type', 'Review & Send'];
+  List<String> _stepTitles(ChallengeType type) {
+    switch (type) {
+      case ChallengeType.group:
+        return ['Challenge Type', 'Add Members', 'Choose Stake', 'Duration & Type', 'Review & Send'];
+      case ChallengeType.teamVsTeam:
+        return ['Challenge Type', 'Build Squads', 'Choose Stake', 'Duration & Type', 'Review & Send'];
+      case ChallengeType.headToHead:
+        return ['Challenge Type', 'Select Opponent', 'Choose Stake', 'Duration & Type', 'Review & Send'];
+    }
+  }
 
-  int _totalSteps(bool isGroup) => _stepTitles(isGroup).length;
+  int _totalSteps(ChallengeType type) => _stepTitles(type).length;
 
   @override
   void initState() {
@@ -40,14 +48,20 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
   }
 
   bool _canProceed(ChallengeProvider provider) {
-    final isGroup = provider.isGroupMode;
     switch (_currentStep) {
       case 0:
         return true; // Challenge type always selected
       case 1:
-        return isGroup
-            ? provider.selectedGroupMembers.isNotEmpty
-            : provider.selectedOpponent != null;
+        if (provider.isGroupMode) {
+          return provider.selectedGroupMembers.isNotEmpty;
+        } else if (provider.isTeamMode) {
+          final hasNames = provider.teamAName.trim().isNotEmpty &&
+              provider.teamBName.trim().isNotEmpty;
+          final hasTeamBMembers = provider.teamBMembers.isNotEmpty;
+          final hasTeamAMembers = provider.teamSize <= 2 || provider.teamAMembers.isNotEmpty;
+          return hasNames && hasTeamBMembers && hasTeamAMembers;
+        }
+        return provider.selectedOpponent != null;
       case 2:
         return true; // Stake always has a default
       case 3:
@@ -60,7 +74,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
   }
 
   void _nextStep(ChallengeProvider provider) async {
-    final total = _totalSteps(provider.isGroupMode);
+    final total = _totalSteps(provider.selectedChallengeType);
     if (_currentStep < total - 1 && _canProceed(provider)) {
       // Validate balance when leaving the stake step (step 2)
       if (_currentStep == 2) {
@@ -101,7 +115,9 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
     }
 
     final String? challengeId;
-    if (provider.isGroupMode) {
+    if (provider.isTeamMode) {
+      challengeId = await provider.createTeamChallenge(walletBalance: walletBalance);
+    } else if (provider.isGroupMode) {
       challengeId = await provider.createGroupChallenge(walletBalance: walletBalance);
     } else {
       challengeId = await provider.createChallenge(walletBalance: walletBalance);
@@ -130,9 +146,9 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
   Widget build(BuildContext context) {
     return Consumer<ChallengeProvider>(
       builder: (context, provider, _) {
-        final isGroup = provider.isGroupMode;
-        final totalSteps = _totalSteps(isGroup);
-        final titles = _stepTitles(isGroup);
+        final challengeType = provider.selectedChallengeType;
+        final totalSteps = _totalSteps(challengeType);
+        final titles = _stepTitles(challengeType);
 
         return ConfettiCelebration(
           celebrate: _challengeSent,
@@ -182,7 +198,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
                             );
                           },
                           child: KeyedSubtree(
-                            key: ValueKey('${isGroup ? 'g' : 'h'}-$_currentStep'),
+                            key: ValueKey('${challengeType.name}-$_currentStep'),
                             child: _buildStepContent(provider),
                           ),
                         ),
@@ -209,6 +225,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
 
   Widget _buildStepContent(ChallengeProvider provider) {
     final isGroup = provider.isGroupMode;
+    final isTeam = provider.isTeamMode;
     switch (_currentStep) {
       case 0:
         return _StepChallengeType(
@@ -219,6 +236,29 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
           },
         );
       case 1:
+        if (isTeam) {
+          return _StepBuildTeams(
+            teamAName: provider.teamAName,
+            teamBName: provider.teamBName,
+            teamALabel: provider.teamALabel,
+            teamBLabel: provider.teamBLabel,
+            teamAMembers: provider.teamAMembers,
+            teamBMembers: provider.teamBMembers,
+            teamSize: provider.teamSize,
+            suggestedOpponents: provider.demoOpponents,
+            onTeamANameChanged: provider.setTeamAName,
+            onTeamBNameChanged: provider.setTeamBName,
+            onTeamALabelChanged: provider.setTeamALabel,
+            onTeamBLabelChanged: provider.setTeamBLabel,
+            onTeamSizeChanged: provider.setTeamSize,
+            onAddTeamAMember: provider.addTeamAMember,
+            onRemoveTeamAMember: provider.removeTeamAMember,
+            onAddTeamBMember: provider.addTeamBMember,
+            onRemoveTeamBMember: provider.removeTeamBMember,
+            onSearchTap: (bool isTeamA) =>
+                _showTeamMemberPicker(context, isTeamA, provider),
+          );
+        }
         if (isGroup) {
           return _StepAddGroupMembers(
             selectedMembers: provider.selectedGroupMembers,
@@ -244,8 +284,8 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
         return _StepChooseStake(
           selectedStake: provider.selectedStake,
           onChanged: provider.setSelectedStake,
-          isGroup: isGroup,
-          groupSize: provider.groupSize,
+          isGroup: isGroup || isTeam,
+          groupSize: isTeam ? provider.teamSize * 2 : provider.groupSize,
         );
       case 3:
         return _StepDurationAndType(
@@ -255,6 +295,21 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
           onGoalTypeSelected: provider.setSelectedGoalType,
         );
       case 4:
+        if (isTeam) {
+          return _StepTeamReview(
+            teamAName: provider.teamAName,
+            teamBName: provider.teamBName,
+            teamALabel: provider.teamALabel,
+            teamBLabel: provider.teamBLabel,
+            teamAMembers: provider.teamAMembers,
+            teamBMembers: provider.teamBMembers,
+            teamSize: provider.teamSize,
+            stake: provider.selectedStake,
+            duration: provider.selectedDuration,
+            goalType: provider.selectedGoalType,
+            onEditStep: (step) => setState(() => _currentStep = step),
+          );
+        }
         if (isGroup) {
           return _StepGroupReview(
             members: provider.selectedGroupMembers,
@@ -279,7 +334,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
   }
 
   Widget _buildSuccessView(ChallengeProvider provider) {
-    final opponent = provider.selectedOpponent;
+    final message = provider.successMessage ?? 'Your challenge has been sent.';
     return Center(
       child: SlideIn(
         offset: const Offset(0, 30),
@@ -310,9 +365,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
               ),
               const SizedBox(height: 12),
               Text(
-                opponent != null
-                    ? '${opponent.displayName} has been challenged.\nThey\'ll be notified shortly.'
-                    : 'Your challenge has been sent.',
+                message,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: context.textSecondary,
@@ -341,6 +394,19 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const _GroupMemberPickerSheet(),
+    );
+  }
+
+  void _showTeamMemberPicker(
+      BuildContext context, bool isTeamA, ChallengeProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _TeamMemberPickerSheet(
+        isTeamA: isTeamA,
+        provider: provider,
+      ),
     );
   }
 }
@@ -2435,7 +2501,7 @@ class _StepChallengeType extends StatelessWidget {
           SlideIn(
             delay: const Duration(milliseconds: 200),
             child: Text(
-              'Choose between a head-to-head battle or a group league.',
+              'Choose a head-to-head battle, group league, or team vs team.',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: context.textSecondary,
                   ),
@@ -2461,6 +2527,17 @@ class _StepChallengeType extends StatelessWidget {
               subtitle: '3-20 players. Top 3 win payouts.\n5% platform fee.',
               isSelected: selectedType == ChallengeType.group,
               onTap: () => onChanged(ChallengeType.group),
+            ),
+          ),
+          const SizedBox(height: 16),
+          SlideIn(
+            delay: const Duration(milliseconds: 500),
+            child: _ChallengeTypeOption(
+              icon: Icons.shield_outlined,
+              title: 'Squad vs Squad',
+              subtitle: '2v2 up to 20v20. Squads compete.\nWinning squad splits the prize. 5% fee.',
+              isSelected: selectedType == ChallengeType.teamVsTeam,
+              onTap: () => onChanged(ChallengeType.teamVsTeam),
             ),
           ),
         ],
@@ -2804,7 +2881,7 @@ class _MemberChip extends StatelessWidget {
               ),
               child: Center(
                 child: Text(
-                  name[0].toUpperCase(),
+                  name.isNotEmpty ? name[0].toUpperCase() : '?',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -3494,6 +3571,927 @@ class _GroupMemberPickerSheetState extends State<_GroupMemberPickerSheet> {
           ),
         );
       },
+    );
+  }
+}
+
+// =============================================================================
+// SQUAD VS SQUAD: BUILD SQUADS STEP
+// =============================================================================
+
+const List<String> _squadLabelOptions = ['Squad', 'Run Club', 'Business', 'Crew', 'Team'];
+
+class _StepBuildTeams extends StatelessWidget {
+  final String teamAName;
+  final String teamBName;
+  final String? teamALabel;
+  final String? teamBLabel;
+  final List<UserModel> teamAMembers;
+  final List<UserModel> teamBMembers;
+  final int teamSize;
+  final List<UserModel> suggestedOpponents;
+  final Function(String) onTeamANameChanged;
+  final Function(String) onTeamBNameChanged;
+  final Function(String?) onTeamALabelChanged;
+  final Function(String?) onTeamBLabelChanged;
+  final Function(int) onTeamSizeChanged;
+  final Function(UserModel) onAddTeamAMember;
+  final Function(String) onRemoveTeamAMember;
+  final Function(UserModel) onAddTeamBMember;
+  final Function(String) onRemoveTeamBMember;
+  final Function(bool isTeamA) onSearchTap;
+
+  const _StepBuildTeams({
+    required this.teamAName,
+    required this.teamBName,
+    this.teamALabel,
+    this.teamBLabel,
+    required this.teamAMembers,
+    required this.teamBMembers,
+    required this.teamSize,
+    required this.suggestedOpponents,
+    required this.onTeamANameChanged,
+    required this.onTeamBNameChanged,
+    required this.onTeamALabelChanged,
+    required this.onTeamBLabelChanged,
+    required this.onTeamSizeChanged,
+    required this.onAddTeamAMember,
+    required this.onRemoveTeamAMember,
+    required this.onAddTeamBMember,
+    required this.onRemoveTeamBMember,
+    required this.onSearchTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SlideIn(
+            delay: const Duration(milliseconds: 100),
+            child: Text(
+              'Build your\nsquads',
+              style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SlideIn(
+            delay: const Duration(milliseconds: 200),
+            child: Text(
+              'Set up two squads to compete head-to-head. Great for run clubs, businesses, or friend groups.',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: context.textSecondary,
+                  ),
+            ),
+          ),
+          const SizedBox(height: 28),
+
+          // Squad size selector
+          SlideIn(
+            delay: const Duration(milliseconds: 250),
+            child: Text(
+              'Squad Size',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SlideIn(
+            delay: const Duration(milliseconds: 300),
+            child: _SquadSizeSelector(
+              squadSize: teamSize,
+              onChanged: onTeamSizeChanged,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SlideIn(
+            delay: const Duration(milliseconds: 320),
+            child: Text(
+              '${teamSize}v$teamSize — ${teamSize * 2} total players',
+              style: TextStyle(
+                fontSize: 13,
+                color: context.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Squad label selector
+          SlideIn(
+            delay: const Duration(milliseconds: 350),
+            child: Text(
+              'Squad Type (optional)',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SlideIn(
+            delay: const Duration(milliseconds: 370),
+            child: SizedBox(
+              height: 36,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: _squadLabelOptions.map((label) {
+                  final isSelected = teamALabel == label;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(label),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        final value = selected ? label : null;
+                        onTeamALabelChanged(value);
+                        onTeamBLabelChanged(value);
+                      },
+                      selectedColor: RivlColors.primary.withOpacity(0.15),
+                      labelStyle: TextStyle(
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                        color: isSelected ? RivlColors.primary : null,
+                        fontSize: 13,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // ---- SQUAD A ----
+          SlideIn(
+            delay: const Duration(milliseconds: 400),
+            child: _SquadSection(
+              squadLabel: 'Your Squad',
+              squadName: teamAName,
+              squadLabelTag: teamALabel,
+              members: teamAMembers,
+              squadSize: teamSize,
+              isCreatorSquad: true,
+              suggestedOpponents: suggestedOpponents
+                  .where((u) => !teamBMembers.any((m) => m.id == u.id))
+                  .toList(),
+              onNameChanged: onTeamANameChanged,
+              onAddMember: onAddTeamAMember,
+              onRemoveMember: onRemoveTeamAMember,
+              onSearchTap: () => onSearchTap(true),
+              color: RivlColors.primary,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // VS divider
+          SlideIn(
+            delay: const Duration(milliseconds: 450),
+            child: Center(
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey.shade700
+                          : Colors.grey.shade300,
+                      Theme.of(context).brightness == Brightness.dark
+                          ? Colors.grey.shade800
+                          : Colors.grey.shade100,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    'VS',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: context.textSecondary,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // ---- SQUAD B ----
+          SlideIn(
+            delay: const Duration(milliseconds: 500),
+            child: _SquadSection(
+              squadLabel: 'Rival Squad',
+              squadName: teamBName,
+              squadLabelTag: teamBLabel,
+              members: teamBMembers,
+              squadSize: teamSize,
+              isCreatorSquad: false,
+              suggestedOpponents: suggestedOpponents
+                  .where((u) => !teamAMembers.any((m) => m.id == u.id))
+                  .toList(),
+              onNameChanged: onTeamBNameChanged,
+              onAddMember: onAddTeamBMember,
+              onRemoveMember: onRemoveTeamBMember,
+              onSearchTap: () => onSearchTap(false),
+              color: const Color(0xFFFF6B5B),
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+}
+
+class _SquadSizeSelector extends StatelessWidget {
+  final int squadSize;
+  final Function(int) onChanged;
+
+  const _SquadSizeSelector({required this.squadSize, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text('2v2', style: TextStyle(fontSize: 12, color: context.textSecondary, fontWeight: FontWeight.w500)),
+        Expanded(
+          child: Slider(
+            value: squadSize.toDouble(),
+            min: 2,
+            max: 20,
+            divisions: 18,
+            activeColor: RivlColors.primary,
+            label: '${squadSize}v$squadSize',
+            onChanged: (val) => onChanged(val.round()),
+          ),
+        ),
+        Text('20v20', style: TextStyle(fontSize: 12, color: context.textSecondary, fontWeight: FontWeight.w500)),
+      ],
+    );
+  }
+}
+
+class _SquadSection extends StatefulWidget {
+  final String squadLabel;
+  final String squadName;
+  final String? squadLabelTag;
+  final List<UserModel> members;
+  final int squadSize;
+  final bool isCreatorSquad;
+  final List<UserModel> suggestedOpponents;
+  final Function(String) onNameChanged;
+  final Function(UserModel) onAddMember;
+  final Function(String) onRemoveMember;
+  final VoidCallback onSearchTap;
+  final Color color;
+
+  const _SquadSection({
+    required this.squadLabel,
+    required this.squadName,
+    this.squadLabelTag,
+    required this.members,
+    required this.squadSize,
+    required this.isCreatorSquad,
+    required this.suggestedOpponents,
+    required this.onNameChanged,
+    required this.onAddMember,
+    required this.onRemoveMember,
+    required this.onSearchTap,
+    required this.color,
+  });
+
+  @override
+  State<_SquadSection> createState() => _SquadSectionState();
+}
+
+class _SquadSectionState extends State<_SquadSection> {
+  late TextEditingController _nameController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.squadName);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SquadSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.squadName != oldWidget.squadName &&
+        widget.squadName != _nameController.text) {
+      _nameController.text = widget.squadName;
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final maxMembers = widget.isCreatorSquad ? widget.squadSize - 1 : widget.squadSize;
+    final slotsRemaining = maxMembers - widget.members.length;
+    final color = widget.color;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Squad header
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.shield_outlined, size: 18, color: color),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.squadLabel,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: color,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    Text(
+                      '${widget.members.length + (widget.isCreatorSquad ? 1 : 0)}/${widget.squadSize} members',
+                      style: TextStyle(fontSize: 12, color: context.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Squad name field
+          TextField(
+            controller: _nameController,
+            onChanged: widget.onNameChanged,
+            maxLength: 30,
+            decoration: InputDecoration(
+              hintText: widget.squadLabelTag != null
+                  ? '${widget.squadLabelTag} name (e.g. Morning Runners)'
+                  : 'Squad name',
+              hintStyle: TextStyle(
+                color: context.textSecondary.withOpacity(0.6),
+                fontSize: 14,
+              ),
+              counterText: '', // Hide character counter
+              filled: true,
+              fillColor: context.surface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: color.withOpacity(0.2)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: color.withOpacity(0.2)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: color, width: 2),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            ),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
+          const SizedBox(height: 12),
+
+          // Captain (always first in creator squad)
+          if (widget.isCreatorSquad)
+            _MemberChip(name: 'You (Captain)', isCreator: true),
+
+          // Members
+          ...widget.members.map((member) => _MemberChip(
+                name: member.displayName,
+                subtitle: '@${member.username}',
+                onRemove: () => widget.onRemoveMember(member.id),
+              )),
+
+          // Add members
+          if (slotsRemaining > 0) ...[
+            const SizedBox(height: 8),
+            if (widget.suggestedOpponents.isNotEmpty) ...[
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: widget.suggestedOpponents
+                    .where((u) => !widget.members.any((m) => m.id == u.id))
+                    .take(3)
+                    .map((user) => ActionChip(
+                          avatar: CircleAvatar(
+                            backgroundColor: color.withOpacity(0.15),
+                            child: Text(
+                              user.displayName[0].toUpperCase(),
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+                            ),
+                          ),
+                          label: Text(user.displayName, style: const TextStyle(fontSize: 12)),
+                          onPressed: () => widget.onAddMember(user),
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 8),
+            ],
+            _SearchOpponentButton(onTap: widget.onSearchTap),
+            const SizedBox(height: 4),
+            Text(
+              '$slotsRemaining slot${slotsRemaining == 1 ? '' : 's'} remaining',
+              style: TextStyle(fontSize: 12, color: context.textSecondary),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// SQUAD VS SQUAD: REVIEW STEP
+// =============================================================================
+
+class _StepTeamReview extends StatelessWidget {
+  final String teamAName;
+  final String teamBName;
+  final String? teamALabel;
+  final String? teamBLabel;
+  final List<UserModel> teamAMembers;
+  final List<UserModel> teamBMembers;
+  final int teamSize;
+  final StakeOption stake;
+  final ChallengeDuration duration;
+  final GoalType goalType;
+  final Function(int) onEditStep;
+
+  const _StepTeamReview({
+    required this.teamAName,
+    required this.teamBName,
+    this.teamALabel,
+    this.teamBLabel,
+    required this.teamAMembers,
+    required this.teamBMembers,
+    required this.teamSize,
+    required this.stake,
+    required this.duration,
+    required this.goalType,
+    required this.onEditStep,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final totalParticipants = teamSize * 2; // Both squads at full size
+    final totalPot = stake.amount * totalParticipants;
+    final prizePool = (totalPot * 0.95 * 100).roundToDouble() / 100;
+    final perPersonWinnings = teamSize > 0
+        ? (prizePool / teamSize)
+        : 0.0;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SlideIn(
+            delay: const Duration(milliseconds: 100),
+            child: Text(
+              'Review your\nsquad challenge',
+              style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Prize pool header
+          SlideIn(
+            delay: const Duration(milliseconds: 200),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [RivlColors.primary, RivlColors.primaryLight],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    stake.amount > 0 ? '\$${prizePool.toStringAsFixed(0)}' : 'Free',
+                    style: const TextStyle(
+                      fontSize: 44,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Prize Pool',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white70),
+                  ),
+                  if (stake.amount > 0) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Winners get ~\$${perPersonWinnings.toStringAsFixed(0)} each',
+                      style: const TextStyle(fontSize: 12, color: Colors.white60),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Squads display
+          SlideIn(
+            delay: const Duration(milliseconds: 250),
+            child: _ReviewSquadCard(
+              squadName: teamAName.isEmpty ? 'Your Squad' : teamAName,
+              label: teamALabel,
+              members: ['You (Captain)', ...teamAMembers.map((m) => m.displayName)],
+              color: RivlColors.primary,
+              onEdit: () => onEditStep(1),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: Text(
+              'VS',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: context.textSecondary,
+                letterSpacing: 1,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SlideIn(
+            delay: const Duration(milliseconds: 300),
+            child: _ReviewSquadCard(
+              squadName: teamBName.isEmpty ? 'Rival Squad' : teamBName,
+              label: teamBLabel,
+              members: teamBMembers.map((m) => m.displayName).toList(),
+              color: const Color(0xFFFF6B5B),
+              onEdit: () => onEditStep(1),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Challenge details
+          SlideIn(
+            delay: const Duration(milliseconds: 350),
+            child: Card(
+              elevation: 2,
+              shadowColor: Colors.black.withOpacity(0.06),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    _SquadReviewRow(
+                      icon: goalType.icon,
+                      label: 'Type',
+                      value: goalType.displayName,
+                      onEdit: () => onEditStep(3),
+                    ),
+                    const Divider(height: 20),
+                    _SquadReviewRow(
+                      icon: Icons.schedule_outlined,
+                      label: 'Duration',
+                      value: duration.displayName,
+                      onEdit: () => onEditStep(3),
+                    ),
+                    const Divider(height: 20),
+                    _SquadReviewRow(
+                      icon: Icons.attach_money,
+                      label: 'Stake',
+                      value: stake.amount > 0 ? '\$${stake.amount.toInt()} per person' : 'Free',
+                      onEdit: () => onEditStep(2),
+                    ),
+                    const Divider(height: 20),
+                    _SquadReviewRow(
+                      icon: Icons.shield_outlined,
+                      label: 'Format',
+                      value: '${teamSize}v$teamSize ($totalParticipants players)',
+                      onEdit: () => onEditStep(1),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Disclaimer
+          if (stake.amount > 0)
+            SlideIn(
+              delay: const Duration(milliseconds: 400),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.withOpacity(0.2)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: Colors.orange[700]),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Your \$${stake.amount.toInt()} stake will be held in escrow. All squad members must accept and stake to start. Winning squad splits the prize pool evenly.',
+                        style: TextStyle(fontSize: 12, color: Colors.orange[700], height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReviewSquadCard extends StatelessWidget {
+  final String squadName;
+  final String? label;
+  final List<String> members;
+  final Color color;
+  final VoidCallback onEdit;
+
+  const _ReviewSquadCard({
+    required this.squadName,
+    this.label,
+    required this.members,
+    required this.color,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.shield_outlined, size: 16, color: color),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      squadName,
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: color),
+                    ),
+                    if (label != null)
+                      Text(label!, style: TextStyle(fontSize: 12, color: context.textSecondary)),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.edit_outlined, size: 18, color: context.textSecondary),
+                onPressed: onEdit,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: members
+                .map((name) => Chip(
+                      avatar: CircleAvatar(
+                        backgroundColor: color.withOpacity(0.15),
+                        child: Text(
+                          name.isNotEmpty ? name[0].toUpperCase() : '?',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+                        ),
+                      ),
+                      label: Text(name, style: const TextStyle(fontSize: 12)),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ))
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SquadReviewRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final VoidCallback onEdit;
+
+  const _SquadReviewRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: RivlColors.primary),
+        const SizedBox(width: 12),
+        Text(label, style: TextStyle(fontSize: 13, color: context.textSecondary, fontWeight: FontWeight.w500)),
+        const Spacer(),
+        Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: onEdit,
+          child: Icon(Icons.edit_outlined, size: 14, color: context.textSecondary),
+        ),
+      ],
+    );
+  }
+}
+
+// =============================================================================
+// SQUAD VS SQUAD: MEMBER PICKER SHEET
+// =============================================================================
+
+class _TeamMemberPickerSheet extends StatefulWidget {
+  final bool isTeamA;
+  final ChallengeProvider provider;
+
+  const _TeamMemberPickerSheet({
+    required this.isTeamA,
+    required this.provider,
+  });
+
+  @override
+  State<_TeamMemberPickerSheet> createState() => _TeamMemberPickerSheetState();
+}
+
+class _TeamMemberPickerSheetState extends State<_TeamMemberPickerSheet> {
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final squadName = widget.isTeamA
+        ? (widget.provider.teamAName.isEmpty ? 'Your Squad' : widget.provider.teamAName)
+        : (widget.provider.teamBName.isEmpty ? 'Rival Squad' : widget.provider.teamBName);
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[400],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Add to $squadName',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _searchController,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'Search by username...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  onChanged: (query) {
+                    if (query.length >= 2) {
+                      widget.provider.searchUsers(query);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Consumer<ChallengeProvider>(
+              builder: (context, provider, _) {
+                if (provider.isSearching) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final results = provider.searchResults;
+                final currentUserId = context.read<AuthProvider>().user?.id;
+                final existingIds = {
+                  if (currentUserId != null) currentUserId,
+                  ...provider.teamAMembers.map((m) => m.id),
+                  ...provider.teamBMembers.map((m) => m.id),
+                };
+                final filtered = results.where((u) => !existingIds.contains(u.id)).toList();
+
+                if (filtered.isEmpty && _searchController.text.length >= 2) {
+                  return Center(
+                    child: Text('No users found', style: TextStyle(color: context.textSecondary)),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    final user = filtered[index];
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: RivlColors.primary.withOpacity(0.12),
+                        child: Text(
+                          user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: RivlColors.primary),
+                        ),
+                      ),
+                      title: Text(user.displayName),
+                      subtitle: Text('@${user.username}'),
+                      trailing: Text(
+                        '${user.wins}W - ${user.losses}L',
+                        style: TextStyle(fontSize: 12, color: context.textSecondary),
+                      ),
+                      onTap: () {
+                        if (widget.isTeamA) {
+                          provider.addTeamAMember(user);
+                        } else {
+                          provider.addTeamBMember(user);
+                        }
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

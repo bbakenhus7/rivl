@@ -3,7 +3,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-enum ChallengeType { headToHead, group }
+enum ChallengeType { headToHead, group, teamVsTeam }
 
 enum ChallengeStatus { pending, accepted, active, completed, cancelled, disputed }
 
@@ -58,6 +58,11 @@ class ChallengeModel {
   final int minParticipants;
   final GroupPayoutStructure? payoutStructure;
 
+  // Team vs Team challenge fields
+  final ChallengeTeam? teamA;
+  final ChallengeTeam? teamB;
+  final int teamSize; // Members per team (2-20)
+
   // Expiry (pending challenges auto-decline after this date)
   final DateTime? expiresAt;
 
@@ -107,6 +112,9 @@ class ChallengeModel {
     this.maxParticipants = 2,
     this.minParticipants = 2,
     this.payoutStructure,
+    this.teamA,
+    this.teamB,
+    this.teamSize = 2,
     this.expiresAt,
     this.winnerId,
     this.winnerName,
@@ -125,8 +133,27 @@ class ChallengeModel {
 
   // Computed properties
   bool get isGroup => type == ChallengeType.group;
+  bool get isTeamVsTeam => type == ChallengeType.teamVsTeam;
   int get acceptedParticipantCount =>
       participants.where((p) => p.status == ParticipantStatus.accepted).length;
+
+  /// Total members across both teams for team vs team challenges.
+  int get totalTeamMembers {
+    if (!isTeamVsTeam) return 0;
+    return (teamA?.members.length ?? 0) + (teamB?.members.length ?? 0);
+  }
+
+  /// Team A aggregate progress (sum for accumulative goals, average for pace-based).
+  int get teamAProgress {
+    if (teamA == null) return 0;
+    return goalType.higherIsBetter ? teamA!.totalProgress : teamA!.averageProgress;
+  }
+
+  /// Team B aggregate progress (sum for accumulative goals, average for pace-based).
+  int get teamBProgress {
+    if (teamB == null) return 0;
+    return goalType.higherIsBetter ? teamB!.totalProgress : teamB!.averageProgress;
+  }
 
   /// Whether this pending challenge has expired.
   bool get isExpired {
@@ -153,23 +180,36 @@ class ChallengeModel {
     return '${minutes}m left to respond';
   }
 
-  bool get isTied => creatorProgress == opponentProgress;
+  bool get isTied {
+    if (isTeamVsTeam) return teamAProgress == teamBProgress;
+    return creatorProgress == opponentProgress;
+  }
 
   bool get isUserWinning {
     if (isTied) return false;
+    final int userProg;
+    final int rivalProg;
+    if (isTeamVsTeam) {
+      userProg = teamAProgress;
+      rivalProg = teamBProgress;
+    } else {
+      userProg = creatorProgress;
+      rivalProg = opponentProgress;
+    }
     if (goalType.higherIsBetter) {
-      return creatorProgress > opponentProgress;
+      return userProg > rivalProg;
     } else {
       // Pace-based: lower is better, but 0 means no data (losing)
-      if (creatorProgress == 0) return false;
-      if (opponentProgress == 0) return true;
-      return creatorProgress < opponentProgress;
+      if (userProg == 0) return false;
+      if (rivalProg == 0) return true;
+      return userProg < rivalProg;
     }
   }
-  
+
   double get progressPercentage {
     if (goalValue == 0) return 0;
-    return (creatorProgress / goalValue).clamp(0.0, 1.0);
+    final progress = isTeamVsTeam ? teamAProgress : creatorProgress;
+    return (progress / goalValue).clamp(0.0, 1.0);
   }
   
   String get timeRemaining {
@@ -272,6 +312,13 @@ class ChallengeModel {
       payoutStructure: data['payoutStructure'] != null
           ? GroupPayoutStructure.fromMap(data['payoutStructure'] as Map<String, dynamic>)
           : null,
+      teamA: data['teamA'] != null
+          ? ChallengeTeam.fromMap(data['teamA'] as Map<String, dynamic>)
+          : null,
+      teamB: data['teamB'] != null
+          ? ChallengeTeam.fromMap(data['teamB'] as Map<String, dynamic>)
+          : null,
+      teamSize: data['teamSize'] ?? 2,
       expiresAt: (data['expiresAt'] as Timestamp?)?.toDate(),
       winnerId: data['winnerId'],
       winnerName: data['winnerName'],
@@ -327,6 +374,9 @@ class ChallengeModel {
       if (minParticipants > 2) 'minParticipants': minParticipants,
       if (payoutStructure != null)
         'payoutStructure': payoutStructure!.toMap(),
+      if (teamA != null) 'teamA': teamA!.toMap(),
+      if (teamB != null) 'teamB': teamB!.toMap(),
+      if (type == ChallengeType.teamVsTeam) 'teamSize': teamSize,
       if (expiresAt != null)
         'expiresAt': Timestamp.fromDate(expiresAt!),
       'winnerId': winnerId,
@@ -430,6 +480,55 @@ class GroupParticipant {
   }
 }
 
+// Team for team vs team challenges
+class ChallengeTeam {
+  final String name; // e.g. "Morning Runners", "Nike Run Club", "Acme Corp"
+  final String? label; // Optional label: "Run Club", "Team", "Business"
+  final List<GroupParticipant> members;
+
+  const ChallengeTeam({
+    required this.name,
+    this.label,
+    this.members = const [],
+  });
+
+  /// Aggregate progress: sum of all accepted members' progress.
+  int get totalProgress =>
+      members.where((m) => m.status == ParticipantStatus.accepted)
+          .fold(0, (sum, m) => sum + m.progress);
+
+  /// Average progress per accepted member (for pace-based goals).
+  int get averageProgress {
+    final accepted = members.where((m) => m.status == ParticipantStatus.accepted).toList();
+    if (accepted.isEmpty) return 0;
+    final total = accepted.fold(0, (sum, m) => sum + m.progress);
+    return (total / accepted.length).round();
+  }
+
+  int get acceptedCount =>
+      members.where((m) => m.status == ParticipantStatus.accepted).length;
+
+  List<String> get memberIds => members.map((m) => m.userId).toList();
+
+  factory ChallengeTeam.fromMap(Map<String, dynamic> map) {
+    return ChallengeTeam(
+      name: map['name'] ?? '',
+      label: map['label'],
+      members: (map['members'] as List<dynamic>?)
+          ?.map((e) => GroupParticipant.fromMap(e as Map<String, dynamic>))
+          .toList() ?? [],
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      if (label != null) 'label': label,
+      'members': members.map((e) => e.toMap()).toList(),
+    };
+  }
+}
+
 // Payout structure for group challenges (1st / 2nd / 3rd)
 class GroupPayoutStructure {
   final double firstPercent;  // e.g. 0.60
@@ -505,7 +604,7 @@ class StakeOption {
   String get displayPrize => prize == 0 ? 'Free' : '\$${prize.toInt()}';
   String get displayGroupPrize => groupPrize == 0 ? 'Free' : '\$${groupPrize.toInt()}';
 
-  // Calculate prize based on challenge type (3% for 1v1, 5% for groups)
+  // Calculate prize based on challenge type (3% for 1v1, 5% for groups/teams)
   double getPrizeForType(ChallengeType type) {
     return type == ChallengeType.headToHead ? prize : groupPrize;
   }

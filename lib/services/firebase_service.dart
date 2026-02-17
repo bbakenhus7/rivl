@@ -385,6 +385,143 @@ class FirebaseService {
     return newChallengeRef.id;
   }
 
+  /// Create a team vs team challenge with optional stake.
+  /// teamAMembers: members of the creator's team (creator is auto-added).
+  /// teamBMembers: members of the opposing team.
+  Future<String> createTeamChallengeWithStake({
+    required String teamAName,
+    required String? teamALabel,
+    required List<GroupParticipant> teamAMembers,
+    required String teamBName,
+    required String? teamBLabel,
+    required List<GroupParticipant> teamBMembers,
+    required GoalType goalType,
+    required int goalValue,
+    required ChallengeDuration duration,
+    required double stakeAmount,
+    required int teamSize,
+  }) async {
+    final user = await getUser(currentUser!.uid);
+    if (user == null) throw Exception('User not found');
+
+    // Creator is always the first member of Team A
+    final creatorParticipant = GroupParticipant(
+      userId: currentUser!.uid,
+      displayName: user.displayName,
+      username: user.username,
+      status: ParticipantStatus.accepted,
+    );
+
+    final allTeamAMembers = [creatorParticipant, ...teamAMembers];
+    final teamA = ChallengeTeam(
+      name: teamAName,
+      label: teamALabel,
+      members: allTeamAMembers,
+    );
+    final teamB = ChallengeTeam(
+      name: teamBName,
+      label: teamBLabel,
+      members: teamBMembers,
+    );
+
+    final allParticipantIds = [
+      ...allTeamAMembers.map((m) => m.userId),
+      ...teamBMembers.map((m) => m.userId),
+    ];
+
+    final totalParticipants = allTeamAMembers.length + teamBMembers.length;
+    final totalPot = stakeAmount * totalParticipants;
+    final prizeAmount = _calculatePrize(totalPot, ChallengeType.teamVsTeam);
+    final now = DateTime.now();
+    final expiresAt = now.add(const Duration(days: 7));
+
+    final challengeData = ChallengeModel(
+      id: '',
+      creatorId: currentUser!.uid,
+      creatorName: user.displayName,
+      type: ChallengeType.teamVsTeam,
+      status: ChallengeStatus.pending,
+      stakeAmount: stakeAmount,
+      totalPot: totalPot,
+      prizeAmount: prizeAmount,
+      goalType: goalType,
+      goalValue: goalValue,
+      duration: duration,
+      participantIds: allParticipantIds,
+      teamA: teamA,
+      teamB: teamB,
+      teamSize: teamSize,
+      expiresAt: expiresAt,
+      createdAt: now,
+      updatedAt: now,
+    ).toFirestore();
+
+    // For free challenges, no transaction needed
+    if (stakeAmount <= 0) {
+      final docRef = await _db.collection('challenges').add(challengeData);
+      // Notify all invited members
+      for (final member in [...teamAMembers, ...teamBMembers]) {
+        await _sendNotification(
+          userId: member.userId,
+          type: 'challenge_invite',
+          title: 'Squad Challenge!',
+          body: '${user.displayName} invited you to $teamAName vs $teamBName!',
+          data: {'challengeId': docRef.id},
+        );
+      }
+      return docRef.id;
+    }
+
+    // Paid team challenge: atomic create + deduct creator's stake
+    final newChallengeRef = _db.collection('challenges').doc();
+
+    await _db.runTransaction((txn) async {
+      final walletRef = _db.collection('wallets').doc(currentUser!.uid);
+      final walletDoc = await txn.get(walletRef);
+
+      if (!walletDoc.exists) throw Exception('Wallet not found');
+
+      final balance = (walletDoc.data()?['balance'] ?? 0).toDouble();
+      if (balance < stakeAmount) {
+        throw Exception('Insufficient balance');
+      }
+
+      txn.set(newChallengeRef, challengeData);
+
+      txn.update(walletRef, {
+        'balance': balance - stakeAmount,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      final walletTxRef = walletRef.collection('transactions').doc();
+      txn.set(walletTxRef, {
+        'userId': currentUser!.uid,
+        'type': 'stakeDebit',
+        'status': 'completed',
+        'amount': stakeAmount,
+        'fee': 0.0,
+        'netAmount': stakeAmount,
+        'challengeId': newChallengeRef.id,
+        'description': 'Team challenge entry fee',
+        'createdAt': FieldValue.serverTimestamp(),
+        'completedAt': FieldValue.serverTimestamp(),
+      });
+    });
+
+    // Send notifications outside transaction
+    for (final member in [...teamAMembers, ...teamBMembers]) {
+      await _sendNotification(
+        userId: member.userId,
+        type: 'challenge_invite',
+        title: 'Squad Challenge!',
+        body: '${user.displayName} invited you to $teamAName vs $teamBName!',
+        data: {'challengeId': newChallengeRef.id},
+      );
+    }
+
+    return newChallengeRef.id;
+  }
+
   Stream<List<ChallengeModel>> userChallengesStream(String userId) {
     // All challenges where user is creator, opponent, or group participant
     return _db
