@@ -58,6 +58,9 @@ export const createChallenge = functions
     targetValue,
     duration,
     startDate,
+    isCharityChallenge,
+    charityId,
+    charityName,
   } = data;
 
   const creatorId = context.auth.uid;
@@ -84,7 +87,8 @@ export const createChallenge = functions
       .doc(opponentId)
       .get();
     const isFriendChallenge = friendDoc.exists;
-    const effectiveFeePercent = isFriendChallenge ? 0 : H2H_FEE_PERCENT;
+    // No fee for friend challenges or charity challenges
+    const effectiveFeePercent = (isFriendChallenge || isCharityChallenge) ? 0 : H2H_FEE_PERCENT;
 
     // Create Stripe Payment Intent for creator
     const stripe = getStripe();
@@ -112,6 +116,9 @@ export const createChallenge = functions
       platformFee: stakeAmount * 2 * effectiveFeePercent,
       prizeAmount: stakeAmount * 2 * (1 - effectiveFeePercent),
       isFriendChallenge,
+      isCharityChallenge: isCharityChallenge || false,
+      ...(isCharityChallenge && charityId ? { charityId } : {}),
+      ...(isCharityChallenge && charityName ? { charityName } : {}),
       goalType,
       targetValue: targetValue || 10000,
       duration,
@@ -596,6 +603,9 @@ async function completeChallenge(challengeId: string) {
     }
 
     const loserId = winnerId === creatorId ? opponentId : creatorId;
+    const isCharityChallenge = challengeData.isCharityChallenge === true;
+    const charityName = challengeData.charityName || 'Charity';
+    const charityId = challengeData.charityId || null;
 
     // Look up winner's display name
     let winnerName: string | null = null;
@@ -607,17 +617,21 @@ async function completeChallenge(challengeId: string) {
     }
 
     // Update challenge with result
-    await challengeRef.update({
+    const updatePayload: any = {
       status: 'completed',
       winnerId: isTie ? null : winnerId,
       winnerName: isTie ? null : winnerName,
       isTie,
       winnerScore: winningScore,
       loserScore: losingScore,
-      rewardStatus: isTie ? 'refunded' : 'sent',
+      rewardStatus: isTie ? 'refunded' : (isCharityChallenge ? 'donated' : 'sent'),
       completedAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    };
+    if (isCharityChallenge && !isTie) {
+      updatePayload.charityDonationAmount = stakeAmount;
+    }
+    await challengeRef.update(updatePayload);
 
     if (isTie) {
       // Tie: refund each participant their original stake (not prizeAmount which has fees deducted)
@@ -657,6 +671,52 @@ async function completeChallenge(challengeId: string) {
       });
 
       functions.logger.info(`Challenge ${challengeId} completed. Result: Tie`);
+    } else if (isCharityChallenge) {
+      // Charity challenge: winner gets their own stake back, loser's stake goes to charity
+      if (stakeAmount > 0 && winnerId) {
+        // Refund winner their original stake
+        await creditWallet(winnerId, stakeAmount, challengeId, 'charity_challenge_refund', 'Charity challenge — stake returned');
+
+        // Record the charity donation (loser's stake)
+        await db.collection('charityDonations').add({
+          challengeId,
+          charityId,
+          charityName,
+          donorId: loserId,
+          winnerId,
+          amount: stakeAmount,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+
+      // Update user stats (no earnings for winner in charity mode)
+      await updateUserStats(winnerId!, { wins: 1, totalChallenges: 1 });
+      await updateUserStats(loserId, { losses: 1, totalChallenges: 1 });
+
+      // Award XP for battle pass
+      await awardXP(winnerId!, challengeData, true);
+      await awardXP(loserId, challengeData, false);
+
+      // Update leaderboard
+      await updateLeaderboard(winnerId!);
+      await updateLeaderboard(loserId);
+
+      // Send notifications
+      await createNotification(winnerId!, {
+        type: 'challenge_won',
+        title: 'You Won!',
+        message: `You won the charity challenge! Your $${stakeAmount} stake has been returned. $${stakeAmount} was donated to ${charityName} on behalf of the loser.`,
+        challengeId,
+      });
+
+      await createNotification(loserId, {
+        type: 'challenge_lost',
+        title: 'Challenge Ended',
+        message: `Your $${stakeAmount} stake has been donated to ${charityName}. Great cause!`,
+        challengeId,
+      });
+
+      functions.logger.info(`Charity challenge ${challengeId} completed. Winner: ${winnerId}. $${stakeAmount} donated to ${charityName}.`);
     } else {
       // Transfer prize to winner's wallet atomically
       if (prizeAmount > 0 && winnerId) {

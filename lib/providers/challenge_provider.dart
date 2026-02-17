@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/challenge_model.dart';
+import '../models/charity_model.dart';
 import '../models/user_model.dart';
 import '../services/firebase_service.dart';
 import '../services/health_service.dart';
@@ -59,6 +60,10 @@ class ChallengeProvider extends ChangeNotifier {
   List<UserModel> _teamBMembers = [];
   int _teamSize = 2; // Members per team (2-20)
 
+  // Charity challenge form state
+  bool _isCharityMode = false;
+  CharityModel? _selectedCharity;
+
   StreamSubscription? _challengesSubscription;
 
   // Getters
@@ -102,6 +107,10 @@ class ChallengeProvider extends ChangeNotifier {
   List<UserModel> get teamAMembers => _teamAMembers;
   List<UserModel> get teamBMembers => _teamBMembers;
   int get teamSize => _teamSize;
+
+  // Charity getters
+  bool get isCharityMode => _isCharityMode;
+  CharityModel? get selectedCharity => _selectedCharity;
 
   /// Estimated group prize pool (all participants × stake, minus 5% fee)
   double get groupPrizePool {
@@ -588,6 +597,18 @@ class ChallengeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Charity challenge setters
+  void setCharityMode(bool enabled) {
+    _isCharityMode = enabled;
+    if (!enabled) _selectedCharity = null;
+    notifyListeners();
+  }
+
+  void setSelectedCharity(CharityModel? charity) {
+    _selectedCharity = charity;
+    notifyListeners();
+  }
+
   int get suggestedGoalValue {
     switch (_selectedGoalType) {
       case GoalType.steps:
@@ -613,6 +634,12 @@ class ChallengeProvider extends ChangeNotifier {
     if (_isCreating) return null; // Guard against double-tap
     if (_selectedOpponent == null) {
       _errorMessage = 'Please select an opponent';
+      notifyListeners();
+      return null;
+    }
+
+    if (_isCharityMode && _selectedCharity == null) {
+      _errorMessage = 'Please select a charity';
       notifyListeners();
       return null;
     }
@@ -643,9 +670,14 @@ class ChallengeProvider extends ChangeNotifier {
         duration: _selectedDuration,
         stakeAmount: _selectedStake.amount,
         isFriendChallenge: isFriendChallenge,
+        isCharityChallenge: _isCharityMode,
+        charityId: _selectedCharity?.id,
+        charityName: _selectedCharity?.name,
       );
 
-      _successMessage = 'Challenge sent to ${_selectedOpponent!.displayName}!';
+      _successMessage = _isCharityMode
+          ? 'Charity challenge sent to ${_selectedOpponent!.displayName}!'
+          : 'Challenge sent to ${_selectedOpponent!.displayName}!';
       onXPEarned?.call(15, 'challenge_created'); // XPSource.CHALLENGE_CREATED
       resetCreateForm();
 
@@ -922,6 +954,8 @@ class ChallengeProvider extends ChangeNotifier {
     _teamAMembers = [];
     _teamBMembers = [];
     _teamSize = 2;
+    _isCharityMode = false;
+    _selectedCharity = null;
     _errorMessage = null;
     _successMessage = null;
     notifyListeners();

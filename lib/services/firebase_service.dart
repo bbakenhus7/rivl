@@ -674,12 +674,16 @@ class FirebaseService {
     required ChallengeDuration duration,
     required double stakeAmount,
     bool isFriendChallenge = false,
+    bool isCharityChallenge = false,
+    String? charityId,
+    String? charityName,
   }) async {
     final user = await getUser(currentUser!.uid);
     if (user == null) throw Exception('User not found');
 
     final totalPot = stakeAmount * 2;
-    final prizeAmount = _calculatePrize(totalPot, type, isFriendChallenge: isFriendChallenge);
+    // No fee for friend or charity challenges
+    final prizeAmount = _calculatePrize(totalPot, type, isFriendChallenge: isFriendChallenge || isCharityChallenge);
     final now = DateTime.now();
     final expiresAt = now.add(const Duration(days: 7));
 
@@ -702,6 +706,9 @@ class FirebaseService {
       'creatorStepHistory': [],
       'opponentStepHistory': [],
       'isFriendChallenge': isFriendChallenge,
+      'isCharityChallenge': isCharityChallenge,
+      if (isCharityChallenge && charityId != null) 'charityId': charityId,
+      if (isCharityChallenge && charityName != null) 'charityName': charityName,
       'creatorAntiCheatScore': 1.0,
       'opponentAntiCheatScore': 1.0,
       'flagged': false,
