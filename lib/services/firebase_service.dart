@@ -41,9 +41,14 @@ class FirebaseService {
       password: password,
     );
 
+    final firebaseUser = credential.user;
+    if (firebaseUser == null) {
+      throw Exception('Account creation failed: no user returned');
+    }
+
     // Create user profile
     final user = UserModel(
-      id: credential.user!.uid,
+      id: firebaseUser.uid,
       email: email,
       displayName: displayName,
       username: username.toLowerCase(),
@@ -54,11 +59,11 @@ class FirebaseService {
       lastActiveAt: DateTime.now(),
     );
 
-    await _db.collection('users').doc(credential.user!.uid).set(user.toFirestore());
+    await _db.collection('users').doc(firebaseUser.uid).set(user.toFirestore());
 
     // Credit referrer if applicable
     if (referralCode != null && referralCode.isNotEmpty) {
-      await _creditReferral(referralCode.toUpperCase(), credential.user!.uid);
+      await _creditReferral(referralCode.toUpperCase(), firebaseUser.uid);
     }
 
     return credential;
@@ -995,11 +1000,11 @@ class FirebaseService {
       throw Exception('Not authorized');
     }
 
-    final senderId = data['senderId'] as String;
-    final senderName = data['senderName'] as String;
-    final senderUsername = data['senderUsername'] as String;
-    final receiverName = data['receiverName'] as String;
-    final receiverUsername = data['receiverUsername'] as String;
+    final senderId = data['senderId'] as String? ?? '';
+    final senderName = data['senderName'] as String? ?? '';
+    final senderUsername = data['senderUsername'] as String? ?? '';
+    final receiverName = data['receiverName'] as String? ?? '';
+    final receiverUsername = data['receiverUsername'] as String? ?? '';
 
     final batch = _db.batch();
 

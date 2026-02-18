@@ -36,7 +36,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _signUp() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_formKey.currentState?.validate() != true) return;
 
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.signUp(

@@ -103,7 +103,9 @@ class PredictiveAnalyticsService {
     // Calculate win probability
     final margin = projectedUserFinal - projectedOpponentFinal;
     final uncertainty = sqrt(daysRemaining.toDouble()) * _STEP_VARIANCE;
-    final winProbability = _normalCDF(margin / uncertainty);
+    final winProbability = uncertainty > 0
+        ? _normalCDF(margin / uncertainty)
+        : (margin > 0 ? 1.0 : 0.5);
 
     // Calculate required pace to win
     final requiredDailyPace = _calculateRequiredPace(
@@ -402,7 +404,8 @@ class PredictiveAnalyticsService {
 
   double _addVariance(double mean) {
     final random = Random();
-    final u1 = random.nextDouble();
+    // Clamp u1 to avoid log(0) which produces -Infinity/NaN
+    final u1 = random.nextDouble().clamp(1e-10, 1.0);
     final u2 = random.nextDouble();
     final z = sqrt(-2 * log(u1)) * cos(2 * pi * u2);
     return mean + z * mean * 0.1; // 10% standard deviation
@@ -461,6 +464,7 @@ class PredictiveAnalyticsService {
   ) {
     final diff = (user.mean - opponent.mean).abs();
     final avgPerformance = (user.mean + opponent.mean) / 2;
+    if (avgPerformance <= 0) return 0.0; // Avoid division by zero
     return (1.0 - diff / avgPerformance).clamp(0.0, 1.0);
   }
 
@@ -470,6 +474,7 @@ class PredictiveAnalyticsService {
     required double opponentDailyRate,
     required int daysRemaining,}
   ) {
+    if (daysRemaining <= 0) return 0; // Avoid division by zero
     final projectedOpponentFinal = opponentProgress + (opponentDailyRate * daysRemaining);
     final needed = projectedOpponentFinal - currentProgress + 1; // +1 to win
     return max(needed / daysRemaining, 0);

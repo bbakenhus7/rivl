@@ -1281,7 +1281,7 @@ class _QuickRematchCard extends StatelessWidget {
     final doubleStake = challenge.stakeAmount * 2;
     final stakeMatch = StakeOption.options.firstWhere(
       (s) => s.amount == doubleStake,
-      orElse: () => StakeOption.options.last,
+      orElse: () => StakeOption.custom(doubleStake),
     );
     provider.setSelectedStake(stakeMatch);
 

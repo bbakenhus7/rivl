@@ -366,8 +366,8 @@ class AntiCheatService {
       }
 
       final userData = userDoc.data()!;
-      final totalSteps = (userData['totalSteps'] ?? 0) as int;
-      final totalChallenges = (userData['totalChallenges'] ?? 0) as int;
+      final totalSteps = (userData['totalSteps'] as num? ?? 0).toInt();
+      final totalChallenges = (userData['totalChallenges'] as num? ?? 0).toInt();
       final createdAt = (userData['createdAt'] as Timestamp?)?.toDate();
 
       // Estimate daily average from total steps and account age
@@ -397,7 +397,7 @@ class AntiCheatService {
         final historyList = data[historyField] as List<dynamic>? ?? [];
 
         for (final entry in historyList) {
-          final steps = (entry as Map<String, dynamic>)['steps'] as int? ?? 0;
+          final steps = ((entry as Map<String, dynamic>)['steps'] as num? ?? 0).toInt();
           if (steps > maxDailySteps) maxDailySteps = steps;
         }
       }
@@ -616,9 +616,13 @@ class AntiCheatService {
           heartRateData.where((hr) => hr['date'] == day.date).toList();
       if (dayHR.isEmpty) continue;
 
-      final maxHR = dayHR.map((hr) => hr['value'] as int).reduce(max);
-      final avgHR = dayHR.map((hr) => hr['value'] as int).reduce((a, b) => a + b) /
-          dayHR.length;
+      final hrValues = dayHR
+          .map((hr) => (hr['value'] as num?)?.toInt())
+          .whereType<int>()
+          .toList();
+      if (hrValues.isEmpty) continue;
+      final maxHR = hrValues.reduce(max);
+      final avgHR = hrValues.reduce((a, b) => a + b) / hrValues.length;
 
       if (day.steps > 15000 && maxHR < 110) {
         score -= 0.15;
@@ -1017,7 +1021,7 @@ class AntiCheatService {
       // Build reputation from profile signals
       double reputation = 0.7; // base
 
-      final totalChallenges = (data['totalChallenges'] ?? 0) as int;
+      final totalChallenges = (data['totalChallenges'] as num? ?? 0).toInt();
       if (totalChallenges > 10) {
         reputation += 0.1; // experienced user
       } else if (totalChallenges < 2) {

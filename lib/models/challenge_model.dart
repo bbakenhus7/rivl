@@ -453,8 +453,8 @@ class DailySteps {
       syncedAt: (map['syncedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       verified: map['verified'] ?? true,
       distance: (map['distance'] as num?)?.toDouble(),
-      activeCalories: map['activeCalories'] as int?,
-      avgHeartRate: map['avgHeartRate'] as int?,
+      activeCalories: (map['activeCalories'] as num?)?.toInt(),
+      avgHeartRate: (map['avgHeartRate'] as num?)?.toInt(),
     );
   }
 

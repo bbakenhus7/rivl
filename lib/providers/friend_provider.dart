@@ -33,7 +33,10 @@ class FriendProvider extends ChangeNotifier {
     _friendsSubscription = _firebaseService.friendsStream(userId).listen(
       (friends) {
         _friends = friends;
-        _friendIds = friends.map((f) => f['userId'] as String).toSet();
+        _friendIds = friends
+            .map((f) => f['userId'] as String?)
+            .whereType<String>()
+            .toSet();
         notifyListeners();
       },
       onError: (e) {

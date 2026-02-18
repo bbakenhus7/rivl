@@ -34,7 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = context.read<AuthProvider>();
       final walletProvider = context.read<WalletProvider>();
-      final userId = authProvider.user?.id ?? 'demo_user';
+      final userId = authProvider.user?.id ?? 'demo-user';
       walletProvider.initialize(userId);
     });
   }

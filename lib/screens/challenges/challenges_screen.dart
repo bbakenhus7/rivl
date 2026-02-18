@@ -10,6 +10,7 @@ import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../../widgets/challenge_card.dart';
 import '../../widgets/add_funds_sheet.dart';
+import '../../widgets/confetti_celebration.dart';
 import 'challenge_detail_screen.dart';
 
 class ChallengesScreen extends StatefulWidget {
@@ -26,10 +27,12 @@ class _ChallengesScreenState extends State<ChallengesScreen> with SingleTickerPr
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    final auth = context.read<AuthProvider>();
-    if (auth.user == null) {
-      context.read<ChallengeProvider>().loadDemoChallenges();
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      if (auth.user == null) {
+        context.read<ChallengeProvider>().loadDemoChallenges();
+      }
+    });
   }
 
   @override
@@ -268,84 +271,4 @@ class _ChallengeList extends StatelessWidget {
   }
 }
 
-/// Illustrated empty state widget for empty lists
-class IllustratedEmptyState extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color? accentColor;
-  final Widget? action;
-
-  const IllustratedEmptyState({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.accentColor,
-    this.action,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = accentColor ?? RivlColors.primary;
-
-    return Center(
-      child: FadeIn(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Layered icon illustration
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.05),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  Container(
-                    width: 88,
-                    height: 88,
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.08),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  Icon(icon, size: 44, color: color.withOpacity(0.5)),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: context.textSecondary,
-                  height: 1.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              if (action != null) ...[
-                const SizedBox(height: 24),
-                action!,
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+// IllustratedEmptyState is imported from '../../widgets/confetti_celebration.dart'

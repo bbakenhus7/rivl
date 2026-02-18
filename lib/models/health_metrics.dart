@@ -108,15 +108,29 @@ class HealthMetrics {
     final hrvScoreVal = ((hrv - 20) / 80 * 100).clamp(0.0, 100.0);
 
     // 6. VO2 Max score (0-100): higher is better, 25-60 range
-    final vo2Score = ((vo2Max - 25) / 35 * 100).clamp(0.0, 100.0);
+    // VO2 Max is not yet supported by the health package — exclude from
+    // the weighted average when unavailable so it doesn't drag the score down.
+    final hasVo2 = vo2Max > 0;
+    final vo2Score = hasVo2 ? ((vo2Max - 25) / 35 * 100).clamp(0.0, 100.0) : 0.0;
 
-    // Weighted average: steps & distance matter most for a fitness competition
-    final weighted = (stepsScore * 0.25) +
-        (distanceScore * 0.20) +
-        (sleepScore * 0.15) +
-        (rhrScore * 0.15) +
-        (hrvScoreVal * 0.10) +
-        (vo2Score * 0.15);
+    // Weighted average: steps & distance matter most for a fitness competition.
+    // When VO2 Max is unavailable, redistribute its 15% weight proportionally.
+    double weighted;
+    if (hasVo2) {
+      weighted = (stepsScore * 0.25) +
+          (distanceScore * 0.20) +
+          (sleepScore * 0.15) +
+          (rhrScore * 0.15) +
+          (hrvScoreVal * 0.10) +
+          (vo2Score * 0.15);
+    } else {
+      // Redistribute the 15% VO2 weight across the other 5 dimensions
+      weighted = (stepsScore * 0.30) +
+          (distanceScore * 0.23) +
+          (sleepScore * 0.18) +
+          (rhrScore * 0.17) +
+          (hrvScoreVal * 0.12);
+    }
 
     return weighted.round().clamp(0, 100);
   }

@@ -118,7 +118,8 @@ class AuthProvider extends ChangeNotifier {
 
       // Create profile in Firestore if this is a new user
       if (userCredential.additionalUserInfo?.isNewUser ?? false) {
-        final firebaseUser = userCredential.user!;
+        final firebaseUser = userCredential.user;
+        if (firebaseUser == null) throw Exception('Sign-in failed: no user returned');
         final displayName = [
           appleCredential.givenName,
           appleCredential.familyName,
@@ -169,7 +170,8 @@ class AuthProvider extends ChangeNotifier {
 
       // Create profile in Firestore if this is a new user
       if (userCredential.additionalUserInfo?.isNewUser ?? false) {
-        final firebaseUser = userCredential.user!;
+        final firebaseUser = userCredential.user;
+        if (firebaseUser == null) throw Exception('Sign-in failed: no user returned');
         await _firebaseService.createSocialUser(
           uid: firebaseUser.uid,
           email: firebaseUser.email ?? '',

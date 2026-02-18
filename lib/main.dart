@@ -189,7 +189,7 @@ class _WaitlistDialogState extends State<_WaitlistDialog> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_formKey.currentState?.validate() != true) return;
 
     setState(() => _submitting = true);
 

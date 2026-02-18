@@ -193,7 +193,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                     );
                     if (confirmed == true) {
                       await friendProvider
-                          .removeFriend(friend['userId'] as String);
+                          .removeFriend(friend['userId'] as String? ?? '');
                     }
                   }
                 },
@@ -267,14 +267,14 @@ class _FriendsScreenState extends State<FriendsScreen>
                     icon: const Icon(Icons.close, color: Colors.red),
                     onPressed: () async {
                       await friendProvider
-                          .declineFriendRequest(request['id'] as String);
+                          .declineFriendRequest(request['id'] as String? ?? '');
                     },
                   ),
                   const SizedBox(width: 4),
                   ElevatedButton(
                     onPressed: () async {
                       await friendProvider
-                          .acceptFriendRequest(request['id'] as String);
+                          .acceptFriendRequest(request['id'] as String? ?? '');
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(

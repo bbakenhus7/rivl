@@ -1,5 +1,6 @@
 // services/notification_service.dart
 
+import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
@@ -14,6 +15,11 @@ class NotificationService {
 
   String? _fcmToken;
   String? get fcmToken => _fcmToken;
+
+  // Track subscriptions to prevent leaks on re-initialization
+  StreamSubscription? _tokenRefreshSubscription;
+  StreamSubscription? _foregroundMessageSubscription;
+  StreamSubscription? _messageOpenedSubscription;
 
   /// Initialize push notifications
   Future<void> initialize(String userId) async {
@@ -44,8 +50,13 @@ class NotificationService {
           });
         }
 
+        // Cancel previous subscriptions to prevent leaks on re-init
+        await _tokenRefreshSubscription?.cancel();
+        await _foregroundMessageSubscription?.cancel();
+        await _messageOpenedSubscription?.cancel();
+
         // Listen for token refresh
-        _messaging.onTokenRefresh.listen((newToken) async {
+        _tokenRefreshSubscription = _messaging.onTokenRefresh.listen((newToken) async {
           _fcmToken = newToken;
           await _db.collection('users').doc(userId).update({
             'fcmToken': newToken,
@@ -53,10 +64,10 @@ class NotificationService {
         });
 
         // Handle foreground messages
-        FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+        _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
         // Handle background/terminated message taps
-        FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageTap);
+        _messageOpenedSubscription = FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageTap);
 
         // Check if app was opened from a notification
         final initialMessage = await _messaging.getInitialMessage();
