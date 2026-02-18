@@ -198,7 +198,7 @@ class _ChallengeList extends StatelessWidget {
                   index: index,
                   child: ChallengeCard(
                     challenge: challenge,
-                    currentUserId: context.read<AuthProvider>().user?.id ?? '',
+                    currentUserId: context.read<AuthProvider>().user?.id ?? 'demo-user',
                     onTap: () {
                       Navigator.push(
                         context,

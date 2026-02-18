@@ -27,7 +27,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.read<AuthProvider>();
-    final currentUserId = authProvider.user?.id;
+    final currentUserId = authProvider.user?.id ?? 'demo-user';
 
     return Scaffold(
       appBar: AppBar(
@@ -1087,7 +1087,7 @@ class _QuickRematchCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.read<AuthProvider>();
-    final currentUserId = authProvider.user?.id;
+    final currentUserId = authProvider.user?.id ?? 'demo-user';
     final isCreator = challenge.creatorId == currentUserId;
     final opponentId = isCreator ? challenge.opponentId : challenge.creatorId;
     final opponentName = isCreator ? challenge.opponentName : challenge.creatorName;
