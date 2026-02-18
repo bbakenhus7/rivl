@@ -226,6 +226,10 @@ export const acceptChallenge = functions
       case '1month':
         endDate.setMonth(endDate.getMonth() + 1);
         break;
+      default:
+        // Fallback to 7 days for unrecognized durations
+        endDate.setDate(endDate.getDate() + 7);
+        break;
     }
 
     // Update challenge

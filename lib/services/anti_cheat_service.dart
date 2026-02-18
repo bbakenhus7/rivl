@@ -549,7 +549,8 @@ class AntiCheatService {
     double score = 1.0;
 
     for (final hr in heartRateData) {
-      final value = hr['value'] as int;
+      final value = (hr['value'] as num?)?.toInt();
+      if (value == null) continue;
       if (value < 30 || value > 220) {
         return 0.0;
       }
@@ -558,7 +559,11 @@ class AntiCheatService {
       }
     }
 
-    final hrValues = heartRateData.map((hr) => hr['value'] as int).toList();
+    final hrValues = heartRateData
+        .map((hr) => (hr['value'] as num?)?.toInt())
+        .whereType<int>()
+        .toList();
+    if (hrValues.isEmpty) return 0.3;
     final hrVariance = _calculateVariance(hrValues);
     if (hrVariance < 10) {
       score -= 0.3;
@@ -573,7 +578,11 @@ class AntiCheatService {
 
     double score = 1.0;
 
-    final hrValues = heartRateData.map((hr) => hr['value']).toList();
+    final hrValues = heartRateData
+        .map((hr) => (hr['value'] as num?)?.toInt())
+        .whereType<int>()
+        .toList();
+    if (hrValues.length < 5) return 0.8;
     final uniqueRatio = hrValues.toSet().length / hrValues.length;
     if (uniqueRatio < 0.3) {
       score -= 0.4;

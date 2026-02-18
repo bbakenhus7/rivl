@@ -249,7 +249,7 @@ class _HealthMetricDetailScreenState extends State<HealthMetricDetailScreen> {
         _data.sublist(0, min(7, _data.length)).map((d) => d.value).reduce((a, b) => a + b) /
             min(7, _data.length);
 
-    final change = ((recentAvg - olderAvg) / olderAvg * 100);
+    final change = olderAvg != 0 ? ((recentAvg - olderAvg) / olderAvg * 100) : 0.0;
     final isImproving = _isImprovementPositive(change);
 
     return Container(
@@ -527,7 +527,7 @@ class _HealthMetricDetailScreenState extends State<HealthMetricDetailScreen> {
     final olderAvg =
         _data.sublist(0, min(7, _data.length)).map((d) => d.value).reduce((a, b) => a + b) /
             min(7, _data.length);
-    final change = ((recentAvg - olderAvg) / olderAvg * 100);
+    final change = olderAvg != 0 ? ((recentAvg - olderAvg) / olderAvg * 100) : 0.0;
 
     final insight = _getInsightText(change);
 
@@ -810,7 +810,7 @@ class _HealthMetricDetailScreenState extends State<HealthMetricDetailScreen> {
       '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
-    return months[month];
+    return months[month.clamp(1, 12)];
   }
 }
 
