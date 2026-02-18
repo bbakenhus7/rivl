@@ -8,6 +8,8 @@ import 'dart:async';
 class ActivityFeedProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  bool _disposed = false;
+
   List<ActivityFeedItem> _feedItems = [];
   bool _isLoading = false;
   String? _error;
@@ -17,10 +19,14 @@ class ActivityFeedProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  void _safeNotify() {
+    if (!_disposed) notifyListeners();
+  }
+
   /// Start listening to global activity feed
   void startListening() {
     _isLoading = true;
-    notifyListeners();
+    _safeNotify();
 
     _feedSubscription?.cancel();
     _feedSubscription = _firestore
@@ -33,11 +39,11 @@ class ActivityFeedProvider with ChangeNotifier {
           .map((doc) => ActivityFeedItem.fromFirestore(doc))
           .toList();
       _isLoading = false;
-      notifyListeners();
+      _safeNotify();
     }, onError: (e) {
       _error = e.toString();
       _isLoading = false;
-      notifyListeners();
+      _safeNotify();
     });
   }
 
@@ -64,7 +70,7 @@ class ActivityFeedProvider with ChangeNotifier {
 
       await _firestore.collection('activityFeed').add(item.toFirestore());
     } catch (e) {
-      // Post activity error — feed item not posted
+      debugPrint('Failed to post activity: $e');
     }
   }
 
@@ -148,6 +154,7 @@ class ActivityFeedProvider with ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _feedSubscription?.cancel();
     super.dispose();
   }

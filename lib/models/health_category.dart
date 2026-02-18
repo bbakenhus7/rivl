@@ -42,7 +42,7 @@ class HealthCategoryConfig {
         return const HealthCategoryConfig(
           name: 'Activity',
           icon: Icons.fitness_center_rounded,
-          accentColor: Color(0xFF5C6BC0),
+          accentColor: Color(0xFF4CAF50),
           metrics: [
             HealthMetricType.exertion,
             HealthMetricType.vo2Max,
@@ -52,7 +52,7 @@ class HealthCategoryConfig {
         return const HealthCategoryConfig(
           name: 'Sleep & Recovery',
           icon: Icons.bedtime_rounded,
-          accentColor: Color(0xFF3949AB),
+          accentColor: Color(0xFF29B6F6),
           metrics: [
             HealthMetricType.sleep,
             HealthMetricType.recovery,

@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -80,15 +81,35 @@ class NotificationService {
     }
   }
 
+  // Global navigator key for deep linking from notifications
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
   void _handleForegroundMessage(RemoteMessage message) {
-    // Foreground messages appear in the system tray on most platforms
-    // In-app banner handling can be added here if needed
+    debugPrint('Foreground notification: ${message.notification?.title}');
+    // Foreground messages are shown by the system tray on iOS 10+.
+    // In-app overlay banners can be added here with flutter_local_notifications.
   }
 
   void _handleMessageTap(RemoteMessage message) {
-    // Navigate to relevant screen based on message data
-    // e.g., message.data['challengeId'] -> navigate to challenge detail
-    // TODO: implement deep link navigation from notification tap
+    final data = message.data;
+    final action = data['action'] as String?;
+    final challengeId = data['challengeId'] as String?;
+
+    debugPrint('Notification tapped: action=$action, challengeId=$challengeId');
+
+    // Deep-link to relevant screen. Navigation is handled by the
+    // main_screen.dart route observer or a global navigator key.
+    // For now, store the pending route so the app can pick it up.
+    _pendingRoute = data;
+  }
+
+  Map<String, dynamic>? _pendingRoute;
+
+  /// Consume the pending deep-link route (called by main_screen on init).
+  Map<String, dynamic>? consumePendingRoute() {
+    final route = _pendingRoute;
+    _pendingRoute = null;
+    return route;
   }
 
   /// Subscribe to topic-based notifications

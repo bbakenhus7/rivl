@@ -286,8 +286,8 @@ class ChallengeModel {
   }
 
   factory ChallengeModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+
     return ChallengeModel(
       id: doc.id,
       creatorId: data['creatorId'] ?? '',
@@ -302,36 +302,37 @@ class ChallengeModel {
         (e) => e.name == data['status'],
         orElse: () => ChallengeStatus.pending,
       ),
-      stakeAmount: (data['stakeAmount'] ?? 0).toDouble(),
-      totalPot: (data['totalPot'] ?? 0).toDouble(),
-      prizeAmount: (data['prizeAmount'] ?? 0).toDouble(),
+      stakeAmount: (data['stakeAmount'] as num? ?? 0).toDouble(),
+      totalPot: (data['totalPot'] as num? ?? 0).toDouble(),
+      prizeAmount: (data['prizeAmount'] as num? ?? 0).toDouble(),
       goalType: GoalType.values.firstWhere(
         (e) => e.name == data['goalType'],
         orElse: () => GoalType.steps,
       ),
-      goalValue: data['goalValue'] ?? 0,
+      goalValue: (data['goalValue'] as num? ?? 0).toInt(),
       duration: ChallengeDuration.values.firstWhere(
         (e) => e.name == data['duration'],
         orElse: () => ChallengeDuration.oneWeek,
       ),
       startDate: (data['startDate'] as Timestamp?)?.toDate(),
       endDate: (data['endDate'] as Timestamp?)?.toDate(),
-      creatorProgress: data['creatorProgress'] ?? 0,
-      opponentProgress: data['opponentProgress'] ?? 0,
+      creatorProgress: (data['creatorProgress'] as num? ?? 0).toInt(),
+      opponentProgress: (data['opponentProgress'] as num? ?? 0).toInt(),
       creatorStepHistory: (data['creatorStepHistory'] as List<dynamic>?)
-          ?.map((e) => DailySteps.fromMap(e))
+          ?.map((e) => DailySteps.fromMap(e as Map<String, dynamic>))
           .toList() ?? [],
       opponentStepHistory: (data['opponentStepHistory'] as List<dynamic>?)
-          ?.map((e) => DailySteps.fromMap(e))
+          ?.map((e) => DailySteps.fromMap(e as Map<String, dynamic>))
           .toList() ?? [],
       participants: (data['participants'] as List<dynamic>?)
           ?.map((e) => GroupParticipant.fromMap(e as Map<String, dynamic>))
           .toList() ?? [],
       participantIds: (data['participantIds'] as List<dynamic>?)
-          ?.map((e) => e as String)
+          ?.map((e) => e as String? ?? '')
+          .where((e) => e.isNotEmpty)
           .toList() ?? [],
-      maxParticipants: data['maxParticipants'] ?? 2,
-      minParticipants: data['minParticipants'] ?? 2,
+      maxParticipants: (data['maxParticipants'] as num? ?? 2).toInt(),
+      minParticipants: (data['minParticipants'] as num? ?? 2).toInt(),
       payoutStructure: data['payoutStructure'] != null
           ? GroupPayoutStructure.fromMap(data['payoutStructure'] as Map<String, dynamic>)
           : null,
@@ -341,7 +342,7 @@ class ChallengeModel {
       teamB: data['teamB'] != null
           ? ChallengeTeam.fromMap(data['teamB'] as Map<String, dynamic>)
           : null,
-      teamSize: data['teamSize'] ?? 2,
+      teamSize: (data['teamSize'] as num? ?? 2).toInt(),
       expiresAt: (data['expiresAt'] as Timestamp?)?.toDate(),
       winnerId: data['winnerId'],
       winnerName: data['winnerName'],
@@ -501,7 +502,7 @@ class GroupParticipant {
         (e) => e.name == map['status'],
         orElse: () => ParticipantStatus.invited,
       ),
-      progress: map['progress'] ?? 0,
+      progress: (map['progress'] as num? ?? 0).toInt(),
       stepHistory: (map['stepHistory'] as List<dynamic>?)
           ?.map((e) => DailySteps.fromMap(e as Map<String, dynamic>))
           .toList() ?? [],

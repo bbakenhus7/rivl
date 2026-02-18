@@ -10,6 +10,7 @@ import '../models/health_metrics.dart';
 class HealthProvider extends ChangeNotifier {
   final HealthService _healthService = HealthService();
   Timer? _autoRefreshTimer;
+  bool _disposed = false;
 
   /// Callback invoked when the user earns XP from health activity.
   void Function(int xp, String source)? onXPEarned;
@@ -31,6 +32,10 @@ class HealthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   HealthMetrics get metrics => _metrics;
   String? get errorMessage => _errorMessage;
+
+  void _safeNotify() {
+    if (!_disposed) notifyListeners();
+  }
 
   /// True when displayed health data is demo/placeholder (not from HealthKit/Google Fit).
   bool get isDemoData => !_isAuthorized;
@@ -77,12 +82,12 @@ class HealthProvider extends ChangeNotifier {
       // On unsupported platforms, stay on demo data without error.
       _isAuthorized = false;
       _metrics = HealthMetrics.demo();
-      notifyListeners();
+      _safeNotify();
       return false;
     }
 
     _isLoading = true;
-    notifyListeners();
+    _safeNotify();
 
     try {
       _isAuthorized = await _healthService.requestAuthorization();
@@ -95,13 +100,13 @@ class HealthProvider extends ChangeNotifier {
     }
 
     _isLoading = false;
-    notifyListeners();
+    _safeNotify();
     return _isAuthorized;
   }
 
   Future<void> checkAuthorization() async {
     _isAuthorized = await _healthService.checkAuthorization();
-    notifyListeners();
+    _safeNotify();
   }
 
   // ============================================
@@ -114,14 +119,14 @@ class HealthProvider extends ChangeNotifier {
       if (!_isAuthorized) {
         // Use demo data if not authorized
         _metrics = HealthMetrics.demo();
-        notifyListeners();
+        _safeNotify();
         return;
       }
     }
 
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       _metrics = await _healthService.getHealthMetrics();
@@ -146,7 +151,7 @@ class HealthProvider extends ChangeNotifier {
     }
 
     _isLoading = false;
-    notifyListeners();
+    _safeNotify();
   }
 
   Future<int> getTodaySteps() async {
@@ -170,7 +175,7 @@ class HealthProvider extends ChangeNotifier {
         recentWorkouts: _metrics.recentWorkouts,
         lastUpdated: DateTime.now(),
       );
-      notifyListeners();
+      _safeNotify();
       return steps;
     } catch (e) {
       return _metrics.steps;
@@ -209,6 +214,7 @@ class HealthProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _autoRefreshTimer?.cancel();
     super.dispose();
   }
@@ -241,6 +247,6 @@ class HealthProvider extends ChangeNotifier {
 
   void clearError() {
     _errorMessage = null;
-    notifyListeners();
+    _safeNotify();
   }
 }

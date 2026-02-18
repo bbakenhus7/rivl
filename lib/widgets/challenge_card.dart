@@ -378,21 +378,14 @@ class _HeadToHeadProgress extends StatelessWidget {
     }
 
     final double youProgress;
-    final double opponentProgress;
 
     if (challenge.goalType.higherIsBetter) {
       youProgress = challenge.goalValue > 0
           ? (rawYou / challenge.goalValue).clamp(0.0, 1.0)
           : 0.0;
-      opponentProgress = challenge.goalValue > 0
-          ? (rawRival / challenge.goalValue).clamp(0.0, 1.0)
-          : 0.0;
     } else {
       youProgress = rawYou > 0
           ? (challenge.goalValue / rawYou).clamp(0.0, 1.0)
-          : 0.0;
-      opponentProgress = rawRival > 0
-          ? (challenge.goalValue / rawRival).clamp(0.0, 1.0)
           : 0.0;
     }
 
@@ -512,6 +505,7 @@ class _DailyGoalHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (challenge.endDate == null) return const SizedBox.shrink();
     final remaining = challenge.endDate!.difference(DateTime.now());
     if (remaining.isNegative || remaining.inDays == 0) return const SizedBox.shrink();
 

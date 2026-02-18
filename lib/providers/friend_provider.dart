@@ -6,6 +6,7 @@ import '../services/firebase_service.dart';
 
 class FriendProvider extends ChangeNotifier {
   final FirebaseService _firebaseService = FirebaseService();
+  bool _disposed = false;
 
   List<Map<String, dynamic>> _friends = [];
   List<Map<String, dynamic>> _pendingRequests = [];
@@ -22,6 +23,10 @@ class FriendProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
+  void _safeNotify() {
+    if (!_disposed) notifyListeners();
+  }
+
   /// Whether the given userId is a friend of the current user.
   bool isFriend(String userId) => _friendIds.contains(userId);
 
@@ -37,7 +42,7 @@ class FriendProvider extends ChangeNotifier {
             .map((f) => f['userId'] as String?)
             .whereType<String>()
             .toSet();
-        notifyListeners();
+        _safeNotify();
       },
       onError: (e) {
         debugPrint('Friends stream error: $e');
@@ -48,7 +53,7 @@ class FriendProvider extends ChangeNotifier {
         _firebaseService.pendingFriendRequestsStream(userId).listen(
       (requests) {
         _pendingRequests = requests;
-        notifyListeners();
+        _safeNotify();
       },
       onError: (e) {
         debugPrint('Friend requests stream error: $e');
@@ -62,61 +67,89 @@ class FriendProvider extends ChangeNotifier {
     required String receiverName,
     required String receiverUsername,
   }) async {
+    if (_isLoading) return false; // Guard against double-tap
+    _isLoading = true;
+    _errorMessage = null;
+    _safeNotify();
+
     try {
-      _errorMessage = null;
       await _firebaseService.sendFriendRequest(
         receiverId: receiverId,
         receiverName: receiverName,
         receiverUsername: receiverUsername,
       );
-      notifyListeners();
+      _safeNotify();
       return true;
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      notifyListeners();
+      _safeNotify();
       return false;
+    } finally {
+      _isLoading = false;
+      _safeNotify();
     }
   }
 
   /// Accept a friend request.
   Future<bool> acceptFriendRequest(String requestId) async {
+    if (_isLoading) return false; // Guard against double-tap
+    _isLoading = true;
+    _errorMessage = null;
+    _safeNotify();
+
     try {
-      _errorMessage = null;
       await _firebaseService.acceptFriendRequest(requestId);
-      notifyListeners();
+      _safeNotify();
       return true;
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      notifyListeners();
+      _safeNotify();
       return false;
+    } finally {
+      _isLoading = false;
+      _safeNotify();
     }
   }
 
   /// Decline a friend request.
   Future<bool> declineFriendRequest(String requestId) async {
+    if (_isLoading) return false; // Guard against double-tap
+    _isLoading = true;
+    _errorMessage = null;
+    _safeNotify();
+
     try {
-      _errorMessage = null;
       await _firebaseService.declineFriendRequest(requestId);
-      notifyListeners();
+      _safeNotify();
       return true;
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      notifyListeners();
+      _safeNotify();
       return false;
+    } finally {
+      _isLoading = false;
+      _safeNotify();
     }
   }
 
   /// Remove a friend.
   Future<bool> removeFriend(String friendId) async {
+    if (_isLoading) return false; // Guard against double-tap
+    _isLoading = true;
+    _errorMessage = null;
+    _safeNotify();
+
     try {
-      _errorMessage = null;
       await _firebaseService.removeFriend(friendId);
-      notifyListeners();
+      _safeNotify();
       return true;
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      notifyListeners();
+      _safeNotify();
       return false;
+    } finally {
+      _isLoading = false;
+      _safeNotify();
     }
   }
 
@@ -124,7 +157,7 @@ class FriendProvider extends ChangeNotifier {
   Future<void> loadFriendIds() async {
     try {
       _friendIds = await _firebaseService.getFriendIds();
-      notifyListeners();
+      _safeNotify();
     } catch (e) {
       debugPrint('Error loading friend IDs: $e');
     }
@@ -132,6 +165,7 @@ class FriendProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _friendsSubscription?.cancel();
     _requestsSubscription?.cancel();
     super.dispose();

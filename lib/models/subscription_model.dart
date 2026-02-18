@@ -111,7 +111,7 @@ class SubscriptionModel {
   }
 
   factory SubscriptionModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>? ?? {};
 
     return SubscriptionModel(
       id: doc.id,
@@ -124,10 +124,8 @@ class SubscriptionModel {
         (e) => e.name == data['status'],
         orElse: () => SubscriptionStatus.active,
       ),
-      monthlyPrice: (data['monthlyPrice'] ?? 9.99).toDouble(),
-      annualPrice: data['annualPrice'] != null
-        ? (data['annualPrice'] as num).toDouble()
-        : null,
+      monthlyPrice: (data['monthlyPrice'] as num? ?? 9.99).toDouble(),
+      annualPrice: (data['annualPrice'] as num?)?.toDouble(),
       unlimitedChallenges: data['unlimitedChallenges'] ?? false,
       advancedAnalytics: data['advancedAnalytics'] ?? false,
       prioritySupport: data['prioritySupport'] ?? false,
@@ -135,7 +133,7 @@ class SubscriptionModel {
       noAds: data['noAds'] ?? false,
       sponsoredChallengesAccess: data['sponsoredChallengesAccess'] ?? false,
       aiCoaching: data['aiCoaching'] ?? false,
-      maxStakeAmount: data['maxStakeAmount'] ?? 50,
+      maxStakeAmount: (data['maxStakeAmount'] as num? ?? 50).toInt(),
       stripeSubscriptionId: data['stripeSubscriptionId'],
       stripeCustomerId: data['stripeCustomerId'],
       currentPeriodStart: (data['currentPeriodStart'] as Timestamp?)?.toDate(),

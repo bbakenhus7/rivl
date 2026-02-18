@@ -506,10 +506,13 @@ class AntiCheatService {
       final dayHR =
           heartRateData.where((hr) => hr['date'] == day.date).toList();
       if (dayHR.isNotEmpty) {
-        final avgHR = dayHR
-                .map((hr) => hr['value'] as num)
-                .reduce((a, b) => a + b) /
-            dayHR.length;
+        final hrValues = dayHR
+                .map((hr) => (hr['value'] as num?) ?? 0)
+                .where((v) => v > 0)
+                .toList();
+        if (hrValues.isEmpty) continue;
+        final avgHR = hrValues.reduce((a, b) => a + b) /
+            hrValues.length;
         matchedData.add({'steps': day.steps, 'hr': avgHR});
       }
     }

@@ -25,6 +25,11 @@ class RivlLogo extends StatelessWidget {
       fit: BoxFit.contain,
       color: color,
       colorBlendMode: colorBlendMode,
+      errorBuilder: (_, __, ___) => Icon(
+        Icons.sports_score,
+        size: size,
+        color: color ?? Theme.of(context).colorScheme.primary,
+      ),
     );
   }
 }

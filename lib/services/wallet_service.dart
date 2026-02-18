@@ -153,6 +153,9 @@ class WalletService {
 
     final tx = WalletTransaction.fromFirestore(txDoc);
 
+    // Idempotency: if already completed (e.g. webhook retry), skip
+    if (tx.status == TransactionStatus.completed) return;
+
     batch.update(txRef, {
       'status': TransactionStatus.completed.name,
       'stripePaymentId': stripePaymentId,
@@ -271,6 +274,9 @@ class WalletService {
     if (!txDoc.exists) throw Exception('Transaction not found');
 
     final tx = WalletTransaction.fromFirestore(txDoc);
+
+    // Idempotency: if already completed (e.g. webhook retry), skip
+    if (tx.status == TransactionStatus.completed) return;
 
     batch.update(txRef, {
       'status': TransactionStatus.completed.name,

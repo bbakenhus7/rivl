@@ -237,6 +237,17 @@ class _ShimmerGlowState extends State<ShimmerGlow>
   }
 
   @override
+  void didUpdateWidget(covariant ShimmerGlow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.enabled && !oldWidget.enabled) {
+      _controller.repeat(reverse: true);
+    } else if (!widget.enabled && oldWidget.enabled) {
+      _controller.stop();
+      _controller.reset();
+    }
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();

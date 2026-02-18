@@ -30,7 +30,7 @@ class BattlePassReward {
 
   factory BattlePassReward.fromMap(Map<String, dynamic> map) {
     return BattlePassReward(
-      level: map['level'] ?? 0,
+      level: (map['level'] as num? ?? 0).toInt(),
       tier: RewardTier.values.firstWhere(
         (e) => e.name == map['tier'],
         orElse: () => RewardTier.free,
@@ -42,7 +42,7 @@ class BattlePassReward {
       name: map['name'] ?? '',
       description: map['description'] ?? '',
       iconUrl: map['iconUrl'] ?? '',
-      value: map['value'] ?? 0,
+      value: (map['value'] as num? ?? 0).toInt(),
       claimed: map['claimed'] ?? false,
     );
   }
@@ -105,25 +105,27 @@ class BattlePassProgress {
   // XP required to reach next level (increases exponentially)
   int get xpForNextLevel => 100 + (currentLevel * 50);
 
-  // XP progress percentage for current level
-  double get levelProgress => currentXP / xpForNextLevel;
+  // XP progress percentage for current level (clamped 0-1)
+  double get levelProgress => xpForNextLevel > 0
+      ? (currentXP / xpForNextLevel).clamp(0.0, 1.0)
+      : 0.0;
 
-  // Days remaining in season
-  int get daysRemaining => seasonEndDate.difference(DateTime.now()).inDays;
+  // Days remaining in season (never negative)
+  int get daysRemaining => seasonEndDate.difference(DateTime.now()).inDays.clamp(0, 9999);
 
   // Is season active
   bool get isActive => DateTime.now().isBefore(seasonEndDate) &&
                        DateTime.now().isAfter(seasonStartDate);
 
   factory BattlePassProgress.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>? ?? {};
 
     return BattlePassProgress(
       userId: data['userId'] ?? '',
-      season: data['season'] ?? 1,
-      currentLevel: data['currentLevel'] ?? 1,
-      currentXP: data['currentXP'] ?? 0,
-      totalXP: data['totalXP'] ?? 0,
+      season: (data['season'] as num? ?? 1).toInt(),
+      currentLevel: (data['currentLevel'] as num? ?? 1).toInt(),
+      currentXP: (data['currentXP'] as num? ?? 0).toInt(),
+      totalXP: (data['totalXP'] as num? ?? 0).toInt(),
       isPremiumUnlocked: data['isPremiumUnlocked'] ?? false,
       claimedRewards: (data['claimedRewards'] as List<dynamic>?)
           ?.map((e) => BattlePassReward.fromMap(e))

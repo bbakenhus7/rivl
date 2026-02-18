@@ -80,7 +80,7 @@ class ActivityFeedItem {
   String? get opponentName => data['opponentName'] as String?;
 
   factory ActivityFeedItem.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>? ?? {};
     return ActivityFeedItem(
       id: doc.id,
       userId: data['userId'] ?? '',

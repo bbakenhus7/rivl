@@ -60,17 +60,17 @@ class StreakModel {
   }
 
   factory StreakModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>? ?? {};
     return StreakModel(
       userId: data['userId'] ?? '',
-      currentStreak: data['currentStreak'] ?? 0,
-      longestStreak: data['longestStreak'] ?? 0,
+      currentStreak: (data['currentStreak'] as num? ?? 0).toInt(),
+      longestStreak: (data['longestStreak'] as num? ?? 0).toInt(),
       lastLoginDate: (data['lastLoginDate'] as Timestamp?)?.toDate() ??
           DateTime.now().subtract(const Duration(days: 2)),
-      totalLogins: data['totalLogins'] ?? 0,
-      totalCoinsEarned: data['totalCoinsEarned'] ?? 0,
+      totalLogins: (data['totalLogins'] as num? ?? 0).toInt(),
+      totalCoinsEarned: (data['totalCoinsEarned'] as num? ?? 0).toInt(),
       rewardHistory: (data['rewardHistory'] as List<dynamic>?)
-              ?.map((e) => LoginReward.fromMap(e))
+              ?.map((e) => LoginReward.fromMap(e as Map<String, dynamic>))
               .toList() ??
           [],
     );
@@ -143,9 +143,9 @@ class LoginReward {
 
   factory LoginReward.fromMap(Map<String, dynamic> map) {
     return LoginReward(
-      day: map['day'] ?? 0,
-      coins: map['coins'] ?? 0,
-      xp: map['xp'] ?? 0,
+      day: (map['day'] as num? ?? 0).toInt(),
+      coins: (map['coins'] as num? ?? 0).toInt(),
+      xp: (map['xp'] as num? ?? 0).toInt(),
       claimedAt: (map['claimedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }

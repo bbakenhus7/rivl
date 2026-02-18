@@ -307,7 +307,7 @@ class PredictiveAnalyticsService {
     final userData = userDoc.data()!;
 
     // Get recent health data (simplified - in production, fetch from health collection)
-    final avgSteps = userData['totalSteps'] ?? 0;
+    final avgSteps = (userData['totalSteps'] as num? ?? 0).toInt();
     final totalDays = max(
       DateTime.now().difference(
         (userData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now()
@@ -322,8 +322,8 @@ class PredictiveAnalyticsService {
       daysSinceActive: DateTime.now().difference(
         (userData['lastActiveAt'] as Timestamp?)?.toDate() ?? DateTime.now()
       ).inDays,
-      totalChallenges: userData['totalChallenges'] ?? 0,
-      winRate: (userData['winRate'] ?? 0.5).toDouble(),
+      totalChallenges: (userData['totalChallenges'] as num? ?? 0).toInt(),
+      winRate: (userData['winRate'] as num? ?? 0.5).toDouble(),
     );
   }
 

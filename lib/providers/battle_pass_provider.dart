@@ -7,6 +7,8 @@ import '../models/battle_pass_model.dart';
 class BattlePassProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  bool _disposed = false;
+
   BattlePassProgress? _progress;
   BattlePassSeason? _currentSeason;
   bool _isLoading = false;
@@ -21,11 +23,15 @@ class BattlePassProvider with ChangeNotifier {
   int get currentXP => _progress?.currentXP ?? 0;
   bool get isPremiumUnlocked => _progress?.isPremiumUnlocked ?? false;
 
+  void _safeNotify() {
+    if (!_disposed) notifyListeners();
+  }
+
   /// Load user's battle pass progress
   Future<void> loadProgress(String userId) async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       // Load current season
@@ -56,12 +62,12 @@ class BattlePassProvider with ChangeNotifier {
       }
 
       _isLoading = false;
-      notifyListeners();
+      _safeNotify();
     } catch (e) {
       // Fallback to demo data when Firestore is unavailable
       _loadDemoData(userId);
       _isLoading = false;
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -95,7 +101,7 @@ class BattlePassProvider with ChangeNotifier {
   void ensureDemoData() {
     if (_progress != null && _currentSeason != null) return;
     _loadDemoData('demo');
-    notifyListeners();
+    _safeNotify();
   }
 
   /// Load current season configuration
@@ -234,11 +240,11 @@ class BattlePassProvider with ChangeNotifier {
         'totalXP': newTotalXP,
       });
 
-      notifyListeners();
+      _safeNotify();
       return true;
     } catch (e) {
       _error = e.toString();
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
@@ -250,14 +256,14 @@ class BattlePassProvider with ChangeNotifier {
     // Check if user has reached this level
     if (_progress!.currentLevel < level) {
       _error = 'You must reach level $level first';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
 
     // Check if premium tier requires premium pass
     if (tier == RewardTier.premium && !_progress!.isPremiumUnlocked) {
       _error = 'Premium pass required';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
 
@@ -275,14 +281,14 @@ class BattlePassProvider with ChangeNotifier {
 
     if (reward.level == 0) {
       _error = 'Reward not found';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
 
     // Check if already claimed
     if (_progress!.claimedRewards.any((r) => r.level == level && r.tier == tier)) {
       _error = 'Reward already claimed';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
 
@@ -309,11 +315,11 @@ class BattlePassProvider with ChangeNotifier {
       // Apply reward to user account
       await _applyReward(userId, reward);
 
-      notifyListeners();
+      _safeNotify();
       return true;
     } catch (e) {
       _error = e.toString();
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
@@ -338,11 +344,11 @@ class BattlePassProvider with ChangeNotifier {
       );
 
       await _saveProgress(userId);
-      notifyListeners();
+      _safeNotify();
       return true;
     } catch (e) {
       _error = e.toString();
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
@@ -436,5 +442,11 @@ class BattlePassProvider with ChangeNotifier {
       'reward': reward.toMap(),
       'claimedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

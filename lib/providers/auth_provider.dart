@@ -13,6 +13,7 @@ enum AuthState { initial, loading, authenticated, unauthenticated, error }
 class AuthProvider extends ChangeNotifier {
   final FirebaseService _firebaseService = FirebaseService();
   StreamSubscription? _authSubscription;
+  bool _disposed = false;
 
   AuthState _state = AuthState.initial;
   UserModel? _user;
@@ -23,6 +24,10 @@ class AuthProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _state == AuthState.authenticated;
   bool get isLoading => _state == AuthState.loading;
+
+  void _safeNotify() {
+    if (!_disposed) notifyListeners();
+  }
 
   AuthProvider() {
     _init();
@@ -36,13 +41,13 @@ class AuthProvider extends ChangeNotifier {
         } else {
           _user = null;
           _state = AuthState.unauthenticated;
-          notifyListeners();
+          _safeNotify();
         }
       },
       onError: (error) {
         _state = AuthState.error;
         _errorMessage = 'Authentication error. Please restart the app.';
-        notifyListeners();
+        _safeNotify();
       },
     );
   }
@@ -59,7 +64,7 @@ class AuthProvider extends ChangeNotifier {
       _state = AuthState.error;
       _errorMessage = e.toString();
     }
-    notifyListeners();
+    _safeNotify();
   }
 
   // ============================================
@@ -69,13 +74,13 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> signIn(String email, String password) async {
     if (email.isEmpty || password.isEmpty) {
       _errorMessage = 'Please enter both email and password';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
 
     _state = AuthState.loading;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       await _firebaseService.signInWithEmail(email, password);
@@ -86,7 +91,7 @@ class AuthProvider extends ChangeNotifier {
     } catch (e) {
       _state = AuthState.error;
       _errorMessage = 'Error: $e';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
@@ -98,7 +103,7 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> signInWithApple() async {
     _state = AuthState.loading;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final appleCredential = await SignInWithApple.getAppleIDCredential(
@@ -141,12 +146,12 @@ class AuthProvider extends ChangeNotifier {
       } else {
         _errorMessage = 'Apple Sign-In failed. Please try again.';
       }
-      notifyListeners();
+      _safeNotify();
       return false;
     } catch (e) {
       _state = AuthState.error;
       _errorMessage = 'Apple Sign-In failed. Please try again.';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
@@ -154,7 +159,7 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> signInWithGoogle() async {
     _state = AuthState.loading;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final UserCredential userCredential;
@@ -183,7 +188,7 @@ class AuthProvider extends ChangeNotifier {
     } catch (e) {
       _state = AuthState.error;
       _errorMessage = 'Google Sign-In failed. Please try again.';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
@@ -203,55 +208,55 @@ class AuthProvider extends ChangeNotifier {
     // Validation
     if (email.isEmpty) {
       _errorMessage = 'Please enter your email';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
 
     if (!_isValidEmail(email)) {
       _errorMessage = 'Please enter a valid email address';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
 
     if (password.isEmpty) {
       _errorMessage = 'Please enter a password';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
 
     if (password.length < 8) {
       _errorMessage = 'Password must be at least 8 characters';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
 
     if (password != confirmPassword) {
       _errorMessage = 'Passwords do not match';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
 
     if (displayName.isEmpty) {
       _errorMessage = 'Please enter your name';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
 
     if (username.isEmpty) {
       _errorMessage = 'Please enter a username';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
 
     if (!_isValidUsername(username)) {
       _errorMessage = 'Username can only contain letters, numbers, and underscores';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
 
     _state = AuthState.loading;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       // Create account first (username check requires auth)
@@ -270,7 +275,7 @@ class AuthProvider extends ChangeNotifier {
     } catch (e) {
       _state = AuthState.error;
       _errorMessage = 'Error: $e';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
@@ -284,10 +289,10 @@ class AuthProvider extends ChangeNotifier {
       await _firebaseService.signOut();
       _user = null;
       _state = AuthState.unauthenticated;
-      notifyListeners();
+      _safeNotify();
     } catch (e) {
       _errorMessage = 'Failed to sign out. Please try again.';
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -298,29 +303,29 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> resetPassword(String email) async {
     if (email.isEmpty) {
       _errorMessage = 'Please enter your email';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
 
     if (!_isValidEmail(email)) {
       _errorMessage = 'Please enter a valid email address';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
 
     _state = AuthState.loading;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       await _firebaseService.resetPassword(email);
       _state = AuthState.unauthenticated;
-      notifyListeners();
+      _safeNotify();
       return true;
     } catch (e) {
       _state = AuthState.error;
       _errorMessage = 'Failed to send reset email. Please try again.';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
@@ -344,7 +349,7 @@ class AuthProvider extends ChangeNotifier {
         final isAvailable = await _firebaseService.isUsernameAvailable(username);
         if (!isAvailable && username != _user!.username) {
           _errorMessage = 'Username is already taken';
-          notifyListeners();
+          _safeNotify();
           return false;
         }
         updates['username'] = username.toLowerCase();
@@ -358,7 +363,7 @@ class AuthProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _errorMessage = 'Failed to update profile';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
@@ -396,7 +401,7 @@ class AuthProvider extends ChangeNotifier {
         _errorMessage = 'Error: $e';
     }
     
-    notifyListeners();
+    _safeNotify();
   }
 
   bool _isValidEmail(String email) {
@@ -409,7 +414,7 @@ class AuthProvider extends ChangeNotifier {
 
   void clearError() {
     _errorMessage = null;
-    notifyListeners();
+    _safeNotify();
   }
 
   // Refresh user data
@@ -421,6 +426,7 @@ class AuthProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _authSubscription?.cancel();
     super.dispose();
   }

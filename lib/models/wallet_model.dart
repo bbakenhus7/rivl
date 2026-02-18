@@ -62,16 +62,16 @@ class WalletModel {
   bool get canWithdraw => balance > 0 && isVerified;
 
   factory WalletModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>? ?? {};
     return WalletModel(
       id: doc.id,
       userId: data['userId'] ?? doc.id,
-      balance: (data['balance'] ?? 0).toDouble(),
-      pendingBalance: (data['pendingBalance'] ?? 0).toDouble(),
-      lifetimeDeposits: (data['lifetimeDeposits'] ?? 0).toDouble(),
-      lifetimeWithdrawals: (data['lifetimeWithdrawals'] ?? 0).toDouble(),
-      lifetimeWinnings: (data['lifetimeWinnings'] ?? 0).toDouble(),
-      lifetimeLosses: (data['lifetimeLosses'] ?? 0).toDouble(),
+      balance: (data['balance'] as num? ?? 0).toDouble().clamp(0, double.infinity),
+      pendingBalance: (data['pendingBalance'] as num? ?? 0).toDouble().clamp(0, double.infinity),
+      lifetimeDeposits: (data['lifetimeDeposits'] as num? ?? 0).toDouble(),
+      lifetimeWithdrawals: (data['lifetimeWithdrawals'] as num? ?? 0).toDouble(),
+      lifetimeWinnings: (data['lifetimeWinnings'] as num? ?? 0).toDouble(),
+      lifetimeLosses: (data['lifetimeLosses'] as num? ?? 0).toDouble(),
       isVerified: data['isVerified'] ?? false,
       stripeCustomerId: data['stripeCustomerId'],
       stripeBankAccountId: data['stripeBankAccountId'],
@@ -186,7 +186,7 @@ class WalletTransaction {
   }
 
   factory WalletTransaction.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>? ?? {};
     return WalletTransaction(
       id: doc.id,
       userId: data['userId'] ?? '',

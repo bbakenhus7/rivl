@@ -25,6 +25,8 @@ class ChallengeProvider extends ChangeNotifier {
   void Function(String type, String message, Map<String, dynamic>? data)?
       onActivityFeedPost;
 
+  bool _disposed = false;
+
   List<ChallengeModel> _challenges = [];
   List<Map<String, dynamic>> _leaderboard = [];
   List<UserModel> _searchResults = [];
@@ -34,7 +36,6 @@ class ChallengeProvider extends ChangeNotifier {
   bool _isCreating = false;
   bool _isSyncing = false;
   bool _isSearching = false;
-  bool _isSettling = false;
   final Set<String> _settlingChallengeIds = {};
   String? _errorMessage;
   String? _successMessage;
@@ -127,6 +128,10 @@ class ChallengeProvider extends ChangeNotifier {
     return (totalPot * 0.95 * 100).roundToDouble() / 100;
   }
 
+  void _safeNotify() {
+    if (!_disposed) notifyListeners();
+  }
+
   int get pendingCount => pendingChallenges.length;
   bool get hasActiveChallenges => activeChallenges.isNotEmpty;
   bool get hasPendingChallenges => pendingChallenges.isNotEmpty;
@@ -142,11 +147,11 @@ class ChallengeProvider extends ChangeNotifier {
         _challenges = challenges;
         // Auto-decline expired pending challenges
         _autoDeclineExpired();
-        notifyListeners();
+        _safeNotify();
       },
       onError: (error) {
         _errorMessage = 'Failed to load challenges';
-        notifyListeners();
+        _safeNotify();
       },
     );
   }
@@ -419,7 +424,7 @@ class ChallengeProvider extends ChangeNotifier {
         updatedAt: now,
       ),
     ];
-    notifyListeners();
+    _safeNotify();
   }
 
   /// Load demo opponents for the create challenge flow
@@ -483,7 +488,7 @@ class ChallengeProvider extends ChangeNotifier {
         lastActiveAt: now.subtract(const Duration(hours: 6)),
       ),
     ];
-    notifyListeners();
+    _safeNotify();
   }
 
   // ============================================
@@ -492,71 +497,71 @@ class ChallengeProvider extends ChangeNotifier {
 
   void setSelectedChallengeType(ChallengeType type) {
     _selectedChallengeType = type;
-    notifyListeners();
+    _safeNotify();
   }
 
   void setSelectedOpponent(UserModel? opponent) {
     _selectedOpponent = opponent;
-    notifyListeners();
+    _safeNotify();
   }
 
   void setSelectedStake(StakeOption stake) {
     _selectedStake = stake;
-    notifyListeners();
+    _safeNotify();
   }
 
   void setSelectedDuration(ChallengeDuration duration) {
     _selectedDuration = duration;
-    notifyListeners();
+    _safeNotify();
   }
 
   void setSelectedGoalType(GoalType goalType) {
     _selectedGoalType = goalType;
-    notifyListeners();
+    _safeNotify();
   }
 
   // Group challenge setters
   void setGroupSize(int size) {
     _groupSize = size.clamp(3, 20);
-    notifyListeners();
+    _safeNotify();
   }
 
   void setSelectedPayoutStructure(GroupPayoutStructure structure) {
     _selectedPayoutStructure = structure;
-    notifyListeners();
+    _safeNotify();
   }
 
   void addGroupMember(UserModel user) {
     if (_selectedGroupMembers.any((m) => m.id == user.id)) return;
     if (_selectedGroupMembers.length >= _groupSize - 1) return; // minus creator
     _selectedGroupMembers.add(user);
-    notifyListeners();
+    _safeNotify();
   }
 
   void removeGroupMember(String userId) {
     _selectedGroupMembers.removeWhere((m) => m.id == userId);
-    notifyListeners();
+    _safeNotify();
   }
 
   // Team vs Team setters
   void setTeamAName(String name) {
     _teamAName = name;
-    notifyListeners();
+    _safeNotify();
   }
 
   void setTeamBName(String name) {
     _teamBName = name;
-    notifyListeners();
+    _safeNotify();
   }
 
   void setTeamALabel(String? label) {
     _teamALabel = label;
-    notifyListeners();
+    _safeNotify();
   }
 
   void setTeamBLabel(String? label) {
     _teamBLabel = label;
-    notifyListeners();
+    _safeNotify();
   }
 
   void setTeamSize(int size) {
@@ -568,7 +573,7 @@ class ChallengeProvider extends ChangeNotifier {
     if (_teamBMembers.length > _teamSize) {
       _teamBMembers = _teamBMembers.sublist(0, _teamSize);
     }
-    notifyListeners();
+    _safeNotify();
   }
 
   void addTeamAMember(UserModel user) {
@@ -576,12 +581,12 @@ class ChallengeProvider extends ChangeNotifier {
     if (_teamBMembers.any((m) => m.id == user.id)) return; // Can't be on both teams
     if (_teamAMembers.length >= _teamSize - 1) return; // minus creator
     _teamAMembers.add(user);
-    notifyListeners();
+    _safeNotify();
   }
 
   void removeTeamAMember(String userId) {
     _teamAMembers.removeWhere((m) => m.id == userId);
-    notifyListeners();
+    _safeNotify();
   }
 
   void addTeamBMember(UserModel user) {
@@ -589,24 +594,24 @@ class ChallengeProvider extends ChangeNotifier {
     if (_teamAMembers.any((m) => m.id == user.id)) return; // Can't be on both teams
     if (_teamBMembers.length >= _teamSize) return;
     _teamBMembers.add(user);
-    notifyListeners();
+    _safeNotify();
   }
 
   void removeTeamBMember(String userId) {
     _teamBMembers.removeWhere((m) => m.id == userId);
-    notifyListeners();
+    _safeNotify();
   }
 
   // Charity challenge setters
   void setCharityMode(bool enabled) {
     _isCharityMode = enabled;
     if (!enabled) _selectedCharity = null;
-    notifyListeners();
+    _safeNotify();
   }
 
   void setSelectedCharity(CharityModel? charity) {
     _selectedCharity = charity;
-    notifyListeners();
+    _safeNotify();
   }
 
   int get suggestedGoalValue {
@@ -632,15 +637,17 @@ class ChallengeProvider extends ChangeNotifier {
 
   Future<String?> createChallenge({double? walletBalance, bool isFriendChallenge = false}) async {
     if (_isCreating) return null; // Guard against double-tap
+    _errorMessage = null;
+    _successMessage = null;
     if (_selectedOpponent == null) {
       _errorMessage = 'Please select an opponent';
-      notifyListeners();
+      _safeNotify();
       return null;
     }
 
     if (_isCharityMode && _selectedCharity == null) {
       _errorMessage = 'Please select a charity';
-      notifyListeners();
+      _safeNotify();
       return null;
     }
 
@@ -650,14 +657,14 @@ class ChallengeProvider extends ChangeNotifier {
       if (balance < _selectedStake.amount) {
         _errorMessage =
             'Insufficient balance. You need \$${_selectedStake.amount.toStringAsFixed(0)} to enter this challenge.';
-        notifyListeners();
+        _safeNotify();
         return null;
       }
     }
 
     _isCreating = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       // Use atomic create+deduct for paid challenges
@@ -682,14 +689,14 @@ class ChallengeProvider extends ChangeNotifier {
       resetCreateForm();
 
       _isCreating = false;
-      notifyListeners();
+      _safeNotify();
       return challengeId;
     } catch (e) {
       _isCreating = false;
       _errorMessage = e.toString().contains('Exception:')
           ? e.toString().replaceFirst('Exception: ', '')
           : 'Failed to create challenge. Please try again.';
-      notifyListeners();
+      _safeNotify();
       return null;
     }
   }
@@ -698,7 +705,7 @@ class ChallengeProvider extends ChangeNotifier {
     if (_isCreating) return null; // Guard against double-tap
     if (_selectedGroupMembers.isEmpty) {
       _errorMessage = 'Please add at least one member';
-      notifyListeners();
+      _safeNotify();
       return null;
     }
 
@@ -708,14 +715,14 @@ class ChallengeProvider extends ChangeNotifier {
       if (balance < _selectedStake.amount) {
         _errorMessage =
             'Insufficient balance. You need \$${_selectedStake.amount.toStringAsFixed(0)} to enter this challenge.';
-        notifyListeners();
+        _safeNotify();
         return null;
       }
     }
 
     _isCreating = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final invitedParticipants = _selectedGroupMembers
@@ -770,7 +777,7 @@ class ChallengeProvider extends ChangeNotifier {
         onXPEarned?.call(15, 'challenge_created');
         resetCreateForm();
         _isCreating = false;
-        notifyListeners();
+        _safeNotify();
         return demoId;
       }
 
@@ -790,14 +797,14 @@ class ChallengeProvider extends ChangeNotifier {
       resetCreateForm();
 
       _isCreating = false;
-      notifyListeners();
+      _safeNotify();
       return challengeId;
     } catch (e) {
       _isCreating = false;
       _errorMessage = e.toString().contains('Exception:')
           ? e.toString().replaceFirst('Exception: ', '')
           : 'Failed to create group challenge. Please try again.';
-      notifyListeners();
+      _safeNotify();
       return null;
     }
   }
@@ -806,12 +813,12 @@ class ChallengeProvider extends ChangeNotifier {
     if (_isCreating) return null;
     if (_teamAName.trim().isEmpty || _teamBName.trim().isEmpty) {
       _errorMessage = 'Please name both squads';
-      notifyListeners();
+      _safeNotify();
       return null;
     }
     if (_teamBMembers.isEmpty) {
       _errorMessage = 'Please add at least one member to the opposing squad';
-      notifyListeners();
+      _safeNotify();
       return null;
     }
 
@@ -821,14 +828,14 @@ class ChallengeProvider extends ChangeNotifier {
       if (balance < _selectedStake.amount) {
         _errorMessage =
             'Insufficient balance. You need \$${_selectedStake.amount.toStringAsFixed(0)} to enter this challenge.';
-        notifyListeners();
+        _safeNotify();
         return null;
       }
     }
 
     _isCreating = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final teamAParticipants = _teamAMembers
@@ -903,7 +910,7 @@ class ChallengeProvider extends ChangeNotifier {
         onXPEarned?.call(15, 'challenge_created');
         resetCreateForm();
         _isCreating = false;
-        notifyListeners();
+        _safeNotify();
         return demoId;
       }
 
@@ -926,14 +933,14 @@ class ChallengeProvider extends ChangeNotifier {
       resetCreateForm();
 
       _isCreating = false;
-      notifyListeners();
+      _safeNotify();
       return challengeId;
     } catch (e) {
       _isCreating = false;
       _errorMessage = e.toString().contains('Exception:')
           ? e.toString().replaceFirst('Exception: ', '')
           : 'Failed to create squad challenge. Please try again.';
-      notifyListeners();
+      _safeNotify();
       return null;
     }
   }
@@ -958,7 +965,7 @@ class ChallengeProvider extends ChangeNotifier {
     _selectedCharity = null;
     _errorMessage = null;
     _successMessage = null;
-    notifyListeners();
+    _safeNotify();
   }
 
   // ============================================
@@ -967,18 +974,20 @@ class ChallengeProvider extends ChangeNotifier {
 
   Future<bool> acceptChallenge(String challengeId, {double? walletBalance}) async {
     if (_isLoading) return false; // Guard against double-tap
+    _errorMessage = null;
+    _successMessage = null;
     // Validate that the challenge is still pending before accepting
     final matches = _challenges.where((c) => c.id == challengeId).toList();
     if (matches.isEmpty) {
       _errorMessage = 'Challenge not found';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
 
     final challenge = matches.first;
     if (challenge.status != ChallengeStatus.pending) {
       _errorMessage = 'This challenge is no longer available';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
 
@@ -988,14 +997,14 @@ class ChallengeProvider extends ChangeNotifier {
       if (balance < challenge.stakeAmount) {
         _errorMessage =
             'Insufficient balance. You need \$${challenge.stakeAmount.toStringAsFixed(0)} to accept this challenge.';
-        notifyListeners();
+        _safeNotify();
         return false;
       }
     }
 
     _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       // Handle demo challenges locally
@@ -1045,7 +1054,7 @@ class ChallengeProvider extends ChangeNotifier {
           if (!success) {
             _isLoading = false;
             _errorMessage = 'Insufficient balance to accept this challenge';
-            notifyListeners();
+            _safeNotify();
             return false;
           }
         } else {
@@ -1056,23 +1065,24 @@ class ChallengeProvider extends ChangeNotifier {
       _successMessage = 'Challenge accepted! Good luck!';
       onXPEarned?.call(15, 'challenge_accepted');
       _isLoading = false;
-      notifyListeners();
+      _safeNotify();
       return true;
     } catch (e) {
       _isLoading = false;
       _errorMessage = e.toString().contains('Exception:')
           ? e.toString().replaceFirst('Exception: ', '')
           : 'Failed to accept challenge';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
 
   Future<bool> declineChallenge(String challengeId) async {
     if (_isLoading) return false; // Guard against double-tap
-    _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
+    _successMessage = null;
+    _isLoading = true;
+    _safeNotify();
 
     try {
       // Handle demo challenges locally
@@ -1084,12 +1094,12 @@ class ChallengeProvider extends ChangeNotifier {
 
       _successMessage = 'Challenge declined';
       _isLoading = false;
-      notifyListeners();
+      _safeNotify();
       return true;
     } catch (e) {
       _isLoading = false;
       _errorMessage = 'Failed to decline challenge';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
@@ -1102,7 +1112,7 @@ class ChallengeProvider extends ChangeNotifier {
     if (challenge.startDate == null) return false;
 
     _isSyncing = true;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final result = await _healthService.getProgressForChallenge(
@@ -1124,12 +1134,12 @@ class ChallengeProvider extends ChangeNotifier {
 
       _isSyncing = false;
       _successMessage = '${challenge.goalType.displayName} synced successfully';
-      notifyListeners();
+      _safeNotify();
       return true;
     } catch (e) {
       _isSyncing = false;
       _errorMessage = 'Failed to sync ${challenge.goalType.displayName.toLowerCase()}';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
@@ -1186,6 +1196,8 @@ class ChallengeProvider extends ChangeNotifier {
     // Per-challenge guard prevents concurrent settlement of the same challenge
     if (_settlingChallengeIds.contains(challengeId)) return false;
     if (_isLoading) return false; // Guard against double-tap
+    _errorMessage = null;
+    _successMessage = null;
 
     final matches = _challenges.where((c) => c.id == challengeId).toList();
     if (matches.isEmpty) return false;
@@ -1201,7 +1213,7 @@ class ChallengeProvider extends ChangeNotifier {
 
     _settlingChallengeIds.add(challengeId);
     _isLoading = true;
-    notifyListeners();
+    _safeNotify();
 
     try {
       // Run anti-cheat on both sides
@@ -1475,13 +1487,13 @@ class ChallengeProvider extends ChangeNotifier {
       _successMessage = isTie
           ? 'Challenge ended in a tie'
           : '$winnerName wins!';
-      notifyListeners();
+      _safeNotify();
       return true;
     } catch (e) {
       _isLoading = false;
       _settlingChallengeIds.remove(challengeId);
       _errorMessage = 'Failed to settle challenge';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
@@ -1493,12 +1505,12 @@ class ChallengeProvider extends ChangeNotifier {
   Future<void> searchUsers(String query) async {
     if (query.length < 2) {
       _searchResults = [];
-      notifyListeners();
+      _safeNotify();
       return;
     }
 
     _isSearching = true;
-    notifyListeners();
+    _safeNotify();
 
     try {
       _searchResults = await _firebaseService.searchUsers(query);
@@ -1508,12 +1520,12 @@ class ChallengeProvider extends ChangeNotifier {
     }
 
     _isSearching = false;
-    notifyListeners();
+    _safeNotify();
   }
 
   void clearSearch() {
     _searchResults = [];
-    notifyListeners();
+    _safeNotify();
   }
 
   // ============================================
@@ -1522,7 +1534,7 @@ class ChallengeProvider extends ChangeNotifier {
 
   Future<void> fetchLeaderboard() async {
     _isLoading = true;
-    notifyListeners();
+    _safeNotify();
 
     try {
       _leaderboard = await _firebaseService.getLeaderboard();
@@ -1532,7 +1544,7 @@ class ChallengeProvider extends ChangeNotifier {
     }
 
     _isLoading = false;
-    notifyListeners();
+    _safeNotify();
   }
 
   // ============================================
@@ -1542,11 +1554,12 @@ class ChallengeProvider extends ChangeNotifier {
   void clearMessages() {
     _errorMessage = null;
     _successMessage = null;
-    notifyListeners();
+    _safeNotify();
   }
 
   @override
   void dispose() {
+    _disposed = true;
     _challengesSubscription?.cancel();
     super.dispose();
   }

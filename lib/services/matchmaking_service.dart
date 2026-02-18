@@ -163,14 +163,14 @@ class MatchmakingService {
     final recentChallenges = challenges.where((c) =>
         c.createdAt.isAfter(DateTime.now().subtract(const Duration(days: 30)))).length;
 
-    final avgDailySteps = (userData['totalSteps'] ?? 0) ~/
+    final avgDailySteps = (userData['totalSteps'] as num? ?? 0).toInt() ~/
         max(DateTime.now().difference(
           (userData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now()
         ).inDays, 1);
 
     // Calculate streak and consistency
-    final currentStreak = userData['currentStreak'] ?? 0;
-    final longestStreak = userData['longestStreak'] ?? 0;
+    final currentStreak = (userData['currentStreak'] as num? ?? 0).toInt();
+    final longestStreak = (userData['longestStreak'] as num? ?? 0).toInt();
 
     // Determine user segment for retention
     final daysSinceLastActive = DateTime.now().difference(
@@ -191,8 +191,27 @@ class MatchmakingService {
       longestStreak: longestStreak,
       retentionRisk: retentionRisk,
       preferredGoalTypes: _extractPreferredGoalTypes(challenges),
-      friends: List<String>.from(userData['friends'] ?? []),
+      friends: await _getFriendIds(userId),
     );
+  }
+
+  /// Fetch friend IDs from the friends subcollection.
+  Future<List<String>> _getFriendIds(String userId) async {
+    try {
+      final snapshot = await _db
+          .collection('users')
+          .doc(userId)
+          .collection('friends')
+          .where('status', isEqualTo: 'accepted')
+          .limit(200)
+          .get();
+      return snapshot.docs
+          .map((doc) => doc.data()['friendId'] as String? ?? doc.id)
+          .where((id) => id.isNotEmpty)
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   /// Calculate activity compatibility between users

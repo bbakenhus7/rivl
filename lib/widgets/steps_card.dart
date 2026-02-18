@@ -40,7 +40,7 @@ class StepsCard extends StatelessWidget {
                           Icon(
                             Icons.flag,
                             size: 16,
-                            color: Colors.grey[600],
+                            color: context.textSecondary,
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -71,7 +71,7 @@ class StepsCard extends StatelessWidget {
                       CircularProgressIndicator(
                         value: health.goalProgress,
                         strokeWidth: 8,
-                        backgroundColor: Colors.grey[200],
+                        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                         valueColor: const AlwaysStoppedAnimation<Color>(
                           RivlColors.primary,
                         ),

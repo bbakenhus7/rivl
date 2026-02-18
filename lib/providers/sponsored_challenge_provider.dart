@@ -7,8 +7,11 @@ import '../models/sponsored_challenge_model.dart';
 class SponsoredChallengeProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  bool _disposed = false;
+
   List<SponsoredChallengeModel> _challenges = [];
   bool _isLoading = false;
+  bool _isJoining = false;
   String? _error;
 
   List<SponsoredChallengeModel> get challenges => _challenges;
@@ -19,11 +22,15 @@ class SponsoredChallengeProvider with ChangeNotifier {
       .where((c) => c.isActive && c.canRegister)
       .toList();
 
+  void _safeNotify() {
+    if (!_disposed) notifyListeners();
+  }
+
   /// Load all sponsored challenges
   Future<void> loadChallenges() async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final snapshot = await _firestore
@@ -37,16 +44,20 @@ class SponsoredChallengeProvider with ChangeNotifier {
           .toList();
 
       _isLoading = false;
-      notifyListeners();
+      _safeNotify();
     } catch (e) {
       _error = e.toString();
       _isLoading = false;
-      notifyListeners();
+      _safeNotify();
     }
   }
 
   /// Join a sponsored challenge
   Future<bool> joinChallenge(String challengeId, String userId) async {
+    if (_isJoining) return false; // Guard against double-tap
+    _isJoining = true;
+    _safeNotify();
+
     try {
       final challengeRef = _firestore
           .collection('sponsoredChallenges')
@@ -85,8 +96,11 @@ class SponsoredChallengeProvider with ChangeNotifier {
       return true;
     } catch (e) {
       _error = e.toString();
-      notifyListeners();
+      _safeNotify();
       return false;
+    } finally {
+      _isJoining = false;
+      _safeNotify();
     }
   }
 
@@ -102,5 +116,11 @@ class SponsoredChallengeProvider with ChangeNotifier {
     } catch (e) {
       // Silent fail for analytics
     }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

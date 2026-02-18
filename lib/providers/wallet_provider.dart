@@ -7,6 +7,7 @@ import '../services/wallet_service.dart';
 
 class WalletProvider extends ChangeNotifier {
   final WalletService _walletService = WalletService();
+  bool _disposed = false;
 
   WalletModel? _wallet;
   List<WalletTransaction> _transactions = [];
@@ -37,13 +38,17 @@ class WalletProvider extends ChangeNotifier {
   double get lifetimeLosses => _wallet?.lifetimeLosses ?? 0.0;
   double get netProfit => _wallet?.netProfit ?? 0.0;
 
+  void _safeNotify() {
+    if (!_disposed) notifyListeners();
+  }
+
   // ============================================
   // INITIALIZATION
   // ============================================
 
   Future<void> initialize(String userId) async {
     _isLoading = true;
-    notifyListeners();
+    _safeNotify();
 
     try {
       // Get or create wallet
@@ -54,11 +59,11 @@ class WalletProvider extends ChangeNotifier {
       _walletSubscription = _walletService.walletStream(userId).listen(
         (wallet) {
           _wallet = wallet;
-          notifyListeners();
+          _safeNotify();
         },
         onError: (error) {
           _errorMessage = 'Failed to sync wallet';
-          notifyListeners();
+          _safeNotify();
         },
       );
 
@@ -67,20 +72,20 @@ class WalletProvider extends ChangeNotifier {
       _transactionsSubscription = _walletService.transactionsStream(userId).listen(
         (transactions) {
           _transactions = transactions;
-          notifyListeners();
+          _safeNotify();
         },
         onError: (error) {
           _errorMessage = 'Failed to sync transactions';
-          notifyListeners();
+          _safeNotify();
         },
       );
 
       _isLoading = false;
-      notifyListeners();
+      _safeNotify();
     } catch (e) {
       _isLoading = false;
       _errorMessage = 'Failed to load wallet';
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -92,13 +97,13 @@ class WalletProvider extends ChangeNotifier {
     if (_wallet == null) return null;
     if (amount <= 0) {
       _errorMessage = 'Deposit amount must be greater than zero';
-      notifyListeners();
+      _safeNotify();
       return null;
     }
 
     _isProcessing = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final transaction = await _walletService.initiateDeposit(
@@ -108,13 +113,13 @@ class WalletProvider extends ChangeNotifier {
 
       _successMessage = 'Deposit initiated! Complete payment to add funds.';
       _isProcessing = false;
-      notifyListeners();
+      _safeNotify();
 
       return transaction;
     } catch (e) {
       _isProcessing = false;
       _errorMessage = e.toString().replaceAll('Exception: ', '');
-      notifyListeners();
+      _safeNotify();
       return null;
     }
   }
@@ -130,18 +135,18 @@ class WalletProvider extends ChangeNotifier {
     if (_wallet == null) return null;
     if (amount <= 0) {
       _errorMessage = 'Withdrawal amount must be greater than zero';
-      notifyListeners();
+      _safeNotify();
       return null;
     }
     if (amount > balance) {
       _errorMessage = 'Insufficient balance';
-      notifyListeners();
+      _safeNotify();
       return null;
     }
 
     _isProcessing = true;
     _errorMessage = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final transaction = await _walletService.initiateWithdrawal(
@@ -154,13 +159,13 @@ class WalletProvider extends ChangeNotifier {
           ? 'Instant withdrawal initiated!'
           : 'Withdrawal initiated! Funds will arrive in 1-3 business days.';
       _isProcessing = false;
-      notifyListeners();
+      _safeNotify();
 
       return transaction;
     } catch (e) {
       _isProcessing = false;
       _errorMessage = e.toString().replaceAll('Exception: ', '');
-      notifyListeners();
+      _safeNotify();
       return null;
     }
   }
@@ -174,10 +179,10 @@ class WalletProvider extends ChangeNotifier {
 
     try {
       _transactions = await _walletService.getTransactions(_wallet!.userId);
-      notifyListeners();
+      _safeNotify();
     } catch (e) {
       _errorMessage = 'Failed to refresh transactions';
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -193,11 +198,12 @@ class WalletProvider extends ChangeNotifier {
   void clearMessages() {
     _errorMessage = null;
     _successMessage = null;
-    notifyListeners();
+    _safeNotify();
   }
 
   @override
   void dispose() {
+    _disposed = true;
     _walletSubscription?.cancel();
     _transactionsSubscription?.cancel();
     super.dispose();

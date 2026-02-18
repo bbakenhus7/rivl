@@ -7,6 +7,8 @@ import '../models/subscription_model.dart';
 class SubscriptionProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  bool _disposed = false;
+
   SubscriptionModel? _subscription;
   bool _isLoading = false;
   String? _error;
@@ -16,11 +18,15 @@ class SubscriptionProvider with ChangeNotifier {
   String? get error => _error;
   bool get isPremium => _subscription?.isPremium ?? false;
 
+  void _safeNotify() {
+    if (!_disposed) notifyListeners();
+  }
+
   /// Load user's subscription
   Future<void> loadSubscription(String userId) async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final doc = await _firestore
@@ -39,11 +45,11 @@ class SubscriptionProvider with ChangeNotifier {
       }
 
       _isLoading = false;
-      notifyListeners();
+      _safeNotify();
     } catch (e) {
       _error = e.toString();
       _isLoading = false;
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -59,11 +65,11 @@ class SubscriptionProvider with ChangeNotifier {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      notifyListeners();
+      _safeNotify();
       return true;
     } catch (e) {
       _error = e.toString();
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
@@ -93,11 +99,11 @@ class SubscriptionProvider with ChangeNotifier {
         updatedAt: DateTime.now(),
       );
 
-      notifyListeners();
+      _safeNotify();
       return true;
     } catch (e) {
       _error = e.toString();
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
@@ -136,5 +142,11 @@ class SubscriptionProvider with ChangeNotifier {
         .collection('subscription')
         .doc('current')
         .set(_subscription!.toFirestore());
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

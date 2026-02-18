@@ -89,7 +89,7 @@ class SponsoredChallengeModel {
     (registrationDeadline == null || DateTime.now().isBefore(registrationDeadline!));
 
   factory SponsoredChallengeModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>? ?? {};
 
     return SponsoredChallengeModel(
       id: doc.id,
@@ -102,14 +102,14 @@ class SponsoredChallengeModel {
         (e) => e.name == data['goalType'],
         orElse: () => GoalType.steps,
       ),
-      goalValue: data['goalValue'] ?? 0,
+      goalValue: (data['goalValue'] as num? ?? 0).toInt(),
       duration: ChallengeDuration.values.firstWhere(
         (e) => e.name == data['duration'],
         orElse: () => ChallengeDuration.oneWeek,
       ),
-      maxParticipants: data['maxParticipants'] ?? 100,
-      currentParticipants: data['currentParticipants'] ?? 0,
-      prizePool: (data['prizePool'] ?? 0).toDouble(),
+      maxParticipants: (data['maxParticipants'] as num? ?? 100).toInt(),
+      currentParticipants: (data['currentParticipants'] as num? ?? 0).toInt(),
+      prizePool: (data['prizePool'] as num? ?? 0).toDouble(),
       prizeDescription: data['prizeDescription'] ?? '',
       prizeBreakdown: List<String>.from(data['prizeBreakdown'] ?? []),
       tier: SponsorTier.values.firstWhere(
@@ -124,11 +124,11 @@ class SponsoredChallengeModel {
       endDate: (data['endDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
       registrationDeadline: (data['registrationDeadline'] as Timestamp?)?.toDate(),
       requiresPremium: data['requiresPremium'] ?? false,
-      minChallengesCompleted: data['minChallengesCompleted'] ?? 0,
-      minWinRate: (data['minWinRate'] ?? 0).toDouble(),
-      views: data['views'] ?? 0,
-      registrations: data['registrations'] ?? 0,
-      completions: data['completions'] ?? 0,
+      minChallengesCompleted: (data['minChallengesCompleted'] as num? ?? 0).toInt(),
+      minWinRate: (data['minWinRate'] as num? ?? 0).toDouble(),
+      views: (data['views'] as num? ?? 0).toInt(),
+      registrations: (data['registrations'] as num? ?? 0).toInt(),
+      completions: (data['completions'] as num? ?? 0).toInt(),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );

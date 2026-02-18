@@ -9,6 +9,7 @@ class StreakProvider with ChangeNotifier {
 
   /// Callback invoked when user hits a streak milestone (7, 14, 30, etc.)
   void Function(int streakDays)? onStreakMilestone;
+  bool _disposed = false;
 
   StreakModel? _streak;
   bool _isLoading = false;
@@ -30,11 +31,15 @@ class StreakProvider with ChangeNotifier {
   String get streakMultiplierLabel => _streak?.streakMultiplierLabel ?? '';
   int get nextRewardCoins => _streak?.nextRewardCoins ?? 10;
 
+  void _safeNotify() {
+    if (!_disposed) notifyListeners();
+  }
+
   /// Load streak data and auto-check login
   Future<void> loadStreak(String userId) async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final doc = await _firestore
@@ -52,11 +57,11 @@ class StreakProvider with ChangeNotifier {
       }
 
       _isLoading = false;
-      notifyListeners();
+      _safeNotify();
     } catch (e) {
       _error = e.toString();
       _isLoading = false;
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -124,20 +129,20 @@ class StreakProvider with ChangeNotifier {
       _lastReward = reward;
       _showRewardPopup = true;
       _isClaiming = false;
-      notifyListeners();
+      _safeNotify();
 
       return true;
     } catch (e) {
       _error = e.toString();
       _isClaiming = false;
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
 
   void dismissRewardPopup() {
     _showRewardPopup = false;
-    notifyListeners();
+    _safeNotify();
   }
 
   Future<void> _saveStreak(String userId) async {
@@ -147,5 +152,11 @@ class StreakProvider with ChangeNotifier {
         .collection('streak')
         .doc('current')
         .set(_streak!.toFirestore(), SetOptions(merge: true));
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

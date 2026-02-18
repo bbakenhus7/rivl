@@ -18,6 +18,12 @@ class FirebaseService {
   User? get currentUser => _auth.currentUser;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
+  String get _uid {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+    return user.uid;
+  }
+
   // ============================================
   // AUTHENTICATION
   // ============================================
@@ -165,7 +171,7 @@ class FirebaseService {
     required double stakeAmount,
     bool isFriendChallenge = false,
   }) async {
-    final user = await getUser(currentUser!.uid);
+    final user = await getUser(_uid);
     if (user == null) throw Exception('User not found');
 
     final totalPot = stakeAmount * 2;
@@ -174,7 +180,7 @@ class FirebaseService {
 
     final challenge = ChallengeModel(
       id: '',
-      creatorId: currentUser!.uid,
+      creatorId: _uid,
       opponentId: opponentId,
       creatorName: user.displayName,
       opponentName: opponentName,
@@ -215,13 +221,13 @@ class FirebaseService {
     required int minParticipants,
     required GroupPayoutStructure payoutStructure,
   }) async {
-    final user = await getUser(currentUser!.uid);
+    final user = await getUser(_uid);
     if (user == null) throw Exception('User not found');
 
     // Creator is automatically accepted
     final allParticipants = [
       GroupParticipant(
-        userId: currentUser!.uid,
+        userId: _uid,
         displayName: user.displayName,
         username: user.username,
         status: ParticipantStatus.accepted,
@@ -235,7 +241,7 @@ class FirebaseService {
 
     final challenge = ChallengeModel(
       id: '',
-      creatorId: currentUser!.uid,
+      creatorId: _uid,
       creatorName: user.displayName,
       type: ChallengeType.group,
       status: ChallengeStatus.pending,
@@ -283,12 +289,12 @@ class FirebaseService {
     required int minParticipants,
     required GroupPayoutStructure payoutStructure,
   }) async {
-    final user = await getUser(currentUser!.uid);
+    final user = await getUser(_uid);
     if (user == null) throw Exception('User not found');
 
     final allParticipants = [
       GroupParticipant(
-        userId: currentUser!.uid,
+        userId: _uid,
         displayName: user.displayName,
         username: user.username,
         status: ParticipantStatus.accepted,
@@ -303,7 +309,7 @@ class FirebaseService {
 
     final challengeData = ChallengeModel(
       id: '',
-      creatorId: currentUser!.uid,
+      creatorId: _uid,
       creatorName: user.displayName,
       type: ChallengeType.group,
       status: ChallengeStatus.pending,
@@ -342,7 +348,7 @@ class FirebaseService {
     final newChallengeRef = _db.collection('challenges').doc();
 
     await _db.runTransaction((txn) async {
-      final walletRef = _db.collection('wallets').doc(currentUser!.uid);
+      final walletRef = _db.collection('wallets').doc(_uid);
       final walletDoc = await txn.get(walletRef);
 
       if (!walletDoc.exists) throw Exception('Wallet not found');
@@ -364,7 +370,7 @@ class FirebaseService {
       // Record wallet transaction
       final walletTxRef = walletRef.collection('transactions').doc();
       txn.set(walletTxRef, {
-        'userId': currentUser!.uid,
+        'userId': _uid,
         'type': 'stakeDebit',
         'status': 'completed',
         'amount': stakeAmount,
@@ -407,12 +413,12 @@ class FirebaseService {
     required double stakeAmount,
     required int teamSize,
   }) async {
-    final user = await getUser(currentUser!.uid);
+    final user = await getUser(_uid);
     if (user == null) throw Exception('User not found');
 
     // Creator is always the first member of Team A
     final creatorParticipant = GroupParticipant(
-      userId: currentUser!.uid,
+      userId: _uid,
       displayName: user.displayName,
       username: user.username,
       status: ParticipantStatus.accepted,
@@ -443,7 +449,7 @@ class FirebaseService {
 
     final challengeData = ChallengeModel(
       id: '',
-      creatorId: currentUser!.uid,
+      creatorId: _uid,
       creatorName: user.displayName,
       type: ChallengeType.teamVsTeam,
       status: ChallengeStatus.pending,
@@ -482,7 +488,7 @@ class FirebaseService {
     final newChallengeRef = _db.collection('challenges').doc();
 
     await _db.runTransaction((txn) async {
-      final walletRef = _db.collection('wallets').doc(currentUser!.uid);
+      final walletRef = _db.collection('wallets').doc(_uid);
       final walletDoc = await txn.get(walletRef);
 
       if (!walletDoc.exists) throw Exception('Wallet not found');
@@ -501,7 +507,7 @@ class FirebaseService {
 
       final walletTxRef = walletRef.collection('transactions').doc();
       txn.set(walletTxRef, {
-        'userId': currentUser!.uid,
+        'userId': _uid,
         'type': 'stakeDebit',
         'status': 'completed',
         'amount': stakeAmount,
@@ -683,7 +689,7 @@ class FirebaseService {
     String? charityId,
     String? charityName,
   }) async {
-    final user = await getUser(currentUser!.uid);
+    final user = await getUser(_uid);
     if (user == null) throw Exception('User not found');
 
     final totalPot = stakeAmount * 2;
@@ -693,9 +699,9 @@ class FirebaseService {
     final expiresAt = now.add(const Duration(days: 7));
 
     final challengeData = {
-      'creatorId': currentUser!.uid,
+      'creatorId': _uid,
       'opponentId': opponentId,
-      'participantIds': [currentUser!.uid, opponentId],
+      'participantIds': [_uid, opponentId],
       'creatorName': user.displayName,
       'opponentName': opponentName,
       'type': type.name,
@@ -742,7 +748,7 @@ class FirebaseService {
     final newChallengeRef = _db.collection('challenges').doc();
 
     await _db.runTransaction((txn) async {
-      final walletRef = _db.collection('wallets').doc(currentUser!.uid);
+      final walletRef = _db.collection('wallets').doc(_uid);
       final walletDoc = await txn.get(walletRef);
 
       if (!walletDoc.exists) throw Exception('Wallet not found');
@@ -764,7 +770,7 @@ class FirebaseService {
       // Record wallet transaction
       final walletTxRef = walletRef.collection('transactions').doc();
       txn.set(walletTxRef, {
-        'userId': currentUser!.uid,
+        'userId': _uid,
         'type': 'stakeDebit',
         'status': 'completed',
         'amount': stakeAmount,
@@ -855,7 +861,7 @@ class FirebaseService {
     final challenge = await getChallenge(challengeId);
     if (challenge == null) throw Exception('Challenge not found');
 
-    final isCreator = challenge.creatorId == currentUser!.uid;
+    final isCreator = challenge.creatorId == _uid;
     final progressField = isCreator ? 'creatorProgress' : 'opponentProgress';
     final historyField = isCreator ? 'creatorStepHistory' : 'opponentStepHistory';
 
@@ -945,13 +951,13 @@ class FirebaseService {
     required String receiverName,
     required String receiverUsername,
   }) async {
-    final user = await getUser(currentUser!.uid);
+    final user = await getUser(_uid);
     if (user == null) throw Exception('User not found');
 
     // Check if already friends
     final existingFriend = await _db
         .collection('users')
-        .doc(currentUser!.uid)
+        .doc(_uid)
         .collection('friends')
         .doc(receiverId)
         .get();
@@ -960,7 +966,7 @@ class FirebaseService {
     // Check for existing pending request in either direction
     final existing = await _db
         .collection('friendRequests')
-        .where('senderId', isEqualTo: currentUser!.uid)
+        .where('senderId', isEqualTo: _uid)
         .where('receiverId', isEqualTo: receiverId)
         .where('status', isEqualTo: 'pending')
         .limit(1)
@@ -968,7 +974,7 @@ class FirebaseService {
     if (existing.docs.isNotEmpty) throw Exception('Request already sent');
 
     final docRef = await _db.collection('friendRequests').add({
-      'senderId': currentUser!.uid,
+      'senderId': _uid,
       'senderName': user.displayName,
       'senderUsername': user.username,
       'receiverId': receiverId,
@@ -996,7 +1002,7 @@ class FirebaseService {
     if (!requestDoc.exists) throw Exception('Request not found');
 
     final data = requestDoc.data()!;
-    if (data['receiverId'] != currentUser!.uid) {
+    if (data['receiverId'] != _uid) {
       throw Exception('Not authorized');
     }
 
@@ -1013,9 +1019,9 @@ class FirebaseService {
 
     // Add to sender's friends
     batch.set(
-      _db.collection('users').doc(senderId).collection('friends').doc(currentUser!.uid),
+      _db.collection('users').doc(senderId).collection('friends').doc(_uid),
       {
-        'userId': currentUser!.uid,
+        'userId': _uid,
         'displayName': receiverName,
         'username': receiverUsername,
         'createdAt': FieldValue.serverTimestamp(),
@@ -1024,7 +1030,7 @@ class FirebaseService {
 
     // Add to receiver's friends
     batch.set(
-      _db.collection('users').doc(currentUser!.uid).collection('friends').doc(senderId),
+      _db.collection('users').doc(_uid).collection('friends').doc(senderId),
       {
         'userId': senderId,
         'displayName': senderName,
@@ -1055,10 +1061,10 @@ class FirebaseService {
   Future<void> removeFriend(String friendId) async {
     final batch = _db.batch();
     batch.delete(
-      _db.collection('users').doc(currentUser!.uid).collection('friends').doc(friendId),
+      _db.collection('users').doc(_uid).collection('friends').doc(friendId),
     );
     batch.delete(
-      _db.collection('users').doc(friendId).collection('friends').doc(currentUser!.uid),
+      _db.collection('users').doc(friendId).collection('friends').doc(_uid),
     );
     await batch.commit();
   }
@@ -1067,7 +1073,7 @@ class FirebaseService {
   Future<bool> isFriend(String userId) async {
     final doc = await _db
         .collection('users')
-        .doc(currentUser!.uid)
+        .doc(_uid)
         .collection('friends')
         .doc(userId)
         .get();
@@ -1108,7 +1114,7 @@ class FirebaseService {
   Future<Set<String>> getFriendIds() async {
     final snapshot = await _db
         .collection('users')
-        .doc(currentUser!.uid)
+        .doc(_uid)
         .collection('friends')
         .get();
     return snapshot.docs.map((doc) => doc.id).toSet();

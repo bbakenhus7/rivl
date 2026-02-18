@@ -10,6 +10,7 @@ class NotificationProvider with ChangeNotifier {
   final NotificationService _notificationService = NotificationService();
 
   static const int _pageSize = 20;
+  bool _disposed = false;
 
   List<Map<String, dynamic>> _notifications = [];
   int _unreadCount = 0;
@@ -28,11 +29,15 @@ class NotificationProvider with ChangeNotifier {
   bool get hasMore => _hasMore;
   bool get isLoadingMore => _isLoadingMore;
 
+  void _safeNotify() {
+    if (!_disposed) notifyListeners();
+  }
+
   /// Initialize notifications for a user (loads first page)
   Future<void> initialize(String userId) async {
     _userId = userId;
     _isLoading = true;
-    notifyListeners();
+    _safeNotify();
 
     // Initialize push notifications
     await _notificationService.initialize(userId);
@@ -54,10 +59,10 @@ class NotificationProvider with ChangeNotifier {
       _lastDocument = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
       _hasMore = snapshot.docs.length >= _pageSize;
       _isLoading = false;
-      notifyListeners();
+      _safeNotify();
     }, onError: (e) {
       _isLoading = false;
-      notifyListeners();
+      _safeNotify();
     });
 
     // Listen to unread count
@@ -65,7 +70,7 @@ class NotificationProvider with ChangeNotifier {
     _unreadSubscription =
         _notificationService.unreadCountStream(userId).listen((count) {
       _unreadCount = count;
-      notifyListeners();
+      _safeNotify();
     }, onError: (e) {
       // Unread count stream error — count may be stale
     });
@@ -78,7 +83,7 @@ class NotificationProvider with ChangeNotifier {
     }
 
     _isLoadingMore = true;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final snapshot = await _firestore
@@ -103,7 +108,7 @@ class NotificationProvider with ChangeNotifier {
     }
 
     _isLoadingMore = false;
-    notifyListeners();
+    _safeNotify();
   }
 
   /// Mark a notification as read
@@ -190,6 +195,7 @@ class NotificationProvider with ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _notificationsSubscription?.cancel();
     _unreadSubscription?.cancel();
     super.dispose();
