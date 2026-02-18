@@ -11,18 +11,16 @@ import '../../providers/wallet_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../widgets/add_funds_sheet.dart';
 import '../../providers/theme_provider.dart';
-import '../../models/challenge_model.dart';
-import '../../models/health_metrics.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 
+import '../../models/health_category.dart';
 import '../../widgets/challenge_card.dart';
 import '../challenges/challenge_detail_screen.dart';
 import '../main_screen.dart';
 import '../notifications/notifications_screen.dart';
+import 'health_category_detail_screen.dart';
 import 'health_metric_detail_screen.dart';
-import 'workout_detail_screen.dart';
-import 'steps_trend_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -482,38 +480,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Recovery & Strain Cards
+                  // Activity Rings (standalone)
                   StaggeredListAnimation(
                     index: 2,
-                    child: const _RecoveryStrainRow(),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Hero Activity Rings Card
-                  StaggeredListAnimation(
-                    index: 3,
                     child: const _ActivityBarsCard(),
                   ),
                   const SizedBox(height: 16),
 
-                  // Health Metrics Grid
+                  // Health Category Tiles (2x2 grid)
                   StaggeredListAnimation(
-                    index: 4,
-                    child: const _HealthMetricsGrid(),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Weekly Steps Chart
-                  StaggeredListAnimation(
-                    index: 5,
-                    child: const _WeeklyStepsCard(),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Recent Workouts
-                  StaggeredListAnimation(
-                    index: 6,
-                    child: const _RecentWorkoutsCard(),
+                    index: 3,
+                    child: const _HealthCategoryGrid(),
                   ),
                   const SizedBox(height: 16),
 
@@ -743,229 +720,6 @@ class _RivlHealthScoreCard extends StatelessWidget {
   }
 }
 
-// Recovery & Strain Row
-class _RecoveryStrainRow extends StatelessWidget {
-  const _RecoveryStrainRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<HealthProvider>(
-      builder: (context, health, _) {
-        final recoveryColor = _getRecoveryColor(health.recoveryScore);
-        final exertionColor = _getStrainColor(health.strainScore);
-        return Row(
-          children: [
-            Expanded(
-              child: _ScoreCard(
-                title: 'Recovery',
-                score: health.recoveryScore,
-                status: health.recoveryStatus,
-                color: recoveryColor,
-                icon: Icons.battery_charging_full,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => HealthMetricDetailScreen(
-                        metricType: HealthMetricType.recovery,
-                        icon: Icons.battery_charging_full,
-                        label: 'Recovery',
-                        currentValue: '${health.recoveryScore}',
-                        unit: '/100',
-                        color: recoveryColor,
-                        description: 'Recovery measures how ready your body is to perform. '
-                            'It is calculated from your Heart Rate Variability (HRV) and '
-                            'Resting Heart Rate, weighted equally. Higher HRV and lower '
-                            'resting heart rate both indicate better recovery.\n\n'
-                            'Why it matters: Training when recovery is high leads to bigger '
-                            'fitness gains. Training on low recovery increases injury risk '
-                            'and slows progress. Use this score to decide when to push hard '
-                            'and when to take it easy.',
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _ScoreCard(
-                title: 'Exertion',
-                score: health.strainScore,
-                status: _getStrainStatus(health.strainScore),
-                color: exertionColor,
-                icon: Icons.local_fire_department,
-                maxScore: 100,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => HealthMetricDetailScreen(
-                        metricType: HealthMetricType.exertion,
-                        icon: Icons.local_fire_department,
-                        label: 'Exertion',
-                        currentValue: '${health.strainScore}',
-                        unit: '/100',
-                        color: exertionColor,
-                        description: 'Exertion measures the total physical load on your body today. '
-                            'It is calculated as the average of your steps exertion '
-                            '(steps vs. 15,000 target) and calorie exertion '
-                            '(active calories vs. 800 target).\n\n'
-                            'Why it matters: Tracking exertion helps you balance training '
-                            'intensity over time. Consistently high exertion without adequate '
-                            'recovery can lead to overtraining. Aim for a mix of high and low '
-                            'exertion days to build fitness safely.',
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Color _getRecoveryColor(int score) {
-    if (score >= 80) return RivlColors.success;
-    if (score >= 60) return Colors.lightGreen;
-    if (score >= 40) return Colors.orange;
-    return RivlColors.error;
-  }
-
-  Color _getStrainColor(int score) {
-    if (score >= 85) return RivlColors.error;
-    if (score >= 65) return Colors.orange;
-    if (score >= 40) return Colors.lightGreen;
-    return RivlColors.info;
-  }
-
-  String _getStrainStatus(int score) {
-    if (score >= 85) return 'Overreaching';
-    if (score >= 65) return 'High';
-    if (score >= 40) return 'Moderate';
-    return 'Light';
-  }
-}
-
-// Robinhood-style bold score card with AnimatedCounter
-class _ScoreCard extends StatelessWidget {
-  final String title;
-  final int score;
-  final String status;
-  final Color color;
-  final IconData icon;
-  final int maxScore;
-  final VoidCallback? onTap;
-
-  const _ScoreCard({
-    required this.title,
-    required this.score,
-    required this.status,
-    required this.color,
-    required this.icon,
-    this.maxScore = 100,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [context.surface, color.withOpacity(0.04)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [color.withOpacity(0.18), color.withOpacity(0.08)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(icon, color: color, size: 20),
-                  ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
-                    color: context.textSecondary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          AnimatedCounter(
-            value: score,
-            duration: const Duration(milliseconds: 800),
-            style: TextStyle(
-              fontSize: 48,
-              fontWeight: FontWeight.w800,
-              color: color,
-              height: 1.0,
-              letterSpacing: -1,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              status,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ],
-      ),
-        ),
-      ),
-      ),
-    );
-  }
-}
 
 // Hero Activity Rings Card (circular rings replacing linear bars)
 class _ActivityBarsCard extends StatelessWidget {
@@ -1300,93 +1054,45 @@ class _ActivityRingPainter extends CustomPainter {
   }
 }
 
-// Original _ActivityBar kept for compatibility
-class _ActivityBar extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final String goal;
-  final double progress;
-  final Color color;
 
-  const _ActivityBar({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.goal,
-    required this.progress,
-    required this.color,
-  });
+
+// Health Category Grid (2x2 tiles)
+class _HealthCategoryGrid extends StatelessWidget {
+  const _HealthCategoryGrid();
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: color, size: 18),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              label,
-              style: TextStyle(
-                color: context.textSecondary,
-                fontWeight: FontWeight.w500,
-                fontSize: 14,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              value,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-            Text(
-              ' / $goal',
-              style: TextStyle(
-                color: context.textSecondary,
-                fontSize: 14,
-              ),
-            ),
-          ],
+        const Text(
+          'Health Categories',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 8),
-        Stack(
+        const SizedBox(height: 12),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 0.92,
           children: [
-            // Background bar
-            Container(
-              height: 10,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(5),
-              ),
+            FadeIn(
+              delay: const Duration(milliseconds: 100),
+              child: _CategoryTile(category: HealthCategory.heartHealth),
             ),
-            // Progress bar
-            FractionallySizedBox(
-              widthFactor: progress.clamp(0.0, 1.0),
-              child: Container(
-                height: 10,
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: color.withOpacity(0.4),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-              ),
+            FadeIn(
+              delay: const Duration(milliseconds: 150),
+              child: _CategoryTile(category: HealthCategory.activityPerformance),
+            ),
+            FadeIn(
+              delay: const Duration(milliseconds: 200),
+              child: _CategoryTile(category: HealthCategory.sleepRecovery),
+            ),
+            FadeIn(
+              delay: const Duration(milliseconds: 250),
+              child: _CategoryTile(category: HealthCategory.overall),
             ),
           ],
         ),
@@ -1395,509 +1101,190 @@ class _ActivityBar extends StatelessWidget {
   }
 }
 
-// Health Metrics Grid with larger tiles
-class _HealthMetricsGrid extends StatelessWidget {
-  const _HealthMetricsGrid();
+// Individual category tile with preview values
+class _CategoryTile extends StatelessWidget {
+  final HealthCategory category;
+
+  const _CategoryTile({required this.category});
 
   @override
   Widget build(BuildContext context) {
+    final config = HealthCategoryConfig.of(category);
+
     return Consumer<HealthProvider>(
       builder: (context, health, _) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Health Metrics', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.3,
-              children: [
-                FadeIn(
-                  delay: const Duration(milliseconds: 100),
-                  child: _MetricTile(
-                    icon: Icons.favorite,
-                    label: 'Heart Rate',
-                    value: health.heartRate > 0 ? '${health.heartRate}' : '--',
-                    unit: 'bpm',
-                    color: Colors.red,
-                    metricType: HealthMetricType.heartRate,
-                    numericValue: health.heartRate > 0 ? health.heartRate : null,
-                    description: 'Heart rate measures how many times your heart beats per minute. Tracking it during exercise shows how hard your cardiovascular system is working, and monitoring trends over time can reveal improvements in fitness or flag potential health concerns early.',
-                  ),
+        final preview = _getPreview(health);
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => HealthCategoryDetailScreen(category: category),
+              ),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [context.surface, config.accentColor.withOpacity(0.06)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: config.accentColor.withOpacity(0.08),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
                 ),
-                FadeIn(
-                  delay: const Duration(milliseconds: 150),
-                  child: _MetricTile(
-                    icon: Icons.bedtime,
-                    label: 'Sleep',
-                    value: health.sleepHours > 0 ? health.formatSleep(health.sleepHours) : '--',
-                    unit: '',
-                    color: Colors.indigo,
-                    metricType: HealthMetricType.sleep,
-                    description: 'Sleep is when your body recovers, builds muscle, and consolidates memory. Getting 7-9 hours of quality sleep each night improves athletic performance, mental clarity, and immune function. Poor sleep undermines even the best training.',
-                  ),
-                ),
-                FadeIn(
-                  delay: const Duration(milliseconds: 200),
-                  child: _MetricTile(
-                    icon: Icons.show_chart,
-                    label: 'HRV',
-                    value: health.hrv > 0 ? health.formatHRV(health.hrv) : '--',
-                    unit: 'ms',
-                    color: Colors.purple,
-                    metricType: HealthMetricType.hrv,
-                    numericValue: health.hrv > 0 ? health.hrv.round() : null,
-                    description: 'Heart Rate Variability (HRV) measures the variation in time between heartbeats. A higher HRV generally indicates better cardiovascular fitness and recovery. It\'s one of the best indicators of how ready your body is to perform and whether you\'re overtraining.',
-                  ),
-                ),
-                FadeIn(
-                  delay: const Duration(milliseconds: 250),
-                  child: _MetricTile(
-                    icon: Icons.monitor_heart,
-                    label: 'Resting HR',
-                    value: health.restingHeartRate > 0 ? '${health.restingHeartRate}' : '--',
-                    unit: 'bpm',
-                    color: Colors.pink,
-                    metricType: HealthMetricType.restingHeartRate,
-                    numericValue: health.restingHeartRate > 0 ? health.restingHeartRate : null,
-                    description: 'Resting heart rate is your heart rate when you\'re completely at rest. A lower resting heart rate typically means your heart is more efficient. Athletes often have resting rates between 40-60 bpm. Tracking it over time shows your cardiovascular fitness improving.',
-                  ),
-                ),
-                FadeIn(
-                  delay: const Duration(milliseconds: 300),
-                  child: _MetricTile(
-                    icon: Icons.air,
-                    label: 'Blood Oxygen',
-                    value: health.bloodOxygen > 0 ? health.formatBloodOxygen(health.bloodOxygen) : '--',
-                    unit: '',
-                    color: Colors.teal,
-                    metricType: HealthMetricType.bloodOxygen,
-                    description: 'Blood oxygen (SpO2) measures the percentage of oxygen your red blood cells are carrying. Normal levels are 95-100%. Tracking it helps monitor respiratory health, sleep quality, and how well your body delivers oxygen to muscles during intense exercise.',
-                  ),
-                ),
-                FadeIn(
-                  delay: const Duration(milliseconds: 350),
-                  child: _MetricTile(
-                    icon: Icons.speed,
-                    label: 'VO2 Max',
-                    value: health.vo2Max > 0 ? health.formatVO2Max(health.vo2Max) : '--',
-                    unit: 'ml/kg/min',
-                    color: Colors.orange,
-                    metricType: HealthMetricType.vo2Max,
-                    numericValue: health.vo2Max > 0 ? health.vo2Max.round() : null,
-                    description: 'VO2 Max is the maximum amount of oxygen your body can use during intense exercise. It\'s considered the gold standard measure of aerobic fitness. Higher VO2 Max values are linked to better endurance, longer lifespan, and reduced risk of chronic disease.',
-                  ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-// Larger, more tappable metric tile with optional AnimatedCounter
-class _MetricTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final String unit;
-  final Color color;
-  final String description;
-  final int? numericValue;
-  final HealthMetricType metricType;
-
-  const _MetricTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.unit,
-    required this.color,
-    required this.description,
-    required this.metricType,
-    this.numericValue,
-  });
-
-  void _showDetail(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => HealthMetricDetailScreen(
-          metricType: metricType,
-          icon: icon,
-          label: label,
-          currentValue: value,
-          unit: unit,
-          color: color,
-          description: description,
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _showDetail(context),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [context.surface, color.withOpacity(0.04)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.06),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [color.withOpacity(0.15), color.withOpacity(0.06)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                // Icon + category name
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            config.accentColor.withOpacity(0.18),
+                            config.accentColor.withOpacity(0.08),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(config.icon, color: config.accentColor, size: 20),
                     ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: color, size: 18),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      color: context.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right,
-                  size: 16,
-                  color: context.textSecondary.withOpacity(0.5),
-                ),
-              ],
-            ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (numericValue != null && value != '--')
-                  AnimatedCounter(
-                    value: numericValue!,
-                    duration: const Duration(milliseconds: 700),
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  )
-                else
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                if (unit.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4, bottom: 3),
-                    child: Text(
-                      unit,
-                      style: TextStyle(
-                        color: context.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        config.name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: context.textSecondary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                  ],
+                ),
+                const Spacer(),
+                // Hero value
+                Text(
+                  preview.heroValue,
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: config.accentColor,
+                    height: 1.0,
+                    letterSpacing: -0.5,
                   ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// Weekly Steps Chart with wider bars and rounded caps
-class _WeeklyStepsCard extends StatelessWidget {
-  const _WeeklyStepsCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<HealthProvider>(
-      builder: (context, health, _) {
-        final steps = health.weeklySteps;
-        final maxSteps = steps.isNotEmpty
-            ? steps.map((d) => d.steps).reduce((a, b) => a > b ? a : b)
-            : 10000;
-
-        return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [context.surface, RivlColors.primary.withOpacity(0.03)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: RivlColors.primary.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const StepsTrendScreen(),
-                    ),
-                  );
-                },
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  preview.heroLabel,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: context.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Subtitle metrics
+                Text(
+                  preview.subtitle,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: context.textSecondary.withOpacity(0.8),
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 6),
+                // Tap hint
+                Row(
                   children: [
-                    const Text('This Week', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    Row(
-                      children: [
-                        Text(
-                          '${health.formatSteps(health.weeklyTotal)} total',
-                          style: TextStyle(color: context.textSecondary, fontSize: 14),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(Icons.chevron_right, size: 18, color: context.textSecondary),
-                      ],
+                    const Spacer(),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 18,
+                      color: config.accentColor.withOpacity(0.5),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                height: 130,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: List.generate(7, (index) {
-                    final daySteps = index < steps.length ? steps[index].steps : 0;
-                    final barHeight = maxSteps > 0 ? (daySteps / maxSteps * 90).clamp(8.0, 90.0) : 8.0;
-                    final isToday = index == steps.length - 1;
-                    final dayName = _getDayName(index, steps.length);
-
-                    return Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0.0, end: barHeight),
-                          duration: Duration(milliseconds: 600 + (index * 80)),
-                          curve: Curves.easeOutCubic,
-                          builder: (context, animatedHeight, _) {
-                            return Container(
-                              width: 40,
-                              height: animatedHeight,
-                              decoration: BoxDecoration(
-                                color: isToday
-                                    ? RivlColors.primary
-                                    : RivlColors.primary.withOpacity(0.25),
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: isToday
-                                    ? [
-                                        BoxShadow(
-                                          color: RivlColors.primary.withOpacity(0.3),
-                                          blurRadius: 6,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          dayName,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isToday ? RivlColors.primary : context.textSecondary,
-                            fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-                          ),
-                        ),
-                      ],
-                    );
-                  }),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _WeeklyStat(label: 'Average', value: health.formatSteps(health.weeklyAverage)),
-                  _WeeklyStat(label: 'Best Day', value: health.formatSteps(health.weeklyBest)),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
     );
   }
 
-  String _getDayName(int index, int totalDays) {
-    final now = DateTime.now();
-    final date = now.subtract(Duration(days: totalDays - 1 - index));
-    const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-    return days[date.weekday % 7];
-  }
-}
-
-class _WeeklyStat extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _WeeklyStat({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        Text(label, style: TextStyle(color: context.textSecondary, fontSize: 12)),
-      ],
-    );
-  }
-}
-
-// Recent Workouts Card
-class _RecentWorkoutsCard extends StatelessWidget {
-  const _RecentWorkoutsCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<HealthProvider>(
-      builder: (context, health, _) {
-        final workouts = health.recentWorkouts;
-        if (workouts.isEmpty) return const SizedBox.shrink();
-
-        return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [context.surface, RivlColors.primary.withOpacity(0.03)],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: RivlColors.primary.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Recent Workouts', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 16),
-              ...workouts.take(3).map((workout) => _WorkoutTile(workout: workout)),
-            ],
-          ),
+  _CategoryPreview _getPreview(HealthProvider health) {
+    switch (category) {
+      case HealthCategory.heartHealth:
+        final hr = health.heartRate > 0 ? '${health.heartRate}' : '--';
+        final hrv = health.hrv > 0 ? 'HRV ${health.hrv.round()}ms' : 'HRV --';
+        final rhr = health.restingHeartRate > 0 ? 'RHR ${health.restingHeartRate}' : 'RHR --';
+        return _CategoryPreview(
+          heroValue: '$hr bpm',
+          heroLabel: 'Heart Rate',
+          subtitle: '$hrv  •  $rhr',
         );
-      },
-    );
+      case HealthCategory.activityPerformance:
+        final steps = health.formatSteps(health.todaySteps);
+        final vo2 = health.vo2Max > 0 ? 'VO2 ${health.vo2Max.toStringAsFixed(1)}' : 'VO2 --';
+        final exertion = 'Exertion ${health.strainScore}';
+        return _CategoryPreview(
+          heroValue: '$steps',
+          heroLabel: 'Steps Today',
+          subtitle: '$vo2  •  $exertion',
+        );
+      case HealthCategory.sleepRecovery:
+        final sleep = health.sleepHours > 0 ? health.formatSleep(health.sleepHours) : '--';
+        final recovery = 'Recovery ${health.recoveryScore}';
+        final spo2 = health.bloodOxygen > 0 ? 'SpO2 ${health.bloodOxygen.round()}%' : 'SpO2 --';
+        return _CategoryPreview(
+          heroValue: sleep,
+          heroLabel: 'Sleep',
+          subtitle: '$recovery  •  $spo2',
+        );
+      case HealthCategory.overall:
+        final score = health.rivlHealthScore;
+        final grade = health.rivlHealthGrade;
+        return _CategoryPreview(
+          heroValue: '$score',
+          heroLabel: 'Health Score',
+          subtitle: 'Grade $grade  •  AI Insights',
+        );
+    }
   }
 }
 
-class _WorkoutTile extends StatelessWidget {
-  final WorkoutData workout;
+class _CategoryPreview {
+  final String heroValue;
+  final String heroLabel;
+  final String subtitle;
 
-  const _WorkoutTile({required this.workout});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => WorkoutDetailScreen(workout: workout),
-          ),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: workout.accentColor.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Icon(workout.iconData, color: workout.accentColor, size: 22),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(workout.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  Text(
-                    '${workout.formattedDuration} • ${workout.calories} cal',
-                    style: TextStyle(color: context.textSecondary, fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              _formatDate(workout.date),
-              style: TextStyle(color: context.textSecondary, fontSize: 12),
-            ),
-            const SizedBox(width: 4),
-            Icon(Icons.chevron_right, size: 18, color: context.textSecondary),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final diff = now.difference(date).inDays;
-    if (diff == 0) return 'Today';
-    if (diff == 1) return 'Yesterday';
-    return '${diff}d ago';
-  }
+  const _CategoryPreview({
+    required this.heroValue,
+    required this.heroLabel,
+    required this.subtitle,
+  });
 }
 
 /// Top-of-page glance row: Earnings, Active Pot, Win Streak

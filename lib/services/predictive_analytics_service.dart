@@ -365,7 +365,7 @@ class PredictiveAnalyticsService {
         stdDev = 0.5 * sqrt(days.toDouble());
         break;
       default:
-        mean = 100 * days;
+        mean = 100.0 * days;
         stdDev = 20 * sqrt(days.toDouble());
     }
 
