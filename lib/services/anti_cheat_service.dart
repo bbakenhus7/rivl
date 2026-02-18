@@ -858,7 +858,7 @@ class AntiCheatService {
       }
 
       // --- Steps vs Active Calories ---
-      if (day.activeCalories != null && day.activeCalories! > 0) {
+      if (day.activeCalories != null && day.activeCalories! > 0 && day.steps > 0) {
         daysWithCalories++;
         final calsPerKSteps = day.activeCalories! / (day.steps / 1000.0);
 

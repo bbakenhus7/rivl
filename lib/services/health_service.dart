@@ -107,7 +107,11 @@ class HealthService {
         _fetchRecentWorkouts(),
       ]);
 
-      final dataPoints = results[0] as List<HealthDataPoint>;
+      // Deduplicate data points — multiple sources (iPhone + Apple Watch)
+      // can report the same distance/calorie/HR readings, causing over-counting.
+      final dataPoints = Health().removeDuplicates(
+        results[0] as List<HealthDataPoint>,
+      );
       final weeklySteps = results[1] as List<DailySteps>;
       final recentWorkouts = results[2] as List<WorkoutData>;
 
@@ -463,11 +467,12 @@ class HealthService {
       int? activeCalories;
       int? avgHeartRate;
       try {
-        final crossRefData = await _health.getHealthDataFromTypes(
+        final crossRefDataRaw = await _health.getHealthDataFromTypes(
           types: crossRefTypes,
           startTime: dayStart,
           endTime: dayEnd,
         );
+        final crossRefData = _health.removeDuplicates(crossRefDataRaw);
 
         // Distance (meters -> miles)
         final distanceMeters = crossRefData
@@ -526,13 +531,14 @@ class HealthService {
           ? now
           : dayStart.add(const Duration(days: 1));
 
-      final dataPoints = await _health.getHealthDataFromTypes(
+      final dataPointsRaw = await _health.getHealthDataFromTypes(
         types: [defaultTargetPlatform == TargetPlatform.iOS
             ? HealthDataType.DISTANCE_WALKING_RUNNING
             : HealthDataType.DISTANCE_DELTA],
         startTime: dayStart,
         endTime: dayEnd,
       );
+      final dataPoints = _health.removeDuplicates(dataPointsRaw);
 
       final metersTotal = dataPoints.fold(0.0, (sum, p) => sum + _numericValue(p));
       final miles = (metersTotal * 0.000621371).round();
@@ -568,11 +574,12 @@ class HealthService {
           ? now
           : dayStart.add(const Duration(days: 1));
 
-      final dataPoints = await _health.getHealthDataFromTypes(
+      final dataPointsRaw = await _health.getHealthDataFromTypes(
         types: sleepTypes,
         startTime: dayStart,
         endTime: dayEnd,
       );
+      final dataPoints = _health.removeDuplicates(dataPointsRaw);
 
       var totalMinutes = 0.0;
       for (final point in dataPoints) {

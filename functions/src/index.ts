@@ -1519,7 +1519,7 @@ function crossValidateMetrics(activityHistory: any[]): number {
 
     // Steps vs Active Calories
     const cals = day.activeCalories as number | undefined;
-    if (cals && cals > 0) {
+    if (cals && cals > 0 && steps > 0) {
       daysWithCalories++;
       const calsPerKSteps = cals / (steps / 1000.0);
       if (calsPerKSteps < 10 || calsPerKSteps > 200) {
