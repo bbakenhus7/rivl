@@ -86,12 +86,12 @@ class AntiCheatService {
       final response = await callable.call<Map<String, dynamic>>({
         'challengeId': challengeId,
         'stepHistory': stepHistory
-            .map((s) => {
-              final m = <String, dynamic>{'steps': s.steps, 'date': s.date};
-              if (s.distance != null) m['distance'] = s.distance;
-              if (s.activeCalories != null) m['activeCalories'] = s.activeCalories;
-              if (s.avgHeartRate != null) m['avgHeartRate'] = s.avgHeartRate;
-              return m;
+            .map((s) => <String, dynamic>{
+              'steps': s.steps,
+              'date': s.date,
+              if (s.distance != null) 'distance': s.distance,
+              if (s.activeCalories != null) 'activeCalories': s.activeCalories,
+              if (s.avgHeartRate != null) 'avgHeartRate': s.avgHeartRate,
             })
             .toList(),
       });
