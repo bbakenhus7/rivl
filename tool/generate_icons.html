@@ -193,7 +193,9 @@ function renderToCanvas(canvas, size) {
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, size, size);
+  // Fill with base purple first to ensure no transparency
+  ctx.fillStyle = '#6B5CE7';
+  ctx.fillRect(0, 0, size, size);
   drawIcon(ctx, size);
   return canvas;
 }

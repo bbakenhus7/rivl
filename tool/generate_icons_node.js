@@ -159,8 +159,27 @@ function drawHeartbeatLine(ctx) {
 function renderIcon(size) {
   const canvas = createCanvas(size, size);
   const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, size, size);
+  // Start with fully opaque background to guarantee no transparency anywhere
+  ctx.fillStyle = '#6B5CE7';
+  ctx.fillRect(0, 0, size, size);
   drawIcon(ctx, size);
+
+  // Final pass: flatten alpha to ensure every pixel is fully opaque (alpha=255)
+  // This prevents any semi-transparent edge artifacts from shadows/anti-aliasing
+  const imageData = ctx.getImageData(0, 0, size, size);
+  const data = imageData.data;
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] < 255) {
+      // Pre-multiply with purple background for any semi-transparent pixels
+      const a = data[i] / 255;
+      data[i - 3] = Math.round(data[i - 3] * a + 107 * (1 - a)); // R (107 = 0x6B)
+      data[i - 2] = Math.round(data[i - 2] * a + 92 * (1 - a));  // G (92 = 0x5C)
+      data[i - 1] = Math.round(data[i - 1] * a + 231 * (1 - a)); // B (231 = 0xE7)
+      data[i] = 255;
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+
   return canvas;
 }
 
