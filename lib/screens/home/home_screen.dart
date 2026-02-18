@@ -15,7 +15,7 @@ import '../../models/challenge_model.dart';
 import '../../models/health_metrics.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
-import '../../widgets/rivl_logo.dart';
+
 import '../../widgets/challenge_card.dart';
 import '../challenges/challenge_detail_screen.dart';
 import '../main_screen.dart';
@@ -165,30 +165,14 @@ class _HomeScreenState extends State<HomeScreen> {
               floating: true,
               pinned: true,
               backgroundColor: RivlColors.primaryDark,
-              title: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.all(2),
-                    child: const RivlLogo(size: 24),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'RIVL',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                ],
+              title: const Text(
+                'RIVL',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2,
+                ),
               ),
               flexibleSpace: FlexibleSpaceBar(
                 background: Container(
@@ -198,45 +182,25 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: SafeArea(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // RIVL Logo
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
+                          const Text(
+                            'RIVL',
+                            style: TextStyle(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 2,
                             ),
-                            padding: const EdgeInsets.all(4),
-                            child: const RivlLogo(size: 36),
                           ),
-                          const SizedBox(width: 12),
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'RIVL',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 2,
-                                ),
-                              ),
-                              Consumer<AuthProvider>(
-                                builder: (context, auth, _) {
-                                  return Text(
-                                    'AI-Powered Fitness Competition',
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.9),
-                                      fontSize: 14,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
+                          Text(
+                            'AI-Powered Fitness Competition',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 14,
+                            ),
                           ),
                         ],
                       ),
