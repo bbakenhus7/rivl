@@ -698,7 +698,7 @@ class HealthService {
       case GoalType.zone2Cardio:
         // Generate daily Zone 2 cardio minutes (15-45 min per day)
         final history = <DailySteps>[];
-        for (int i = 0; i < dayCount; i++) {
+        for (int i = 0; i < days; i++) {
           final date = startDate.add(Duration(days: i));
           if (date.isAfter(DateTime.now())) break;
           history.add(DailySteps(
