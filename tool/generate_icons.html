@@ -45,41 +45,63 @@ function drawIcon(ctx, size) {
   ctx.save();
   ctx.scale(s, s);
 
-  // Background: vertical split
+  // Background: diagonal split (top-left lighter, bottom-right darker)
+  // Base fill with darker purple
   ctx.fillStyle = '#6B5CE7';
-  ctx.fillRect(0, 0, 512, 1024);
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  // Lighter region: top-left triangle via diagonal
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(1024, 0);
+  ctx.lineTo(0, 1024);
+  ctx.closePath();
+  ctx.clip();
   ctx.fillStyle = '#8B7CF6';
-  ctx.fillRect(512, 0, 512, 1024);
+  ctx.fillRect(0, 0, 1024, 1024);
+  ctx.restore();
 
-  // Subtle gradients for depth
-  const leftGrad = ctx.createLinearGradient(0, 0, 0, 1024);
-  leftGrad.addColorStop(0, 'rgba(107, 92, 231, 0.4)');
-  leftGrad.addColorStop(0.5, 'rgba(80, 65, 200, 0.2)');
-  leftGrad.addColorStop(1, 'rgba(107, 92, 231, 0.3)');
-  ctx.fillStyle = leftGrad;
-  ctx.fillRect(0, 0, 512, 1024);
+  // Smooth diagonal gradient overlay to blend the split
+  const diagGrad = ctx.createLinearGradient(0, 0, 1024, 1024);
+  diagGrad.addColorStop(0, 'rgba(155, 140, 255, 0.35)');
+  diagGrad.addColorStop(0.4, 'rgba(120, 105, 240, 0.15)');
+  diagGrad.addColorStop(0.6, 'rgba(90, 75, 210, 0.15)');
+  diagGrad.addColorStop(1, 'rgba(80, 65, 200, 0.3)');
+  ctx.fillStyle = diagGrad;
+  ctx.fillRect(0, 0, 1024, 1024);
 
-  const rightGrad = ctx.createLinearGradient(512, 0, 512, 1024);
-  rightGrad.addColorStop(0, 'rgba(139, 124, 246, 0.3)');
-  rightGrad.addColorStop(0.5, 'rgba(160, 145, 255, 0.15)');
-  rightGrad.addColorStop(1, 'rgba(139, 124, 246, 0.3)');
-  ctx.fillStyle = rightGrad;
-  ctx.fillRect(512, 0, 512, 1024);
+  // Subtle glass/shine effect (top-left highlight arc)
+  ctx.save();
+  const shineGrad = ctx.createRadialGradient(280, 200, 50, 350, 350, 600);
+  shineGrad.addColorStop(0, 'rgba(255, 255, 255, 0.18)');
+  shineGrad.addColorStop(0.3, 'rgba(255, 255, 255, 0.08)');
+  shineGrad.addColorStop(0.7, 'rgba(255, 255, 255, 0.02)');
+  shineGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = shineGrad;
+  ctx.fillRect(0, 0, 1024, 1024);
+  ctx.restore();
 
-  // Center seam highlight
-  const seamGrad = ctx.createLinearGradient(504, 0, 520, 0);
+  // Diagonal seam subtle highlight
+  ctx.save();
+  ctx.translate(512, 512);
+  ctx.rotate(-Math.PI / 4);
+  const seamGrad = ctx.createLinearGradient(-8, 0, 8, 0);
   seamGrad.addColorStop(0, 'rgba(255,255,255,0)');
-  seamGrad.addColorStop(0.4, 'rgba(255,255,255,0.08)');
-  seamGrad.addColorStop(0.5, 'rgba(255,255,255,0.12)');
-  seamGrad.addColorStop(0.6, 'rgba(255,255,255,0.08)');
+  seamGrad.addColorStop(0.35, 'rgba(255,255,255,0.06)');
+  seamGrad.addColorStop(0.5, 'rgba(255,255,255,0.10)');
+  seamGrad.addColorStop(0.65, 'rgba(255,255,255,0.06)');
   seamGrad.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = seamGrad;
-  ctx.fillRect(494, 0, 36, 1024);
+  ctx.fillRect(-12, -724, 24, 1448);
+  ctx.restore();
 
-  // White R lettermark (upper-center)
-  const rScale = 1.15;
-  const rOffsetX = (1024 - 512 * rScale) / 2;
-  const rOffsetY = 60;
+  // White R lettermark (centered, slightly smaller than before)
+  const rScale = 0.85;
+  const rWidth = 512 * rScale;
+  const rHeight = 384 * rScale;
+  const rOffsetX = (1024 - rWidth) / 2;
+  const rOffsetY = 180;
 
   ctx.save();
   ctx.translate(rOffsetX, rOffsetY);
@@ -98,15 +120,15 @@ function drawIcon(ctx, size) {
   ctx.fill(rPath, 'evenodd');
   ctx.restore();
 
-  // Green heartbeat ECG (lower third, two pulses)
+  // Green heartbeat ECG line (below the R, centered)
   drawHeartbeatLine(ctx);
 
   ctx.restore();
 }
 
 function drawHeartbeatLine(ctx) {
-  const centerY = 720;
-  const lineWidth = 4.5;
+  const centerY = 700;
+  const lineWidth = 5;
 
   ctx.save();
   ctx.strokeStyle = '#4ADE80';
@@ -114,41 +136,55 @@ function drawHeartbeatLine(ctx) {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.shadowColor = '#4ADE80';
-  ctx.shadowBlur = 12;
+  ctx.shadowBlur = 14;
 
   ctx.beginPath();
-  ctx.moveTo(40, centerY);
-  ctx.lineTo(240, centerY);
+  // Start from left with flat line
+  ctx.moveTo(100, centerY);
+  ctx.lineTo(250, centerY);
 
-  // First pulse
-  ctx.lineTo(260, centerY - 15);
-  ctx.lineTo(275, centerY + 8);
-  ctx.lineTo(288, centerY);
-  ctx.lineTo(320, centerY);
-  ctx.lineTo(338, centerY + 25);
-  ctx.lineTo(362, centerY - 120);
-  ctx.lineTo(390, centerY + 65);
-  ctx.lineTo(410, centerY - 10);
-  ctx.lineTo(425, centerY);
-  ctx.lineTo(480, centerY);
-  ctx.quadraticCurveTo(505, centerY - 40, 530, centerY);
-  ctx.lineTo(580, centerY);
+  // Small pre-wave
+  ctx.lineTo(270, centerY - 12);
+  ctx.lineTo(285, centerY + 6);
+  ctx.lineTo(298, centerY);
 
-  // Second pulse
-  ctx.lineTo(598, centerY + 22);
-  ctx.lineTo(620, centerY - 110);
-  ctx.lineTo(648, centerY + 58);
-  ctx.lineTo(668, centerY - 8);
-  ctx.lineTo(682, centerY);
-  ctx.lineTo(730, centerY);
-  ctx.quadraticCurveTo(752, centerY - 35, 775, centerY);
-  ctx.lineTo(985, centerY);
+  // Flat segment
+  ctx.lineTo(340, centerY);
+
+  // First main pulse (tall QRS complex)
+  ctx.lineTo(358, centerY + 22);
+  ctx.lineTo(382, centerY - 110);
+  ctx.lineTo(410, centerY + 55);
+  ctx.lineTo(430, centerY - 8);
+  ctx.lineTo(445, centerY);
+
+  // Mid flat + small bump
+  ctx.lineTo(500, centerY);
+  ctx.quadraticCurveTo(525, centerY - 35, 550, centerY);
+
+  // Short flat
+  ctx.lineTo(590, centerY);
+
+  // Second main pulse
+  ctx.lineTo(608, centerY + 20);
+  ctx.lineTo(632, centerY - 100);
+  ctx.lineTo(660, centerY + 50);
+  ctx.lineTo(680, centerY - 6);
+  ctx.lineTo(694, centerY);
+
+  // Post-pulse bump
+  ctx.lineTo(740, centerY);
+  ctx.quadraticCurveTo(762, centerY - 30, 785, centerY);
+
+  // Flat to end
+  ctx.lineTo(924, centerY);
 
   ctx.stroke();
 
+  // Glow pass
   ctx.shadowBlur = 0;
-  ctx.globalAlpha = 0.4;
-  ctx.lineWidth = lineWidth + 4;
+  ctx.globalAlpha = 0.35;
+  ctx.lineWidth = lineWidth + 5;
   ctx.stroke();
   ctx.restore();
 }
