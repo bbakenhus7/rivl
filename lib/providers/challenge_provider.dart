@@ -334,7 +334,7 @@ class ChallengeProvider extends ChangeNotifier {
         createdAt: now.subtract(const Duration(days: 21)),
         updatedAt: now.subtract(const Duration(days: 14)),
       ),
-      // Active: VO2 Max challenge
+      // Active: Zone 2 Cardio challenge
       ChallengeModel(
         id: 'demo-8',
         creatorId: 'demo-user',
@@ -346,13 +346,13 @@ class ChallengeProvider extends ChangeNotifier {
         stakeAmount: 10,
         totalPot: 20,
         prizeAmount: 19.40,
-        goalType: GoalType.vo2Max,
-        goalValue: 450, // 45.0 mL/kg/min
+        goalType: GoalType.zone2Cardio,
+        goalValue: 600, // 600 minutes (10 hours) over 1 month
         duration: ChallengeDuration.oneMonth,
         startDate: now.subtract(const Duration(days: 10)),
         endDate: now.add(const Duration(days: 20)),
-        creatorProgress: 422, // 42.2
-        opponentProgress: 398, // 39.8
+        creatorProgress: 245, // 4h 5m
+        opponentProgress: 198, // 3h 18m
         createdAt: now.subtract(const Duration(days: 10)),
         updatedAt: now,
       ),
@@ -623,8 +623,8 @@ class ChallengeProvider extends ChangeNotifier {
         return 3000; // Target 50:00 10K time (stored in seconds)
       case GoalType.sleepDuration:
         return _selectedDuration.days * 8; // 8 hours per night
-      case GoalType.vo2Max:
-        return 450; // Target VO2 max of 45.0 (stored as x10)
+      case GoalType.zone2Cardio:
+        return _selectedDuration.days * 20; // ~20 min/day in Zone 2
       case GoalType.rivlHealthScore:
         return 75; // Target average RIVL Health Score of 75/100
     }

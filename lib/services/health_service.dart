@@ -185,8 +185,8 @@ class HealthService {
         case GoalType.sleepDuration:
           return await _sleepProgressForRange(startDate, endDate);
 
-        // VO2 max not supported by health package; pace goals need workout parsing
-        case GoalType.vo2Max:
+        // Zone 2 cardio needs heart rate zone analysis; pace goals need workout parsing
+        case GoalType.zone2Cardio:
         case GoalType.milePace:
         case GoalType.fiveKPace:
         case GoalType.tenKPace:
@@ -695,17 +695,21 @@ class HealthService {
         final total = history.fold<int>(0, (sum, d) => sum + d.steps);
         return (total: total, history: history);
 
-      case GoalType.vo2Max:
-        final latest = 350 + rnd.nextInt(150);
-        final history = [
-          DailySteps(
-            date: DateTime.now().toIso8601String().split('T').first,
-            steps: latest,
+      case GoalType.zone2Cardio:
+        // Generate daily Zone 2 cardio minutes (15-45 min per day)
+        final history = <DailySteps>[];
+        for (int i = 0; i < dayCount; i++) {
+          final date = startDate.add(Duration(days: i));
+          if (date.isAfter(DateTime.now())) break;
+          history.add(DailySteps(
+            date: date.toIso8601String().split('T').first,
+            steps: 15 + rnd.nextInt(31), // 15-45 min of Zone 2 per day
             source: 'demo',
             syncedAt: DateTime.now(),
-          ),
-        ];
-        return (total: latest, history: history);
+          ));
+        }
+        final total = history.fold<int>(0, (sum, d) => sum + d.steps);
+        return (total: total, history: history);
 
       case GoalType.milePace:
         final best = 420 + rnd.nextInt(180);

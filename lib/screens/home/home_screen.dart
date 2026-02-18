@@ -130,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 8),
               _InfoBullet(text: 'Connect your wearable (Apple Watch, Fitbit, Garmin, etc.)'),
               _InfoBullet(text: 'Challenge a friend and set a stake amount'),
-              _InfoBullet(text: 'Compete on steps, distance, sleep, VO2 max, and more'),
+              _InfoBullet(text: 'Compete on steps, distance, sleep, Zone 2 cardio, and more'),
               _InfoBullet(text: 'Winner takes the pot — AI anti-cheat keeps it fair'),
               _InfoBullet(text: 'Earn XP and unlock rewards through the Season Pass'),
               const SizedBox(height: 24),

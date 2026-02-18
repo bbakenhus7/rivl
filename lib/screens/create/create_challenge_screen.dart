@@ -1763,8 +1763,8 @@ class _GoalPreviewCard extends StatelessWidget {
         return '50:00';
       case GoalType.sleepDuration:
         return '${duration.days * 8}';
-      case GoalType.vo2Max:
-        return '45.0';
+      case GoalType.zone2Cardio:
+        return '${duration.days * 20}'; // ~20 min/day
       case GoalType.rivlHealthScore:
         return '75';
     }
@@ -1784,8 +1784,8 @@ class _GoalPreviewCard extends StatelessWidget {
         return '50:00';
       case GoalType.sleepDuration:
         return '8';
-      case GoalType.vo2Max:
-        return '45.0';
+      case GoalType.zone2Cardio:
+        return '20';
       case GoalType.rivlHealthScore:
         return '75';
     }
@@ -1809,8 +1809,8 @@ class _GoalPreviewCard extends StatelessWidget {
         return (label: 'Hard', color: RivlColors.error);
       case GoalType.sleepDuration:
         return (label: 'Easy', color: RivlColors.success);
-      case GoalType.vo2Max:
-        return (label: 'Hard', color: RivlColors.error);
+      case GoalType.zone2Cardio:
+        return (label: 'Moderate', color: Colors.orange);
       case GoalType.rivlHealthScore:
         return (label: 'Moderate', color: Colors.orange);
     }

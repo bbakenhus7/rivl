@@ -14,7 +14,7 @@ enum GoalType {
   fiveKPace,       // Best 5K time
   tenKPace,        // Best 10K time
   sleepDuration,   // Total hours of quality sleep
-  vo2Max,          // VO2 max cardiovascular fitness
+  zone2Cardio,     // Time spent in Zone 2 heart rate (~70% max HR)
   rivlHealthScore  // Combined health score from all 6 metrics (0-100)
 }
 
@@ -734,8 +734,8 @@ extension GoalTypeExtension on GoalType {
         return '10K Pace';
       case GoalType.sleepDuration:
         return 'Sleep Duration';
-      case GoalType.vo2Max:
-        return 'VO2 Max';
+      case GoalType.zone2Cardio:
+        return 'Zone 2 Cardio';
       case GoalType.rivlHealthScore:
         return 'RIVL Health Score';
     }
@@ -755,10 +755,10 @@ extension GoalTypeExtension on GoalType {
         return 'Best 10K completion time';
       case GoalType.sleepDuration:
         return 'Total hours of quality sleep';
-      case GoalType.vo2Max:
-        return 'Cardiovascular fitness level';
+      case GoalType.zone2Cardio:
+        return 'Minutes in Zone 2 heart rate (~70% max HR)';
       case GoalType.rivlHealthScore:
-        return 'Overall health combining steps, distance, sleep, heart rate, HRV & VO2 max';
+        return 'Overall health combining steps, distance, sleep, heart rate, HRV & Zone 2';
     }
   }
 
@@ -776,8 +776,8 @@ extension GoalTypeExtension on GoalType {
         return Icons.speed;
       case GoalType.sleepDuration:
         return Icons.bedtime_outlined;
-      case GoalType.vo2Max:
-        return Icons.favorite_outline;
+      case GoalType.zone2Cardio:
+        return Icons.monitor_heart_outlined;
       case GoalType.rivlHealthScore:
         return Icons.shield;
     }
@@ -803,8 +803,8 @@ extension GoalTypeExtension on GoalType {
         return 'min';
       case GoalType.sleepDuration:
         return 'hrs';
-      case GoalType.vo2Max:
-        return 'mL/kg/min';
+      case GoalType.zone2Cardio:
+        return 'min';
       case GoalType.rivlHealthScore:
         return 'pts';
     }
@@ -840,10 +840,13 @@ extension GoalTypeExtension on GoalType {
         final h = value ~/ 10;
         final decimal = value % 10;
         return '$h.${decimal}';
-      case GoalType.vo2Max:
-        final whole = value ~/ 10;
-        final decimal = value % 10;
-        return '$whole.${decimal}';
+      case GoalType.zone2Cardio:
+        if (value >= 60) {
+          final h = value ~/ 60;
+          final m = value % 60;
+          return '${h}h ${m}m';
+        }
+        return '${value}m';
       case GoalType.rivlHealthScore:
         return '$value';
     }
