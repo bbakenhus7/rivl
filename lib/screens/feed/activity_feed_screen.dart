@@ -304,7 +304,7 @@ class _PodiumCard extends StatelessWidget {
           radius: isFirst ? 36 : 28,
           backgroundColor: color.withOpacity(0.3),
           child: Text(
-            entry.displayName[0],
+            entry.displayName.isNotEmpty ? entry.displayName[0] : '?',
             style: TextStyle(
               fontSize: isFirst ? 24 : 18,
               fontWeight: FontWeight.bold,
@@ -383,7 +383,7 @@ class _LeaderboardTile extends StatelessWidget {
               radius: 20,
               backgroundColor: RivlColors.primary.withOpacity(0.1),
               child: Text(
-                entry.displayName[0],
+                entry.displayName.isNotEmpty ? entry.displayName[0] : '?',
                 style: const TextStyle(fontWeight: FontWeight.bold, color: RivlColors.primary),
               ),
             ),

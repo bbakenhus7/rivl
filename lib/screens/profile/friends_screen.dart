@@ -358,7 +358,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                               backgroundColor:
                                   RivlColors.primary.withOpacity(0.12),
                               child: Text(
-                                user.displayName[0].toUpperCase(),
+                                (user.displayName.isNotEmpty ? user.displayName[0] : '?').toUpperCase(),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: RivlColors.primary,

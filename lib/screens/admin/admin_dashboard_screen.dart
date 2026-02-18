@@ -367,7 +367,7 @@ class _UserCard extends StatelessWidget {
               ? NetworkImage(user.profileImageUrl!)
               : null,
           child: user.profileImageUrl == null
-              ? Text(user.displayName[0].toUpperCase())
+              ? Text((user.displayName.isNotEmpty ? user.displayName[0] : '?').toUpperCase())
               : null,
         ),
         title: Text(user.displayName),

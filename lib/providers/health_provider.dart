@@ -129,8 +129,9 @@ class HealthProvider extends ChangeNotifier {
       // Award daily health sync XP (once per day)
       final today = DateTime.now();
       if (_lastHealthXPDate == null ||
-          _lastHealthXPDate!.day != today.day ||
-          _lastHealthXPDate!.month != today.month) {
+          _lastHealthXPDate!.year != today.year ||
+          _lastHealthXPDate!.month != today.month ||
+          _lastHealthXPDate!.day != today.day) {
         _lastHealthXPDate = today;
         onXPEarned?.call(5, 'health_sync');
 

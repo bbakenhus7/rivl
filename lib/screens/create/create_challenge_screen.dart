@@ -765,7 +765,7 @@ class _SuggestedOpponentCard extends StatelessWidget {
                     ),
                     child: Center(
                       child: Text(
-                        opponent.displayName[0].toUpperCase(),
+                        (opponent.displayName.isNotEmpty ? opponent.displayName[0] : '?').toUpperCase(),
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -946,7 +946,7 @@ class _OpponentSelector extends StatelessWidget {
                   ),
                   child: Center(
                     child: Text(
-                      selectedOpponent!.displayName[0].toUpperCase(),
+                      (selectedOpponent!.displayName.isNotEmpty ? selectedOpponent!.displayName[0] : '?').toUpperCase(),
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -2481,7 +2481,7 @@ class _OpponentPickerSheetState extends State<_OpponentPickerSheet> {
                                       ),
                                       child: Center(
                                         child: Text(
-                                          user.displayName[0]
+                                          (user.displayName.isNotEmpty ? user.displayName[0] : '?')
                                               .toUpperCase(),
                                           style: const TextStyle(
                                             fontWeight: FontWeight.bold,
@@ -2682,7 +2682,7 @@ class _OpponentPickerSheetState extends State<_OpponentPickerSheet> {
                             ),
                             child: Center(
                               child: Text(
-                                user.displayName[0].toUpperCase(),
+                                (user.displayName.isNotEmpty ? user.displayName[0] : '?').toUpperCase(),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 18,
@@ -3272,7 +3272,7 @@ class _StepAddGroupMembers extends StatelessWidget {
                                 avatar: CircleAvatar(
                                   backgroundColor: RivlColors.primary.withOpacity(0.15),
                                   child: Text(
-                                    user.displayName[0].toUpperCase(),
+                                    (user.displayName.isNotEmpty ? user.displayName[0] : '?').toUpperCase(),
                                     style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
@@ -3997,7 +3997,7 @@ class _GroupMemberPickerSheetState extends State<_GroupMemberPickerSheet> {
                             ),
                             child: Center(
                               child: Text(
-                                user.displayName[0].toUpperCase(),
+                                (user.displayName.isNotEmpty ? user.displayName[0] : '?').toUpperCase(),
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: RivlColors.primary),
                               ),
                             ),
@@ -4475,7 +4475,7 @@ class _SquadSectionState extends State<_SquadSection> {
                           avatar: CircleAvatar(
                             backgroundColor: color.withOpacity(0.15),
                             child: Text(
-                              user.displayName[0].toUpperCase(),
+                              (user.displayName.isNotEmpty ? user.displayName[0] : '?').toUpperCase(),
                               style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
                             ),
                           ),

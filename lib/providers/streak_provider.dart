@@ -146,6 +146,6 @@ class StreakProvider with ChangeNotifier {
         .doc(userId)
         .collection('streak')
         .doc('current')
-        .set(_streak!.toFirestore());
+        .set(_streak!.toFirestore(), SetOptions(merge: true));
   }
 }
