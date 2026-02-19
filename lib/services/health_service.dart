@@ -325,6 +325,8 @@ class HealthService {
   }
 
   /// Calculate total sleep hours from sleep-stage data points.
+  /// Merges overlapping intervals to prevent double-counting when
+  /// both iPhone and Apple Watch record the same sleep session.
   double _calculateSleepHours(List<HealthDataPoint> points, DateTime from, DateTime to) {
     const sleepTypes = [
       HealthDataType.SLEEP_ASLEEP,
@@ -333,13 +335,43 @@ class HealthService {
       HealthDataType.SLEEP_LIGHT,
     ];
 
-    var totalMinutes = 0.0;
+    final intervals = <({DateTime start, DateTime end})>[];
     for (final point in points) {
       if (!sleepTypes.contains(point.type)) continue;
       if (point.dateFrom.isBefore(from) || point.dateTo.isAfter(to)) continue;
-      totalMinutes += point.dateTo.difference(point.dateFrom).inMinutes;
+      intervals.add((start: point.dateFrom, end: point.dateTo));
     }
-    return totalMinutes / 60.0;
+    return _mergedMinutes(intervals) / 60.0;
+  }
+
+  /// Merge overlapping time intervals and return total duration in minutes.
+  /// Prevents double-counting when iPhone + Apple Watch both record data
+  /// for the same time period.
+  double _mergedMinutes(List<({DateTime start, DateTime end})> intervals) {
+    if (intervals.isEmpty) return 0;
+    intervals.sort((a, b) => a.start.compareTo(b.start));
+
+    var totalMinutes = 0.0;
+    var mergedStart = intervals.first.start;
+    var mergedEnd = intervals.first.end;
+
+    for (var i = 1; i < intervals.length; i++) {
+      final interval = intervals[i];
+      if (!interval.start.isAfter(mergedEnd)) {
+        // Overlapping or adjacent — extend
+        if (interval.end.isAfter(mergedEnd)) {
+          mergedEnd = interval.end;
+        }
+      } else {
+        // Gap — finalize previous, start new
+        totalMinutes += mergedEnd.difference(mergedStart).inMinutes;
+        mergedStart = interval.start;
+        mergedEnd = interval.end;
+      }
+    }
+    totalMinutes += mergedEnd.difference(mergedStart).inMinutes;
+
+    return totalMinutes;
   }
 
   /// Fetch aggregate distance in meters via HKStatisticsCollectionQuery.
@@ -520,10 +552,13 @@ class HealthService {
         final crossResults = await Future.wait([
           _getAggregateDistance(dayStart, dayEnd),
           _getAggregateCalories(dayStart, dayEnd),
-          _health.getHealthDataFromTypes(
+          // HR uses interval API which returns platform-deduplicated
+          // .discreteAverage — no manual averaging needed.
+          _health.getHealthIntervalDataFromTypes(
+            startDate: dayStart,
+            endDate: dayEnd,
             types: [HealthDataType.HEART_RATE],
-            startTime: dayStart,
-            endTime: dayEnd,
+            interval: 86400,
           ),
         ]);
 
@@ -537,12 +572,10 @@ class HealthService {
           activeCalories = calTotal;
         }
 
-        // Average heart rate (raw data — need individual readings for avg)
-        final hrDataRaw = crossResults[2] as List<HealthDataPoint>;
-        final hrPoints = _health.removeDuplicates(hrDataRaw);
-        if (hrPoints.isNotEmpty) {
-          final hrSum = hrPoints.fold(0.0, (sum, p) => sum + _numericValue(p));
-          avgHeartRate = (hrSum / hrPoints.length).round();
+        final hrData = crossResults[2] as List<HealthDataPoint>;
+        if (hrData.isNotEmpty && hrData.first.value is NumericHealthValue) {
+          avgHeartRate = (hrData.first.value as NumericHealthValue)
+              .numericValue.toDouble().round();
         }
       } catch (_) {
         // Cross-ref metrics are best-effort; steps are the primary data
@@ -616,12 +649,13 @@ class HealthService {
         startTime: dayStart,
         endTime: dayEnd,
       );
-      final dataPoints = _health.removeDuplicates(dataPointsRaw);
 
-      var totalMinutes = 0.0;
-      for (final point in dataPoints) {
-        totalMinutes += point.dateTo.difference(point.dateFrom).inMinutes;
-      }
+      // Merge overlapping intervals to prevent double-counting from
+      // iPhone + Apple Watch recording the same sleep session.
+      final intervals = dataPointsRaw
+          .map((p) => (start: p.dateFrom, end: p.dateTo))
+          .toList();
+      final totalMinutes = _mergedMinutes(intervals);
       final hours = (totalMinutes / 60).round();
 
       history.add(DailySteps(
@@ -698,18 +732,25 @@ class HealthService {
           startTime: dayStart,
           endTime: dayEnd,
         );
-        final hrData = _health.removeDuplicates(hrDataRaw);
 
-        // Each HR data point represents a measurement interval.
-        // Count points in zone 2 range; estimate ~1 minute per data point.
-        for (final point in hrData) {
+        // Use a minute-set to prevent double-counting when iPhone + Apple
+        // Watch both record HR data for overlapping time periods.
+        final zone2MinuteSet = <int>{};
+        for (final point in hrDataRaw) {
           final bpm = _numericValue(point);
           if (bpm >= zone2Low && bpm <= zone2High) {
-            // Approximate duration from data point interval, min 1 minute
-            final intervalMinutes = point.dateTo.difference(point.dateFrom).inMinutes;
-            zone2Minutes += intervalMinutes > 0 ? intervalMinutes : 1;
+            final startMin = point.dateFrom.millisecondsSinceEpoch ~/ 60000;
+            final endMin = point.dateTo.millisecondsSinceEpoch ~/ 60000;
+            if (startMin == endMin) {
+              zone2MinuteSet.add(startMin);
+            } else {
+              for (var m = startMin; m < endMin; m++) {
+                zone2MinuteSet.add(m);
+              }
+            }
           }
         }
+        zone2Minutes = zone2MinuteSet.length;
       } catch (e) {
         debugPrint('HealthService: zone 2 HR fetch failed for $dayStart: $e');
       }
