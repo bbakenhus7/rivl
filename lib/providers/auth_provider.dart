@@ -45,6 +45,13 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void _init() {
+    // On web, skip login and go straight to demo mode.
+    // This must happen here (not in SplashScreen) so that page refreshes
+    // don't lose the demo state — GoRouter may skip the splash route.
+    if (kIsWeb) {
+      enableDemoMode();
+    }
+
     _authSubscription = _firebaseService.authStateChanges.listen(
       (firebaseUser) async {
         if (firebaseUser != null) {
