@@ -161,10 +161,15 @@ class _HomeScreenState extends State<HomeScreen> {
           slivers: [
             // App Bar with RIVL Logo
             SliverAppBar(
-              expandedHeight: 120,
+              expandedHeight: 0,
               floating: true,
               pinned: true,
               backgroundColor: RivlColors.primaryDark,
+              flexibleSpace: Container(
+                decoration: const BoxDecoration(
+                  gradient: RivlColors.primaryDeepGradient,
+                ),
+              ),
               title: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -180,34 +185,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ],
-              ),
-              flexibleSpace: FlexibleSpaceBar(
-                background: Container(
-                  decoration: const BoxDecoration(
-                    gradient: RivlColors.primaryDeepGradient,
-                  ),
-                  child: SafeArea(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const RivlLogo(
-                          size: 48,
-                          variant: RivlLogoVariant.white,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Compete. Win. Earn.',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.85),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
               ),
               actions: [
                 // Streak badge
