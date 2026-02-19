@@ -342,43 +342,45 @@ class HealthService {
     return totalMinutes / 60.0;
   }
 
-  /// Fetch aggregate distance in meters using the platform aggregate API.
-  /// Uses HKStatisticsQuery on iOS which correctly deduplicates
-  /// across iPhone + Apple Watch sources.
+  /// Fetch aggregate distance in meters via HKStatisticsCollectionQuery.
+  /// Uses .cumulativeSum which correctly deduplicates overlapping samples
+  /// from iPhone + Apple Watch — the same approach Strava uses.
   Future<double> _getAggregateDistance(DateTime start, DateTime end) async {
     final distanceType = defaultTargetPlatform == TargetPlatform.iOS
         ? HealthDataType.DISTANCE_WALKING_RUNNING
         : HealthDataType.DISTANCE_DELTA;
-    final data = await _health.getHealthAggregateDataFromTypes(
-      types: [distanceType],
+    final data = await _health.getHealthIntervalDataFromTypes(
       startDate: start,
       endDate: end,
+      types: [distanceType],
+      interval: 86400, // 1 day in seconds — single bucket covers the range
     );
     double meters = 0;
     for (final dp in data) {
-      if (dp.value is WorkoutHealthValue) {
-        meters += (dp.value as WorkoutHealthValue).totalDistance?.toDouble() ?? 0;
+      if (dp.value is NumericHealthValue) {
+        meters += (dp.value as NumericHealthValue).numericValue.toDouble();
       }
     }
     return meters;
   }
 
-  /// Fetch aggregate active calories using the platform aggregate API.
-  /// Uses HKStatisticsQuery on iOS which correctly deduplicates
-  /// across iPhone + Apple Watch sources.
+  /// Fetch aggregate active calories via HKStatisticsCollectionQuery.
+  /// Uses .cumulativeSum which correctly deduplicates overlapping samples
+  /// from iPhone + Apple Watch — the same approach Strava uses.
   Future<int> _getAggregateCalories(DateTime start, DateTime end) async {
-    final data = await _health.getHealthAggregateDataFromTypes(
-      types: [HealthDataType.ACTIVE_ENERGY_BURNED],
+    final data = await _health.getHealthIntervalDataFromTypes(
       startDate: start,
       endDate: end,
+      types: [HealthDataType.ACTIVE_ENERGY_BURNED],
+      interval: 86400, // 1 day in seconds — single bucket covers the range
     );
-    int calories = 0;
+    double calories = 0;
     for (final dp in data) {
-      if (dp.value is WorkoutHealthValue) {
-        calories += (dp.value as WorkoutHealthValue).totalEnergyBurned ?? 0;
+      if (dp.value is NumericHealthValue) {
+        calories += (dp.value as NumericHealthValue).numericValue.toDouble();
       }
     }
-    return calories;
+    return calories.toInt();
   }
 
   // ============================================
