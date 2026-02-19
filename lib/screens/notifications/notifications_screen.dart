@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/theme.dart';
+import '../../utils/animations.dart';
 import '../challenges/challenge_detail_screen.dart';
 
 class NotificationsScreen extends StatelessWidget {
@@ -148,8 +149,8 @@ class NotificationsScreen extends StatelessWidget {
                     if (challengeId != null && challengeId.isNotEmpty) {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => ChallengeDetailScreen(challengeId: challengeId),
+                        SlidePageRoute(
+                          page: ChallengeDetailScreen(challengeId: challengeId),
                         ),
                       );
                     }

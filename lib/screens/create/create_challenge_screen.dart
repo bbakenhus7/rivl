@@ -1163,12 +1163,12 @@ class _StepChooseStake extends StatelessWidget {
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
                     color: insufficient
-                        ? Colors.orange.withOpacity(0.1)
+                        ? RivlColors.warning.withOpacity(0.1)
                         : RivlColors.success.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: insufficient
-                          ? Colors.orange.withOpacity(0.3)
+                          ? RivlColors.warning.withOpacity(0.3)
                           : RivlColors.success.withOpacity(0.2),
                     ),
                   ),
@@ -1179,7 +1179,7 @@ class _StepChooseStake extends StatelessWidget {
                             ? Icons.warning_amber_rounded
                             : Icons.account_balance_wallet,
                         size: 18,
-                        color: insufficient ? Colors.orange[700] : RivlColors.success,
+                        color: insufficient ? RivlColors.warning : RivlColors.success,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -1190,7 +1190,7 @@ class _StepChooseStake extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: insufficient ? Colors.orange[700] : RivlColors.success,
+                            color: insufficient ? RivlColors.warning : RivlColors.success,
                           ),
                         ),
                       ),
@@ -1199,7 +1199,7 @@ class _StepChooseStake extends StatelessWidget {
                           'Add funds on next step',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.orange[600],
+                            color: RivlColors.warning,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -1798,21 +1798,21 @@ class _GoalPreviewCard extends StatelessWidget {
   ({String label, Color color}) _getDifficulty() {
     switch (goalType) {
       case GoalType.steps:
-        return (label: 'Moderate', color: Colors.orange);
+        return (label: 'Moderate', color: RivlColors.warning);
       case GoalType.distance:
-        return (label: 'Moderate', color: Colors.orange);
+        return (label: 'Moderate', color: RivlColors.warning);
       case GoalType.milePace:
         return (label: 'Hard', color: RivlColors.error);
       case GoalType.fiveKPace:
-        return (label: 'Moderate', color: Colors.orange);
+        return (label: 'Moderate', color: RivlColors.warning);
       case GoalType.tenKPace:
         return (label: 'Hard', color: RivlColors.error);
       case GoalType.sleepDuration:
         return (label: 'Easy', color: RivlColors.success);
       case GoalType.zone2Cardio:
-        return (label: 'Moderate', color: Colors.orange);
+        return (label: 'Moderate', color: RivlColors.warning);
       case GoalType.rivlHealthScore:
-        return (label: 'Moderate', color: Colors.orange);
+        return (label: 'Moderate', color: RivlColors.warning);
     }
   }
 
@@ -2727,13 +2727,13 @@ class _OpponentPickerSheetState extends State<_OpponentPickerSheet> {
                                     children: [
                                       Icon(Icons.whatshot,
                                           size: 11,
-                                          color: Colors.orange[600]),
+                                          color: RivlColors.warning),
                                       const SizedBox(width: 2),
                                       Text(
                                         '${user.currentStreak} streak',
                                         style: TextStyle(
                                           fontSize: 10,
-                                          color: Colors.orange[600],
+                                          color: RivlColors.warning,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -4683,19 +4683,19 @@ class _StepTeamReview extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.08),
+                  color: RivlColors.warning.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orange.withOpacity(0.2)),
+                  border: Border.all(color: RivlColors.warning.withOpacity(0.2)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.info_outline, size: 16, color: Colors.orange[700]),
+                    Icon(Icons.info_outline, size: 16, color: RivlColors.warning),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Your \$${stake.amount.toInt()} stake will be held in escrow. All squad members must accept and stake to start. Winning squad splits the prize pool evenly.',
-                        style: TextStyle(fontSize: 12, color: Colors.orange[700], height: 1.4),
+                        style: TextStyle(fontSize: 12, color: RivlColors.warning, height: 1.4),
                       ),
                     ),
                   ],

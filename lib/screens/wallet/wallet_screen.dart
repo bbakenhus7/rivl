@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../models/wallet_model.dart';
 import '../../utils/theme.dart';
+import '../../utils/animations.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -146,9 +147,7 @@ class _WalletScreenState extends State<WalletScreen> {
   void _showTransactionHistory(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const _TransactionHistoryScreen(),
-      ),
+      SlidePageRoute(page: const _TransactionHistoryScreen()),
     );
   }
 }

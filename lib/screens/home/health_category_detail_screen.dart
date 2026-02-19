@@ -435,8 +435,8 @@ class _HealthCategoryDetailScreenState
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => HealthMetricDetailScreen(
+                    SlidePageRoute(
+                      page: HealthMetricDetailScreen(
                         metricType: metricType,
                         icon: info.icon,
                         label: info.label,
@@ -869,9 +869,8 @@ class _HealthCategoryDetailScreenState
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            WorkoutDetailScreen(workout: workout),
+                      SlidePageRoute(
+                        page: WorkoutDetailScreen(workout: workout),
                       ),
                     );
                   },

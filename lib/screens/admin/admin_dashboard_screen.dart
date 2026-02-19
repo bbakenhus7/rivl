@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/challenge_model.dart';
 import '../../models/user_model.dart';
 import '../../utils/theme.dart';
+import '../../utils/animations.dart';
 
 /// Hardcoded admin UIDs. In production, use a Firestore 'admins' collection or custom claims.
 const _adminUids = <String>{
@@ -168,7 +169,7 @@ class FraudDetectionTab extends StatelessWidget {
             title: 'Pending',
             value: flaggedCount.toString(),
             icon: Icons.pending,
-            color: Colors.orange,
+            color: RivlColors.warning,
           ),
         ),
       ],
@@ -268,7 +269,7 @@ class _FlaggedChallengeCard extends StatelessWidget {
 
   Color _getScoreColor(double score) {
     if (score >= 0.8) return Colors.green;
-    if (score >= 0.6) return Colors.orange;
+    if (score >= 0.6) return RivlColors.warning;
     return Colors.red;
   }
 
@@ -287,9 +288,7 @@ class _FlaggedChallengeCard extends StatelessWidget {
     // Navigate to detailed review screen
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => ChallengeReviewScreen(challenge: challenge),
-      ),
+      SlidePageRoute(page: ChallengeReviewScreen(challenge: challenge)),
     );
   }
 }
@@ -384,13 +383,13 @@ class _UserCard extends StatelessWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.2),
+                  color: RivlColors.warning.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Text(
                   'PREMIUM',
                   style: TextStyle(
-                    color: Colors.amber,
+                    color: RivlColors.warning,
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                   ),
@@ -565,7 +564,7 @@ class AnalyticsTab extends StatelessWidget {
         const SizedBox(height: 24),
         _buildAnalyticsCard('Total Revenue', '\$12,450', Icons.attach_money, Colors.green),
         _buildAnalyticsCard('Active Users', '1,234', Icons.people, Colors.blue),
-        _buildAnalyticsCard('Avg Challenge Value', '\$35', Icons.trending_up, Colors.orange),
+        _buildAnalyticsCard('Avg Challenge Value', '\$35', Icons.trending_up, RivlColors.warning),
         _buildAnalyticsCard('Platform Fee Collected', '\$1,867', Icons.account_balance, Colors.purple),
       ],
     );
