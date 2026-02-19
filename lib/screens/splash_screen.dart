@@ -58,14 +58,14 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
 
     try {
-      // On web, navigate straight to home so users can explore the interface.
-      // Native platforms check auth state and redirect accordingly.
-      if (kIsWeb) {
+      final authProvider = context.read<AuthProvider>();
+
+      // On web, skip login and go straight to home with a demo athlete profile.
+      if (kIsWeb && !authProvider.isAuthenticated) {
+        authProvider.enableDemoMode();
         _navigateTo(AppRoutes.home);
         return;
       }
-
-      final authProvider = context.read<AuthProvider>();
 
       if (authProvider.isAuthenticated) {
         _navigateTo(AppRoutes.home);

@@ -19,12 +19,14 @@ class AuthProvider extends ChangeNotifier {
   AuthState _state = AuthState.initial;
   UserModel? _user;
   String? _errorMessage;
+  bool _isDemoMode = false;
 
   AuthState get state => _state;
   UserModel? get user => _user;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _state == AuthState.authenticated;
   bool get isLoading => _state == AuthState.loading;
+  bool get isDemoMode => _isDemoMode;
 
   void _safeNotify() {
     if (!_disposed) notifyListeners();
@@ -34,12 +36,20 @@ class AuthProvider extends ChangeNotifier {
     _init();
   }
 
+  /// Activate demo mode with a synthetic user (used on web to skip login).
+  void enableDemoMode() {
+    _isDemoMode = true;
+    _user = UserModel.demo();
+    _state = AuthState.authenticated;
+    _safeNotify();
+  }
+
   void _init() {
     _authSubscription = _firebaseService.authStateChanges.listen(
       (firebaseUser) async {
         if (firebaseUser != null) {
           await _loadUser(firebaseUser.uid);
-        } else {
+        } else if (!_isDemoMode) {
           _user = null;
           _state = AuthState.unauthenticated;
           _safeNotify();

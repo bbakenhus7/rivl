@@ -67,7 +67,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     final battlePassProvider = context.read<BattlePassProvider>();
     final activityFeedProvider = context.read<ActivityFeedProvider>();
 
-    if (authProvider.user != null) {
+    if (authProvider.user != null && !authProvider.isDemoMode) {
       final userId = authProvider.user!.id;
 
       // Core
@@ -124,7 +124,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       // Auto-claim daily streak reward
       _checkDailyStreak(userId);
     } else {
-      // Load demo data for unauthenticated users so UI isn't empty
+      // Load demo data for unauthenticated / demo-mode users so UI isn't empty
       challengeProvider.loadDemoChallenges();
       challengeProvider.loadDemoOpponents();
     }
