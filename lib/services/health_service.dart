@@ -96,27 +96,55 @@ class HealthService {
       final midnight = DateTime(now.year, now.month, now.day);
       final yesterday = now.subtract(const Duration(hours: 24));
 
-      // Fetch today's data points and weekly steps in parallel.
+      // Point-in-time metrics only need most recent value (fetch from midnight).
+      // Sleep needs 24h lookback for overnight coverage (fetch from yesterday).
+      // Distance & calories use aggregate API to prevent double-counting.
+      const pointInTimeTypes = [
+        HealthDataType.HEART_RATE,
+        HealthDataType.RESTING_HEART_RATE,
+        HealthDataType.HEART_RATE_VARIABILITY_SDNN,
+        HealthDataType.RESPIRATORY_RATE,
+        HealthDataType.BLOOD_OXYGEN,
+      ];
+      const sleepTypes = [
+        HealthDataType.SLEEP_ASLEEP,
+        HealthDataType.SLEEP_DEEP,
+        HealthDataType.SLEEP_REM,
+        HealthDataType.SLEEP_LIGHT,
+      ];
+
+      // Fetch all data in parallel for best performance.
       final results = await Future.wait([
         _health.getHealthDataFromTypes(
-          types: _readTypes.where((t) => t != HealthDataType.WORKOUT).toList(),
+          types: pointInTimeTypes,
+          startTime: midnight,
+          endTime: now,
+        ),                                                    // [0]
+        _health.getHealthDataFromTypes(
+          types: sleepTypes,
           startTime: yesterday,
           endTime: now,
-        ),
-        _fetchWeeklySteps(),
-        _fetchRecentWorkouts(),
+        ),                                                    // [1]
+        _fetchWeeklySteps(),                                  // [2]
+        _fetchRecentWorkouts(),                               // [3]
+        _getAggregateDistance(midnight, now),                  // [4]
+        _getAggregateCalories(midnight, now),                 // [5]
+        _health.getTotalStepsInInterval(midnight, now),       // [6]
       ]);
 
-      // Deduplicate data points — multiple sources (iPhone + Apple Watch)
-      // can report the same distance/calorie/HR readings, causing over-counting.
-      final dataPoints = Health().removeDuplicates(
+      final pointInTimeData = Health().removeDuplicates(
         results[0] as List<HealthDataPoint>,
       );
-      final weeklySteps = results[1] as List<DailySteps>;
-      final recentWorkouts = results[2] as List<WorkoutData>;
-
-      // Steps: use dedicated method for accurate total
-      final steps = await _health.getTotalStepsInInterval(midnight, now) ?? 0;
+      final sleepData = Health().removeDuplicates(
+        results[1] as List<HealthDataPoint>,
+      );
+      final dataPoints = [...pointInTimeData, ...sleepData];
+      final weeklySteps = results[2] as List<DailySteps>;
+      final recentWorkouts = results[3] as List<WorkoutData>;
+      final distanceMeters = results[4] as double;
+      final activeCalories = results[5] as int;
+      final steps = (results[6] as int?) ?? 0;
+      final distanceMiles = distanceMeters * 0.000621371;
 
       // Extract most recent values for point-in-time metrics
       final heartRate = _mostRecentValue(dataPoints, HealthDataType.HEART_RATE)?.toInt() ?? 0;
@@ -126,16 +154,6 @@ class HealthService {
       const vo2Max = 0.0;
       final respiratoryRate = _mostRecentValue(dataPoints, HealthDataType.RESPIRATORY_RATE) ?? 0.0;
       final bloodOxygen = _mostRecentValue(dataPoints, HealthDataType.BLOOD_OXYGEN) ?? 0.0;
-
-      // Calories: sum today's active energy burned
-      final activeCalories = _sumValues(dataPoints, HealthDataType.ACTIVE_ENERGY_BURNED, midnight, now).toInt();
-
-      // Distance: sum today's distance delta, convert meters to miles
-      final distanceType = defaultTargetPlatform == TargetPlatform.iOS
-          ? HealthDataType.DISTANCE_WALKING_RUNNING
-          : HealthDataType.DISTANCE_DELTA;
-      final distanceMeters = _sumValues(dataPoints, distanceType, midnight, now);
-      final distanceMiles = distanceMeters * 0.000621371;
 
       // Sleep: sum all sleep stages from the past 24 hours
       final sleepHours = _calculateSleepHours(dataPoints, yesterday, now);
@@ -306,13 +324,6 @@ class HealthService {
     return _numericValue(matching.first);
   }
 
-  /// Sum all values of a given type within a date range.
-  double _sumValues(List<HealthDataPoint> points, HealthDataType type, DateTime from, DateTime to) {
-    return points
-        .where((p) => p.type == type && !p.dateFrom.isBefore(from) && !p.dateTo.isAfter(to))
-        .fold(0.0, (sum, p) => sum + _numericValue(p));
-  }
-
   /// Calculate total sleep hours from sleep-stage data points.
   double _calculateSleepHours(List<HealthDataPoint> points, DateTime from, DateTime to) {
     const sleepTypes = [
@@ -329,6 +340,45 @@ class HealthService {
       totalMinutes += point.dateTo.difference(point.dateFrom).inMinutes;
     }
     return totalMinutes / 60.0;
+  }
+
+  /// Fetch aggregate distance in meters using the platform aggregate API.
+  /// Uses HKStatisticsQuery on iOS which correctly deduplicates
+  /// across iPhone + Apple Watch sources.
+  Future<double> _getAggregateDistance(DateTime start, DateTime end) async {
+    final distanceType = defaultTargetPlatform == TargetPlatform.iOS
+        ? HealthDataType.DISTANCE_WALKING_RUNNING
+        : HealthDataType.DISTANCE_DELTA;
+    final data = await _health.getHealthAggregateDataFromTypes(
+      types: [distanceType],
+      startDate: start,
+      endDate: end,
+    );
+    double meters = 0;
+    for (final dp in data) {
+      if (dp.value is WorkoutHealthValue) {
+        meters += (dp.value as WorkoutHealthValue).totalDistance?.toDouble() ?? 0;
+      }
+    }
+    return meters;
+  }
+
+  /// Fetch aggregate active calories using the platform aggregate API.
+  /// Uses HKStatisticsQuery on iOS which correctly deduplicates
+  /// across iPhone + Apple Watch sources.
+  Future<int> _getAggregateCalories(DateTime start, DateTime end) async {
+    final data = await _health.getHealthAggregateDataFromTypes(
+      types: [HealthDataType.ACTIVE_ENERGY_BURNED],
+      startDate: start,
+      endDate: end,
+    );
+    int calories = 0;
+    for (final dp in data) {
+      if (dp.value is WorkoutHealthValue) {
+        calories += (dp.value as WorkoutHealthValue).totalEnergyBurned ?? 0;
+      }
+    }
+    return calories;
   }
 
   // ============================================
@@ -450,16 +500,6 @@ class HealthService {
     final days = endDate.difference(startDate).inDays + 1;
     final history = <DailySteps>[];
 
-    // Determine platform-specific types
-    final distanceType = defaultTargetPlatform == TargetPlatform.iOS
-        ? HealthDataType.DISTANCE_WALKING_RUNNING
-        : HealthDataType.DISTANCE_DELTA;
-    final crossRefTypes = [
-      distanceType,
-      HealthDataType.ACTIVE_ENERGY_BURNED,
-      HealthDataType.HEART_RATE,
-    ];
-
     for (var i = 0; i < days; i++) {
       final dayStart = DateTime(startDate.year, startDate.month, startDate.day).add(Duration(days: i));
       if (dayStart.isAfter(now)) break;
@@ -469,38 +509,35 @@ class HealthService {
 
       final steps = await _health.getTotalStepsInInterval(dayStart, dayEnd) ?? 0;
 
-      // Fetch cross-validation metrics for this day
+      // Fetch cross-validation metrics for this day.
+      // Use aggregate API for distance & calories to prevent double-counting.
       double? distanceMiles;
       int? activeCalories;
       int? avgHeartRate;
       try {
-        final crossRefDataRaw = await _health.getHealthDataFromTypes(
-          types: crossRefTypes,
-          startTime: dayStart,
-          endTime: dayEnd,
-        );
-        final crossRefData = _health.removeDuplicates(crossRefDataRaw);
+        final crossResults = await Future.wait([
+          _getAggregateDistance(dayStart, dayEnd),
+          _getAggregateCalories(dayStart, dayEnd),
+          _health.getHealthDataFromTypes(
+            types: [HealthDataType.HEART_RATE],
+            startTime: dayStart,
+            endTime: dayEnd,
+          ),
+        ]);
 
-        // Distance (meters -> miles)
-        final distanceMeters = crossRefData
-            .where((p) => p.type == distanceType)
-            .fold(0.0, (sum, p) => sum + _numericValue(p));
+        final distanceMeters = crossResults[0] as double;
         if (distanceMeters > 0) {
           distanceMiles = distanceMeters * 0.000621371;
         }
 
-        // Active calories
-        final calTotal = crossRefData
-            .where((p) => p.type == HealthDataType.ACTIVE_ENERGY_BURNED)
-            .fold(0.0, (sum, p) => sum + _numericValue(p));
+        final calTotal = crossResults[1] as int;
         if (calTotal > 0) {
-          activeCalories = calTotal.toInt();
+          activeCalories = calTotal;
         }
 
-        // Average heart rate
-        final hrPoints = crossRefData
-            .where((p) => p.type == HealthDataType.HEART_RATE)
-            .toList();
+        // Average heart rate (raw data — need individual readings for avg)
+        final hrDataRaw = crossResults[2] as List<HealthDataPoint>;
+        final hrPoints = _health.removeDuplicates(hrDataRaw);
         if (hrPoints.isNotEmpty) {
           final hrSum = hrPoints.fold(0.0, (sum, p) => sum + _numericValue(p));
           avgHeartRate = (hrSum / hrPoints.length).round();
@@ -538,16 +575,7 @@ class HealthService {
           ? now
           : dayStart.add(const Duration(days: 1));
 
-      final dataPointsRaw = await _health.getHealthDataFromTypes(
-        types: [defaultTargetPlatform == TargetPlatform.iOS
-            ? HealthDataType.DISTANCE_WALKING_RUNNING
-            : HealthDataType.DISTANCE_DELTA],
-        startTime: dayStart,
-        endTime: dayEnd,
-      );
-      final dataPoints = _health.removeDuplicates(dataPointsRaw);
-
-      final metersTotal = dataPoints.fold(0.0, (sum, p) => sum + _numericValue(p));
+      final metersTotal = await _getAggregateDistance(dayStart, dayEnd);
       final miles = (metersTotal * 0.000621371).round();
       history.add(DailySteps(
         date: dayStart.toIso8601String().split('T').first,
