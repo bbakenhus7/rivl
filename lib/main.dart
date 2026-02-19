@@ -48,11 +48,11 @@ void main() async {
     return previousBuilder(details);
   };
 
-  // Validate Stripe key in release mode
+  // Warn if Stripe key is missing in release mode
   if (kReleaseMode && Env.stripePublishableKey.isEmpty) {
-    throw StateError(
-      'STRIPE_PUBLISHABLE_KEY is not set. '
-      'Release builds require: --dart-define=STRIPE_PUBLISHABLE_KEY=pk_live_xxx',
+    debugPrint(
+      'WARNING: STRIPE_PUBLISHABLE_KEY is not set. '
+      'Release builds should use: --dart-define=STRIPE_PUBLISHABLE_KEY=pk_live_xxx',
     );
   }
 

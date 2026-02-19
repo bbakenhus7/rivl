@@ -33,6 +33,38 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <!-- Loading indicator shown while Flutter engine initializes -->
+  <div id="loading" style="
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #6C3CE0, #4A1DB8);
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    color: white; z-index: 9999;
+  ">
+    <div style="
+      font-size: 48px; font-weight: 900; letter-spacing: 6px; margin-bottom: 24px;
+    ">RIVL</div>
+    <div style="
+      width: 32px; height: 32px; border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: white; border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    "></div>
+    <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+  </div>
+  <script>
+    // Remove loading indicator once Flutter's rendering surface appears
+    function removeLoading() {
+      var el = document.getElementById('loading');
+      if (el) { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(function() { el.remove(); }, 300); }
+    }
+    // Watch for Flutter's glass pane element
+    new MutationObserver(function(mutations, obs) {
+      if (document.querySelector('flt-glass-pane')) { obs.disconnect(); removeLoading(); }
+    }).observe(document.body, { childList: true, subtree: true });
+    // Fallback: remove after 8 seconds regardless
+    setTimeout(removeLoading, 8000);
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

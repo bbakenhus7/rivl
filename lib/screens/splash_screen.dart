@@ -2,13 +2,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../config/router.dart';
 import '../providers/auth_provider.dart';
 import '../utils/theme.dart';
-import '../utils/animations.dart';
 import '../widgets/rivl_logo.dart';
-import 'auth/login_screen.dart';
-import 'main_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -59,43 +58,30 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
 
     try {
-      // On web, the Firebase auth stream can sometimes delay startup or block
-      // navigation. For a functional UI on web, navigate straight to the
-      // main app so you can explore the interface. Native platforms keep
-      // the original auth-check behavior.
+      // On web, navigate straight to home so users can explore the interface.
+      // Native platforms check auth state and redirect accordingly.
       if (kIsWeb) {
-        _navigateToMain();
+        _navigateTo(AppRoutes.home);
         return;
       }
 
       final authProvider = context.read<AuthProvider>();
 
       if (authProvider.isAuthenticated) {
-        _navigateToMain();
+        _navigateTo(AppRoutes.home);
       } else {
-        _navigateToLogin();
+        _navigateTo(AppRoutes.login);
       }
     } catch (e) {
-      // If anything goes wrong, fall back to main so app remains navigable.
-      _navigateToMain();
+      // If anything goes wrong, fall back to home so app remains navigable.
+      _navigateTo(AppRoutes.home);
     }
   }
 
-  void _navigateToMain() {
+  void _navigateTo(String route) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        FadePageRoute(page: const MainScreen()),
-      );
-    });
-  }
-
-  void _navigateToLogin() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        FadePageRoute(page: const LoginScreen()),
-      );
+      context.go(route);
     });
   }
 
