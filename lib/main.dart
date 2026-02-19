@@ -158,7 +158,13 @@ class _RivlMaterialAppState extends State<_RivlMaterialApp> {
         return Column(
           children: [
             const WaitlistBanner(),
-            Expanded(child: child ?? const SizedBox.shrink()),
+            Expanded(
+              child: MediaQuery.removePadding(
+                context: context,
+                removeTop: true,
+                child: child ?? const SizedBox.shrink(),
+              ),
+            ),
           ],
         );
       },

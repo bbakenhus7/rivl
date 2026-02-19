@@ -165,13 +165,13 @@ class _HomeScreenState extends State<HomeScreen> {
               expandedHeight: 180,
               floating: false,
               pinned: true,
+              primary: false,
               backgroundColor: RivlColors.primaryDark,
               flexibleSpace: LayoutBuilder(
                 builder: (context, constraints) {
                   final top = constraints.biggest.height;
-                  final statusBarHeight = MediaQuery.of(context).padding.top;
-                  final collapsedHeight = kToolbarHeight + statusBarHeight;
-                  final expandedHeight = 180 + statusBarHeight;
+                  final collapsedHeight = kToolbarHeight;
+                  const expandedHeight = 180.0;
                   // 0.0 = fully collapsed, 1.0 = fully expanded
                   final t = ((top - collapsedHeight) / (expandedHeight - collapsedHeight)).clamp(0.0, 1.0);
 
@@ -184,73 +184,71 @@ class _HomeScreenState extends State<HomeScreen> {
                     decoration: const BoxDecoration(
                       gradient: RivlColors.primaryDeepGradient,
                     ),
-                    child: SafeArea(
-                      child: t > 0.3
-                          // --- EXPANDED: centered column layout ---
-                          ? Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SizedBox(height: 8 * t),
-                                Semantics(
-                                  label: 'RIVL logo',
-                                  excludeSemantics: true,
-                                  child: RivlLogo(size: logoSize),
+                    child: t > 0.3
+                        // --- EXPANDED: centered column layout ---
+                        ? Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(height: 8 * t),
+                              Semantics(
+                                label: 'RIVL logo',
+                                excludeSemantics: true,
+                                child: RivlLogo(size: logoSize),
+                              ),
+                              SizedBox(height: 8 * t + 4),
+                              Text(
+                                'RIVL',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: titleFontSize,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: letterSpacing,
                                 ),
-                                SizedBox(height: 8 * t + 4),
-                                Text(
-                                  'RIVL',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: titleFontSize,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: letterSpacing,
+                              ),
+                              if (t > 0.6) ...[
+                                SizedBox(height: 4 * t),
+                                Opacity(
+                                  opacity: ((t - 0.6) / 0.4).clamp(0.0, 1.0),
+                                  child: Text(
+                                    'Compete. Win. Earn.',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.6),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      letterSpacing: 1.5,
+                                    ),
                                   ),
                                 ),
-                                if (t > 0.6) ...[
-                                  SizedBox(height: 4 * t),
-                                  Opacity(
-                                    opacity: ((t - 0.6) / 0.4).clamp(0.0, 1.0),
-                                    child: Text(
-                                      'Compete. Win. Earn.',
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.6),
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                        letterSpacing: 1.5,
-                                      ),
+                              ],
+                            ],
+                          )
+                        // --- COLLAPSED: compact row in app bar ---
+                        : Padding(
+                            padding: const EdgeInsets.only(left: 16, right: 56),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Semantics(
+                                    label: 'RIVL logo',
+                                    excludeSemantics: true,
+                                    child: const RivlLogo(size: 28),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'RIVL',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 2,
                                     ),
                                   ),
                                 ],
-                              ],
-                            )
-                          // --- COLLAPSED: compact row in app bar ---
-                          : Padding(
-                              padding: const EdgeInsets.only(left: 16, right: 56),
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Semantics(
-                                      label: 'RIVL logo',
-                                      excludeSemantics: true,
-                                      child: const RivlLogo(size: 28),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    const Text(
-                                      'RIVL',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 2,
-                                      ),
-                                    ),
-                                  ],
-                                ),
                               ),
                             ),
-                    ),
+                          ),
                   );
                 },
               ),
