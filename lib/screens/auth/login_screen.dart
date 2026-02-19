@@ -27,6 +27,8 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _rememberMe = false;
   bool _isLoading = false;
+  bool _isAppleLoading = false;
+  bool _isGoogleLoading = false;
   String? _errorMessage;
 
   @override
@@ -52,6 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
       if (success && mounted) {
+        FocusScope.of(context).unfocus();
         Navigator.of(context).pushReplacement(
           FadePageRoute(page: const MainScreen()),
         );
@@ -446,15 +449,17 @@ class _LoginScreenState extends State<LoginScreen> {
           child: _SocialButton(
             icon: Icons.apple,
             label: 'Apple',
-            onPressed: () async {
+            isLoading: _isAppleLoading,
+            onPressed: (_isAppleLoading || _isGoogleLoading) ? () {} : () async {
               setState(() {
-                _isLoading = true;
+                _isAppleLoading = true;
                 _errorMessage = null;
               });
               try {
                 final success =
                     await context.read<AuthProvider>().signInWithApple();
                 if (success && mounted) {
+                  FocusScope.of(context).unfocus();
                   Navigator.of(context).pushReplacement(
                     FadePageRoute(page: const MainScreen()),
                   );
@@ -475,7 +480,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   });
                 }
               } finally {
-                if (mounted) setState(() => _isLoading = false);
+                if (mounted) setState(() => _isAppleLoading = false);
               }
             },
           ),
@@ -485,15 +490,17 @@ class _LoginScreenState extends State<LoginScreen> {
           child: _SocialButton(
             icon: Icons.g_mobiledata,
             label: 'Google',
-            onPressed: () async {
+            isLoading: _isGoogleLoading,
+            onPressed: (_isAppleLoading || _isGoogleLoading) ? () {} : () async {
               setState(() {
-                _isLoading = true;
+                _isGoogleLoading = true;
                 _errorMessage = null;
               });
               try {
                 final success =
                     await context.read<AuthProvider>().signInWithGoogle();
                 if (success && mounted) {
+                  FocusScope.of(context).unfocus();
                   Navigator.of(context).pushReplacement(
                     FadePageRoute(page: const MainScreen()),
                   );
@@ -513,7 +520,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   });
                 }
               } finally {
-                if (mounted) setState(() => _isLoading = false);
+                if (mounted) setState(() => _isGoogleLoading = false);
               }
             },
           ),
@@ -556,11 +563,13 @@ class _SocialButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
+  final bool isLoading;
 
   const _SocialButton({
     required this.icon,
     required this.label,
     required this.onPressed,
+    this.isLoading = false,
   });
 
   @override
@@ -579,14 +588,20 @@ class _SocialButton extends StatelessWidget {
             color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
           ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 24),
-            const SizedBox(width: 8),
-            Text(label),
-          ],
-        ),
+        child: isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 24),
+                  const SizedBox(width: 8),
+                  Text(label),
+                ],
+              ),
       ),
     );
   }

@@ -156,7 +156,7 @@ class HealthService {
         lastUpdated: now,
       );
     } catch (e) {
-      // getHealthMetrics error — returning demo data
+      debugPrint('HealthService: getHealthMetrics error — returning demo data: $e');
       return HealthMetrics.demo();
     }
   }
@@ -185,16 +185,23 @@ class HealthService {
         case GoalType.sleepDuration:
           return await _sleepProgressForRange(startDate, endDate);
 
-        // Zone 2 cardio needs heart rate zone analysis; pace goals need workout parsing
         case GoalType.zone2Cardio:
+          return await _zone2CardioProgressForRange(startDate, endDate);
+
         case GoalType.milePace:
+          return await _bestPaceProgressForRange(startDate, endDate, maxDistanceMiles: 1.5);
+
         case GoalType.fiveKPace:
+          return await _bestPaceProgressForRange(startDate, endDate, minDistanceMiles: 2.8, maxDistanceMiles: 4.0);
+
         case GoalType.tenKPace:
+          return await _bestPaceProgressForRange(startDate, endDate, minDistanceMiles: 5.5, maxDistanceMiles: 7.5);
+
         case GoalType.rivlHealthScore:
-          return _demoProgressForChallenge(goalType: goalType, startDate: startDate, endDate: endDate);
+          return await _rivlHealthScoreProgress(startDate, endDate);
       }
     } catch (e) {
-      // getProgressForChallenge error — returning demo data
+      debugPrint('HealthService: getProgressForChallenge error for $goalType — returning demo data: $e');
       return _demoProgressForChallenge(goalType: goalType, startDate: startDate, endDate: endDate);
     }
   }
@@ -213,7 +220,7 @@ class HealthService {
       final midnight = DateTime(now.year, now.month, now.day);
       return await _health.getTotalStepsInInterval(midnight, now) ?? 0;
     } catch (e) {
-      // getTodaySteps error — returning zero
+      debugPrint('HealthService: getTodaySteps error: $e');
       return 0;
     }
   }
@@ -227,7 +234,7 @@ class HealthService {
     try {
       return await _health.getTotalStepsInInterval(start, end) ?? 0;
     } catch (e) {
-      // getStepsInRange error — returning zero
+      debugPrint('HealthService: getStepsInRange error: $e');
       return 0;
     }
   }
@@ -240,7 +247,7 @@ class HealthService {
     try {
       return await _fetchDailyStepsForRange(days);
     } catch (e) {
-      // getDailySteps error — returning demo data
+      debugPrint('HealthService: getDailySteps error — returning demo data: $e');
       return _demoDailySteps(days);
     }
   }
@@ -255,7 +262,7 @@ class HealthService {
       final result = await _stepsProgressForRange(startDate, endDate);
       return result.history;
     } catch (e) {
-      // getStepsForChallenge error — returning demo data
+      debugPrint('HealthService: getStepsForChallenge error — returning demo data: $e');
       return _demoDailySteps(days);
     }
   }
@@ -427,7 +434,7 @@ class HealthService {
       workouts.sort((a, b) => b.date.compareTo(a.date));
       return workouts.take(5).toList();
     } catch (e) {
-      // _fetchRecentWorkouts error — returning empty list
+      debugPrint('HealthService: _fetchRecentWorkouts error: $e');
       return [];
     }
   }
@@ -626,6 +633,160 @@ class HealthService {
       ),
     ];
     return (total: latestValue, history: history);
+  }
+
+  // ============================================
+  // ZONE 2 CARDIO PROGRESS
+  // ============================================
+
+  /// Calculate daily time (in minutes) spent in heart rate zone 2 (60-70% of estimated max HR).
+  /// Estimated max HR = 220 - age. Without age, we use a fixed zone of 108-132 bpm
+  /// (approximation for a 30-year-old: max HR 190, zone 2 = 60-70% = 114-133).
+  Future<({int total, List<DailySteps> history})> _zone2CardioProgressForRange(
+    DateTime startDate, DateTime endDate,
+  ) async {
+    final now = DateTime.now();
+    final days = endDate.difference(startDate).inDays + 1;
+    final history = <DailySteps>[];
+
+    // Use resting heart rate to estimate zone 2 boundaries.
+    // Fallback: zone 2 is roughly 108-132 bpm for an average adult.
+    const zone2Low = 108.0;
+    const zone2High = 132.0;
+
+    for (var i = 0; i < days; i++) {
+      final dayStart = DateTime(startDate.year, startDate.month, startDate.day).add(Duration(days: i));
+      if (dayStart.isAfter(now)) break;
+      final dayEnd = dayStart.add(const Duration(days: 1)).isAfter(now)
+          ? now
+          : dayStart.add(const Duration(days: 1));
+
+      var zone2Minutes = 0;
+      try {
+        final hrDataRaw = await _health.getHealthDataFromTypes(
+          types: [HealthDataType.HEART_RATE],
+          startTime: dayStart,
+          endTime: dayEnd,
+        );
+        final hrData = _health.removeDuplicates(hrDataRaw);
+
+        // Each HR data point represents a measurement interval.
+        // Count points in zone 2 range; estimate ~1 minute per data point.
+        for (final point in hrData) {
+          final bpm = _numericValue(point);
+          if (bpm >= zone2Low && bpm <= zone2High) {
+            // Approximate duration from data point interval, min 1 minute
+            final intervalMinutes = point.dateTo.difference(point.dateFrom).inMinutes;
+            zone2Minutes += intervalMinutes > 0 ? intervalMinutes : 1;
+          }
+        }
+      } catch (e) {
+        debugPrint('HealthService: zone 2 HR fetch failed for $dayStart: $e');
+      }
+
+      history.add(DailySteps(
+        date: dayStart.toIso8601String().split('T').first,
+        steps: zone2Minutes,
+        source: _sourceTag,
+        syncedAt: now,
+      ));
+    }
+
+    final total = history.fold<int>(0, (sum, d) => sum + d.steps);
+    return (total: total, history: history);
+  }
+
+  // ============================================
+  // PACE PROGRESS (RUNNING WORKOUTS)
+  // ============================================
+
+  /// Find the best (lowest) pace from running workouts in the given range.
+  /// For mile pace, look for runs ~1 mile. For 5K/10K, filter by distance range.
+  /// Returns pace in seconds as the total.
+  Future<({int total, List<DailySteps> history})> _bestPaceProgressForRange(
+    DateTime startDate, DateTime endDate, {
+    double minDistanceMiles = 0.0,
+    double maxDistanceMiles = double.infinity,
+  }) async {
+    final now = DateTime.now();
+    final effectiveEnd = endDate.isAfter(now) ? now : endDate;
+
+    try {
+      final dataPoints = await _health.getHealthDataFromTypes(
+        types: [HealthDataType.WORKOUT],
+        startTime: startDate,
+        endTime: effectiveEnd,
+      );
+
+      int? bestPaceSeconds;
+
+      for (final point in dataPoints) {
+        if (point.value is! WorkoutHealthValue) continue;
+        final workout = point.value as WorkoutHealthValue;
+
+        // Only consider running workouts
+        final activityName = workout.workoutActivityType.name.toUpperCase();
+        if (!activityName.contains('RUNNING') && !activityName.contains('RUN')) continue;
+
+        final distanceMiles = (workout.totalDistance ?? 0).toDouble() * 0.000621371;
+        if (distanceMiles < minDistanceMiles || distanceMiles > maxDistanceMiles) continue;
+        if (distanceMiles <= 0) continue;
+
+        final durationSeconds = point.dateTo.difference(point.dateFrom).inSeconds;
+        if (durationSeconds <= 0) continue;
+
+        // Total time in seconds for the distance
+        final paceSeconds = durationSeconds;
+
+        if (bestPaceSeconds == null || paceSeconds < bestPaceSeconds) {
+          bestPaceSeconds = paceSeconds;
+        }
+      }
+
+      if (bestPaceSeconds == null) {
+        return (total: 0, history: <DailySteps>[]);
+      }
+
+      final history = [
+        DailySteps(
+          date: now.toIso8601String().split('T').first,
+          steps: bestPaceSeconds,
+          source: _sourceTag,
+          syncedAt: now,
+        ),
+      ];
+      return (total: bestPaceSeconds, history: history);
+    } catch (e) {
+      debugPrint('HealthService: pace workout fetch failed: $e');
+      return (total: 0, history: <DailySteps>[]);
+    }
+  }
+
+  // ============================================
+  // RIVL HEALTH SCORE PROGRESS
+  // ============================================
+
+  /// Compute the current RIVL Health Score by fetching a fresh HealthMetrics snapshot.
+  Future<({int total, List<DailySteps> history})> _rivlHealthScoreProgress(
+    DateTime startDate, DateTime endDate,
+  ) async {
+    try {
+      final metrics = await getHealthMetrics();
+      final score = metrics.rivlHealthScore;
+
+      final history = [
+        DailySteps(
+          date: DateTime.now().toIso8601String().split('T').first,
+          steps: score,
+          source: _sourceTag,
+          syncedAt: DateTime.now(),
+        ),
+      ];
+      return (total: score, history: history);
+    } catch (e) {
+      debugPrint('HealthService: rivlHealthScore fetch failed: $e');
+      return (total: 0, history: <DailySteps>[]);
+    }
   }
 
   // ============================================

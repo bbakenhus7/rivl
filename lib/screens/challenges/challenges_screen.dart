@@ -200,11 +200,24 @@ class _ChallengeList extends StatelessWidget {
 
         return RefreshIndicator(
           onRefresh: () async {
-            final auth = context.read<AuthProvider>();
-            if (auth.user != null) {
-              provider.startListening(auth.user!.id);
-            } else {
-              provider.loadDemoChallenges();
+            try {
+              final auth = context.read<AuthProvider>();
+              if (auth.user != null) {
+                provider.startListening(auth.user!.id);
+              } else {
+                provider.loadDemoChallenges();
+              }
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Failed to refresh challenges'),
+                    backgroundColor: RivlColors.error,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                );
+              }
             }
           },
           child: ListView.builder(

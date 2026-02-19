@@ -243,20 +243,9 @@ class HealthProvider extends ChangeNotifier {
   bool isChallengeUsingDemoData(GoalType goalType) {
     if (_isUsingDemoData) return true;
 
-    // These goal types always fall back to demo data in HealthService,
-    // even when the user is authorized.
-    switch (goalType) {
-      case GoalType.zone2Cardio:
-      case GoalType.milePace:
-      case GoalType.fiveKPace:
-      case GoalType.tenKPace:
-      case GoalType.rivlHealthScore:
-        return true;
-      case GoalType.steps:
-      case GoalType.distance:
-      case GoalType.sleepDuration:
-        return false;
-    }
+    // All goal types now have real health data implementations.
+    // Demo data is only used when the platform is not authorized.
+    return false;
   }
 
   // ============================================

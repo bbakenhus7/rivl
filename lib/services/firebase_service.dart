@@ -2,6 +2,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import '../models/user_model.dart';
 import '../models/challenge_model.dart';
 import 'dart:math';
@@ -573,6 +574,11 @@ class FirebaseService {
     final challenge = await getChallenge(challengeId);
     if (challenge == null) throw Exception('Challenge not found');
 
+    // Only pending challenges can be accepted
+    if (challenge.status != ChallengeStatus.pending) {
+      throw Exception('Challenge is no longer available');
+    }
+
     // Prevent creator from accepting their own challenge
     if (challenge.creatorId == currentUser?.uid) {
       throw Exception('Cannot accept your own challenge');
@@ -908,15 +914,20 @@ class FirebaseService {
     required String body,
     Map<String, dynamic>? data,
   }) async {
-    await _db.collection('notifications').add({
-      'userId': userId,
-      'type': type,
-      'title': title,
-      'body': body,
-      'data': data ?? {},
-      'read': false,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      await _db.collection('notifications').add({
+        'userId': userId,
+        'type': type,
+        'title': title,
+        'body': body,
+        'data': data ?? {},
+        'read': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      // Notification delivery is best-effort; don't fail the parent operation.
+      debugPrint('FirebaseService: _sendNotification failed for user $userId ($type): $e');
+    }
   }
 
   Stream<List<Map<String, dynamic>>> notificationsStream(String userId) {

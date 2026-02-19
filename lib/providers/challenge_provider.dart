@@ -1045,7 +1045,13 @@ class ChallengeProvider extends ChangeNotifier {
       } else {
         // Atomic accept + stake deduction
         if (challenge.stakeAmount > 0) {
-          final userId = _firebaseService.currentUser!.uid;
+          final userId = _firebaseService.currentUser?.uid;
+          if (userId == null) {
+            _isLoading = false;
+            _errorMessage = 'Session expired. Please sign in again.';
+            _safeNotify();
+            return false;
+          }
           final success = await _firebaseService.acceptChallengeWithStake(
             challengeId: challengeId,
             userId: userId,
@@ -1255,9 +1261,9 @@ class ChallengeProvider extends ChangeNotifier {
       }
 
       // For team challenges, use first Team B member as representative ID since opponentId is null.
-      // Falls back to a synthetic 'teamB' string if the team has no members to avoid null winnerId.
+      // If team B has no members, leave as null — settlement will be skipped for safety.
       final teamBRepId = challenge.isTeamVsTeam
-          ? (challenge.teamB?.members.firstOrNull?.userId ?? 'teamB_${challenge.id}')
+          ? challenge.teamB?.members.firstOrNull?.userId
           : challenge.opponentId;
 
       if (creatorFlagged && !opponentFlagged) {
@@ -1319,6 +1325,11 @@ class ChallengeProvider extends ChangeNotifier {
             loserId = challenge.creatorId;
           }
         }
+      }
+
+      // Log warning if team B has no real members — winnerId will be null, skipping payouts
+      if (challenge.isTeamVsTeam && teamBRepId == null) {
+        debugPrint('Warning: Team challenge $challengeId — team B has no members, cannot determine winner representative');
       }
 
       final isFlagged = (creatorResult?.isSuspicious ?? false) ||

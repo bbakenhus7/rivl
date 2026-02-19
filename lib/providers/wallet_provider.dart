@@ -58,6 +58,7 @@ class WalletProvider extends ChangeNotifier {
       _walletSubscription?.cancel();
       _walletSubscription = _walletService.walletStream(userId).listen(
         (wallet) {
+          if (wallet == null) return;
           _wallet = wallet;
           _safeNotify();
         },

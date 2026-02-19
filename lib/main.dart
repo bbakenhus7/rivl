@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb, kReleaseMode;
 import 'package:go_router/go_router.dart';
 import 'firebase_options.dart';
 import 'utils/error_handler.dart';
@@ -48,15 +48,23 @@ void main() async {
     return previousBuilder(details);
   };
 
+  // Validate Stripe key in release mode
+  if (kReleaseMode && Env.stripePublishableKey.isEmpty) {
+    throw StateError(
+      'STRIPE_PUBLISHABLE_KEY is not set. '
+      'Release builds require: --dart-define=STRIPE_PUBLISHABLE_KEY=pk_live_xxx',
+    );
+  }
+
   // Initialize Stripe (only for non-web platforms)
-  if (!kIsWeb) {
+  if (!kIsWeb && Env.stripePublishableKey.isNotEmpty) {
     try {
       Stripe.publishableKey = Env.stripePublishableKey;
       await Stripe.instance.applySettings();
     } catch (e) {
       // If Stripe fails to initialize, continue without blocking app startup.
       // Web and some desktop targets may not support the platform API used by the package.
-      // Stripe init skipped — expected on web/desktop targets
+      debugPrint('Stripe init skipped: $e');
     }
   }
   

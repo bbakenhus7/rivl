@@ -171,7 +171,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           // Submit button
           Consumer<AuthProvider>(
             builder: (context, auth, _) {
-              return ElevatedButton(
+              return SizedBox(
+                height: 56,
+                child: ElevatedButton(
                 onPressed: auth.isLoading ? null : _resetPassword,
                 child: auth.isLoading
                     ? const SizedBox(
@@ -183,6 +185,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         ),
                       )
                     : const Text('Send Reset Link'),
+              ),
               );
             },
           ),

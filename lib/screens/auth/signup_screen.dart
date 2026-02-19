@@ -53,6 +53,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
 
     if (success && mounted) {
+      FocusScope.of(context).unfocus();
       Navigator.of(context).pushAndRemoveUntil(
         FadePageRoute(page: const MainScreen()),
         (route) => false,
