@@ -5,12 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
+import 'package:go_router/go_router.dart';
 import 'firebase_options.dart';
+import 'utils/error_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
 import 'config/env.dart';
+import 'config/router.dart';
 import 'providers/auth_provider.dart';
 import 'providers/challenge_provider.dart';
 import 'providers/health_provider.dart';
@@ -22,7 +25,7 @@ import 'providers/subscription_provider.dart';
 import 'providers/activity_feed_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/friend_provider.dart';
-import 'screens/splash_screen.dart';
+import 'providers/connectivity_provider.dart';
 import 'utils/theme.dart';
 
 void main() async {
@@ -32,7 +35,19 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
+
+  // Initialize global error handling & Crashlytics
+  await ErrorHandler.initialize();
+
+  // Replace red screen of death in release mode
+  ErrorWidgetBuilder previousBuilder = ErrorWidget.builder;
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    if (kReleaseMode) {
+      return ErrorHandler.errorWidget(details);
+    }
+    return previousBuilder(details);
+  };
+
   // Initialize Stripe (only for non-web platforms)
   if (!kIsWeb) {
     try {
@@ -65,6 +80,8 @@ void main() async {
 class RivlApp extends StatelessWidget {
   const RivlApp({super.key});
 
+  /// Global navigator key -- still available for legacy dialog access
+  /// (e.g. the WaitlistBanner). GoRouter manages its own navigator internally.
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
   @override
@@ -82,28 +99,61 @@ class RivlApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ActivityFeedProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => FriendProvider()),
+        ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProv, _) {
-          return MaterialApp(
-            title: 'RIVL',
-            navigatorKey: navigatorKey,
-            debugShowCheckedModeBanner: false,
-            theme: RivlTheme.lightTheme,
-            darkTheme: RivlTheme.darkTheme,
-            themeMode: themeProv.themeMode,
-            home: const SplashScreen(),
-            builder: (context, child) {
-              return Column(
-                children: [
-                  const WaitlistBanner(),
-                  Expanded(child: child ?? const SizedBox.shrink()),
-                ],
-              );
-            },
-          );
-        },
-      ),
+      child: const _RivlMaterialApp(),
+    );
+  }
+}
+
+/// Separate stateful widget that creates the [GoRouter] exactly once,
+/// preventing navigation state resets when Provider values change and
+/// trigger rebuilds upstream.
+class _RivlMaterialApp extends StatefulWidget {
+  const _RivlMaterialApp();
+
+  @override
+  State<_RivlMaterialApp> createState() => _RivlMaterialAppState();
+}
+
+class _RivlMaterialAppState extends State<_RivlMaterialApp> {
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    // Create the router once. GoRouter uses refreshListenable (AuthProvider)
+    // internally to re-evaluate redirects when auth state changes, so we
+    // do not need to recreate it on every build.
+    final authProvider = context.read<AuthProvider>();
+    _router = createRouter(authProvider);
+  }
+
+  @override
+  void dispose() {
+    _router.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final themeProv = context.watch<ThemeProvider>();
+
+    return MaterialApp.router(
+      title: 'RIVL',
+      debugShowCheckedModeBanner: false,
+      theme: RivlTheme.lightTheme,
+      darkTheme: RivlTheme.darkTheme,
+      themeMode: themeProv.themeMode,
+      routerConfig: _router,
+      builder: (context, child) {
+        return Column(
+          children: [
+            const WaitlistBanner(),
+            Expanded(child: child ?? const SizedBox.shrink()),
+          ],
+        );
+      },
     );
   }
 }
@@ -140,13 +190,10 @@ class WaitlistBanner extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
-              final navContext = RivlApp.navigatorKey.currentContext;
-              if (navContext != null) {
-                showDialog(
-                  context: navContext,
-                  builder: (ctx) => const _WaitlistDialog(),
-                );
-              }
+              showDialog(
+                context: context,
+                builder: (ctx) => const _WaitlistDialog(),
+              );
             },
             style: TextButton.styleFrom(
               backgroundColor: Colors.white,

@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../models/user_model.dart';
 import '../services/firebase_service.dart';
+import '../utils/error_handler.dart';
 
 enum AuthState { initial, loading, authenticated, unauthenticated, error }
 
@@ -57,6 +58,7 @@ class AuthProvider extends ChangeNotifier {
       _user = await _firebaseService.getUser(userId);
       if (_user != null) {
         _state = AuthState.authenticated;
+        ErrorHandler.setUserId(_user!.id);
       } else {
         _state = AuthState.unauthenticated;
       }

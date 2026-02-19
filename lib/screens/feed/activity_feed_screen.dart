@@ -1162,7 +1162,10 @@ class _ActivityFeedTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return Semantics(
+      label: '${item.displayName} ${_actionText(item)}${item.amount != null && item.amount! > 0 ? ", \$${item.amount!.toStringAsFixed(0)}" : ""}. ${_timeAgo(item.createdAt)}',
+      button: item.hasChallenge,
+      child: InkWell(
       onTap: item.hasChallenge
           ? () {
               Navigator.push(
@@ -1266,6 +1269,7 @@ class _ActivityFeedTile extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 

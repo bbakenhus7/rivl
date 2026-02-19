@@ -13,6 +13,8 @@ import '../../services/firebase_service.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../../widgets/section_header.dart';
+import '../../widgets/skeleton_loader.dart';
+import '../../widgets/cached_avatar.dart';
 import '../wallet/wallet_screen.dart';
 import '../notifications/notifications_screen.dart';
 import 'health_connection_screen.dart';
@@ -57,6 +59,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 actions: [
                   IconButton(
                     icon: const Icon(Icons.settings_outlined, color: Colors.white),
+                    tooltip: 'Settings',
                     onPressed: () => _showSettings(context),
                   ),
                 ],
@@ -86,7 +89,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   SizedBox(height: 16 * t),
-                                  Container(
+                                  Semantics(
+                                    label: 'Profile picture for ${user.displayName}',
+                                    image: true,
+                                    child: Container(
                                     padding: const EdgeInsets.all(3),
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
@@ -95,25 +101,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         width: borderWidth,
                                       ),
                                     ),
-                                    child: CircleAvatar(
+                                    child: CachedAvatar(
+                                      imageUrl: user.profileImageUrl,
+                                      displayName: user.displayName,
                                       radius: avatarRadius,
                                       backgroundColor: Colors.white.withOpacity(0.2),
-                                      backgroundImage: user.profileImageUrl != null
-                                          ? NetworkImage(user.profileImageUrl!)
-                                          : null,
-                                      child: user.profileImageUrl == null
-                                          ? Text(
-                                              user.displayName.isNotEmpty
-                                                  ? user.displayName[0].toUpperCase()
-                                                  : '?',
-                                              style: TextStyle(
-                                                fontSize: 14 + (22 * t),
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                              ),
-                                            )
-                                          : null,
+                                      textColor: Colors.white,
                                     ),
+                                  ),
                                   ),
                                   SizedBox(height: 8 * t + 4),
                                   Text(
@@ -166,24 +161,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             width: 1,
                                           ),
                                         ),
-                                        child: CircleAvatar(
+                                        child: CachedAvatar(
+                                          imageUrl: user.profileImageUrl,
+                                          displayName: user.displayName,
                                           radius: 16,
                                           backgroundColor: Colors.white.withOpacity(0.2),
-                                          backgroundImage: user.profileImageUrl != null
-                                              ? NetworkImage(user.profileImageUrl!)
-                                              : null,
-                                          child: user.profileImageUrl == null
-                                              ? Text(
-                                                  user.displayName.isNotEmpty
-                                                      ? user.displayName[0].toUpperCase()
-                                                      : '?',
-                                                  style: const TextStyle(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.white,
-                                                  ),
-                                                )
-                                              : null,
+                                          textColor: Colors.white,
                                         ),
                                       ),
                                       const SizedBox(width: 10),
@@ -250,37 +233,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
 
-                    // Quick Stats Row (Robinhood-style bold numbers)
-                    SlideIn(
-                      child: _QuickStatsRow(user: user),
-                    ),
-                    const SizedBox(height: 16),
+                    // Quick Stats, Wallet, Performance, Attributes, Achievements
+                    // Show skeleton while initial data is loading
+                    Consumer2<WalletProvider, HealthProvider>(
+                      builder: (context, wallet, health, _) {
+                        if (authProvider.isLoading || wallet.isLoading || health.isLoading) {
+                          return const _ProfileStatsSkeleton();
+                        }
+                        return Column(
+                          children: [
+                            // Quick Stats Row (Robinhood-style bold numbers)
+                            SlideIn(
+                              child: _QuickStatsRow(user: user),
+                            ),
+                            const SizedBox(height: 16),
 
-                    // Wallet Card
-                    SlideIn(
-                      delay: const Duration(milliseconds: 50),
-                      child: _WalletQuickAccess(),
-                    ),
-                    const SizedBox(height: 16),
+                            // Wallet Card
+                            SlideIn(
+                              delay: const Duration(milliseconds: 50),
+                              child: _WalletQuickAccess(),
+                            ),
+                            const SizedBox(height: 16),
 
-                    // Detailed Stats
-                    SlideIn(
-                      delay: const Duration(milliseconds: 100),
-                      child: _DetailedStats(user: user),
-                    ),
-                    const SizedBox(height: 16),
+                            // Detailed Stats
+                            SlideIn(
+                              delay: const Duration(milliseconds: 100),
+                              child: _DetailedStats(user: user),
+                            ),
+                            const SizedBox(height: 16),
 
-                    // Personal Attributes
-                    SlideIn(
-                      delay: const Duration(milliseconds: 150),
-                      child: _PersonalAttributes(user: user),
-                    ),
-                    const SizedBox(height: 16),
+                            // Personal Attributes
+                            SlideIn(
+                              delay: const Duration(milliseconds: 150),
+                              child: _PersonalAttributes(user: user),
+                            ),
+                            const SizedBox(height: 16),
 
-                    // Achievements
-                    SlideIn(
-                      delay: const Duration(milliseconds: 200),
-                      child: _AchievementsSection(user: user),
+                            // Achievements
+                            SlideIn(
+                              delay: const Duration(milliseconds: 200),
+                              child: _AchievementsSection(user: user),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 16),
 
@@ -404,7 +400,10 @@ class _WalletQuickAccess extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<WalletProvider>(
       builder: (context, walletProvider, _) {
-        return ScaleOnTap(
+        return Semantics(
+          label: 'Wallet balance: \$${walletProvider.balance.toStringAsFixed(2)}. Tap to manage wallet',
+          button: true,
+          child: ScaleOnTap(
           onTap: () {
             Navigator.push(
               context,
@@ -459,6 +458,7 @@ class _WalletQuickAccess extends StatelessWidget {
               ],
             ),
           ),
+        ),
         );
       },
     );
@@ -660,17 +660,21 @@ class _PersonalAttributes extends StatelessWidget {
                   ),
                 ],
               ),
-              GestureDetector(
-                onTap: () => _showEditSheet(context, user),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: RivlColors.primary.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'Edit',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: RivlColors.primary),
+              Semantics(
+                label: 'Edit personal attributes',
+                button: true,
+                child: GestureDetector(
+                  onTap: () => _showEditSheet(context, user),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: RivlColors.primary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Edit',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: RivlColors.primary),
+                    ),
                   ),
                 ),
               ),
@@ -1434,6 +1438,7 @@ class _ReferralSection extends StatelessWidget {
                 ),
                 IconButton(
                   icon: const Icon(Icons.copy_rounded, size: 20),
+                  tooltip: 'Copy referral code',
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: user.referralCode));
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -1443,6 +1448,7 @@ class _ReferralSection extends StatelessWidget {
                 ),
                 IconButton(
                   icon: const Icon(Icons.share_rounded, size: 20),
+                  tooltip: 'Share referral code',
                   onPressed: () {
                     SharePlus.instance.share(
                       ShareParams(
@@ -1543,41 +1549,92 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: context.surfaceVariant,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, size: 18, color: context.textSecondary),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500))),
-            if (badge != null) ...[
+    return Semantics(
+      label: badge != null ? '$label, $badge new' : label,
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: RivlColors.error,
+                  color: context.surfaceVariant,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text(
-                  badge!,
-                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                ),
+                child: Icon(icon, size: 18, color: context.textSecondary),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
+              Expanded(child: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500))),
+              if (badge != null) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: RivlColors.error,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    badge!,
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Icon(Icons.chevron_right, color: context.textSecondary, size: 20),
             ],
-            Icon(Icons.chevron_right, color: context.textSecondary, size: 20),
-          ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+/// Skeleton placeholder shown while profile stats are loading
+class _ProfileStatsSkeleton extends StatelessWidget {
+  const _ProfileStatsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerEffect(
+      child: Column(
+        children: [
+          // Quick stats row skeleton (Wins / Losses / Win Rate)
+          Row(
+            children: [
+              Expanded(child: _statPlaceholder()),
+              const SizedBox(width: 12),
+              Expanded(child: _statPlaceholder()),
+              const SizedBox(width: 12),
+              Expanded(child: _statPlaceholder()),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Wallet card skeleton
+          SkeletonBox(height: 90, width: double.infinity, borderRadius: 16),
+          const SizedBox(height: 16),
+          // Performance / Detailed stats skeleton
+          SkeletonBox(height: 200, width: double.infinity, borderRadius: 16),
+          const SizedBox(height: 16),
+          // Attributes / radar chart skeleton
+          SkeletonBox(height: 360, width: double.infinity, borderRadius: 16),
+          const SizedBox(height: 16),
+          // Achievements skeleton
+          SkeletonBox(height: 160, width: double.infinity, borderRadius: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _statPlaceholder() {
+    return Column(
+      children: const [
+        SkeletonBox(height: 28, width: 48, borderRadius: 6),
+        SizedBox(height: 6),
+        SkeletonBox(height: 12, width: 56, borderRadius: 4),
+      ],
     );
   }
 }

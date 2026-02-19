@@ -14,7 +14,9 @@ import '../providers/activity_feed_provider.dart';
 import '../providers/friend_provider.dart';
 import '../models/activity_feed_model.dart';
 import '../models/battle_pass_model.dart';
+import '../config/strings.dart';
 import '../widgets/streak_reward_popup.dart';
+import '../widgets/offline_banner.dart';
 import 'home/home_screen.dart';
 import 'challenges/challenges_screen.dart';
 import 'create/create_challenge_screen.dart';
@@ -201,9 +203,16 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
+      body: Column(
+        children: [
+          const OfflineBanner(),
+          Expanded(
+            child: IndexedStack(
+              index: _currentIndex,
+              children: _screens,
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: Consumer2<ChallengeProvider, NotificationProvider>(
         builder: (context, challengeProvider, notificationProvider, _) {
@@ -240,65 +249,87 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               const NavigationDestination(
                 icon: Icon(Icons.home_outlined),
                 selectedIcon: Icon(Icons.home),
-                label: 'Home',
+                label: AppStrings.home,
               ),
               NavigationDestination(
-                icon: Badge(
-                  isLabelVisible: challengeProvider.pendingCount > 0,
-                  label: Text('${challengeProvider.pendingCount}'),
-                  child: const Icon(Icons.local_fire_department_outlined),
+                icon: Semantics(
+                  label: challengeProvider.pendingCount > 0
+                      ? 'Challenges, ${challengeProvider.pendingCount} pending'
+                      : 'Challenges',
+                  excludeSemantics: true,
+                  child: Badge(
+                    isLabelVisible: challengeProvider.pendingCount > 0,
+                    label: Text('${challengeProvider.pendingCount}'),
+                    child: const Icon(Icons.local_fire_department_outlined),
+                  ),
                 ),
-                selectedIcon: Badge(
-                  isLabelVisible: challengeProvider.pendingCount > 0,
-                  label: Text('${challengeProvider.pendingCount}'),
-                  child: const Icon(Icons.local_fire_department),
+                selectedIcon: Semantics(
+                  label: challengeProvider.pendingCount > 0
+                      ? 'Challenges, ${challengeProvider.pendingCount} pending'
+                      : 'Challenges',
+                  excludeSemantics: true,
+                  child: Badge(
+                    isLabelVisible: challengeProvider.pendingCount > 0,
+                    label: Text('${challengeProvider.pendingCount}'),
+                    child: const Icon(Icons.local_fire_department),
+                  ),
                 ),
-                label: 'Challenges',
+                label: AppStrings.challenges,
               ),
               NavigationDestination(
-                icon: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    gradient: RivlColors.primaryGradient,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: RivlColors.primary.withOpacity(0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                icon: Semantics(
+                  label: 'Create new challenge',
+                  button: true,
+                  excludeSemantics: true,
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      gradient: RivlColors.primaryGradient,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: RivlColors.primary.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.add, color: Colors.white, size: 24),
                   ),
-                  child: const Icon(Icons.add, color: Colors.white, size: 24),
                 ),
-                selectedIcon: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    gradient: RivlColors.primaryDeepGradient,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: RivlColors.primary.withOpacity(0.4),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                selectedIcon: Semantics(
+                  label: 'Create new challenge',
+                  button: true,
+                  excludeSemantics: true,
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      gradient: RivlColors.primaryDeepGradient,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: RivlColors.primary.withOpacity(0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.add, color: Colors.white, size: 26),
                   ),
-                  child: const Icon(Icons.add, color: Colors.white, size: 26),
                 ),
-                label: 'Create',
+                label: AppStrings.create,
               ),
               const NavigationDestination(
                 icon: Icon(Icons.dynamic_feed_outlined),
                 selectedIcon: Icon(Icons.dynamic_feed),
-                label: 'Hub',
+                label: AppStrings.hub,
               ),
               const NavigationDestination(
                 icon: Icon(Icons.person_outlined),
                 selectedIcon: Icon(Icons.person),
-                label: 'Profile',
+                label: AppStrings.profile,
               ),
             ],
             ),

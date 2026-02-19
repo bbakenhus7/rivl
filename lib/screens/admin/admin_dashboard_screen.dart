@@ -7,6 +7,7 @@ import '../../models/challenge_model.dart';
 import '../../models/user_model.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
+import '../../widgets/cached_avatar.dart';
 
 /// Hardcoded admin UIDs. In production, use a Firestore 'admins' collection or custom claims.
 const _adminUids = <String>{
@@ -361,13 +362,9 @@ class _UserCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundImage: user.profileImageUrl != null
-              ? NetworkImage(user.profileImageUrl!)
-              : null,
-          child: user.profileImageUrl == null
-              ? Text((user.displayName.isNotEmpty ? user.displayName[0] : '?').toUpperCase())
-              : null,
+        leading: CachedAvatar(
+          imageUrl: user.profileImageUrl,
+          displayName: user.displayName,
         ),
         title: Text(user.displayName),
         subtitle: Text(

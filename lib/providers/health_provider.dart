@@ -21,6 +21,11 @@ class HealthProvider extends ChangeNotifier {
   HealthMetrics _metrics = HealthMetrics.demo();
   String? _errorMessage;
 
+  /// True when the most recent health metrics fetch fell back to demo data,
+  /// either because the platform is unsupported, authorization failed, or a
+  /// catch block returned HealthMetrics.demo().
+  bool _isUsingDemoData = true;
+
   /// True when the platform supports health data (iOS / Android, not web).
   bool get isHealthSupported =>
       !kIsWeb &&
@@ -38,7 +43,11 @@ class HealthProvider extends ChangeNotifier {
   }
 
   /// True when displayed health data is demo/placeholder (not from HealthKit/Google Fit).
-  bool get isDemoData => !_isAuthorized;
+  /// Covers both "not authorized" and "authorized but fetch failed" cases.
+  bool get isUsingDemoData => _isUsingDemoData;
+
+  /// Keep the old getter for backward compat with existing UI code.
+  bool get isDemoData => _isUsingDemoData;
 
   // Quick access to common metrics
   int get todaySteps => _metrics.steps;
@@ -81,6 +90,7 @@ class HealthProvider extends ChangeNotifier {
     if (!isHealthSupported) {
       // On unsupported platforms, stay on demo data without error.
       _isAuthorized = false;
+      _isUsingDemoData = true;
       _metrics = HealthMetrics.demo();
       _safeNotify();
       return false;
@@ -97,6 +107,7 @@ class HealthProvider extends ChangeNotifier {
     } catch (e) {
       _errorMessage = 'Failed to connect to health services';
       _isAuthorized = false;
+      _isUsingDemoData = true;
     }
 
     _isLoading = false;
@@ -118,6 +129,7 @@ class HealthProvider extends ChangeNotifier {
       await checkAuthorization();
       if (!_isAuthorized) {
         // Use demo data if not authorized
+        _isUsingDemoData = true;
         _metrics = HealthMetrics.demo();
         _safeNotify();
         return;
@@ -130,6 +142,7 @@ class HealthProvider extends ChangeNotifier {
 
     try {
       _metrics = await _healthService.getHealthMetrics();
+      _isUsingDemoData = false;
 
       // Award daily health sync XP (once per day)
       final today = DateTime.now();
@@ -147,6 +160,7 @@ class HealthProvider extends ChangeNotifier {
       }
     } catch (e) {
       _errorMessage = 'Failed to fetch health data';
+      _isUsingDemoData = true;
       _metrics = HealthMetrics.demo();
     }
 
@@ -217,6 +231,32 @@ class HealthProvider extends ChangeNotifier {
     _disposed = true;
     _autoRefreshTimer?.cancel();
     super.dispose();
+  }
+
+  // ============================================
+  // DEMO DATA DETECTION FOR CHALLENGES
+  // ============================================
+
+  /// Whether challenge progress for the given [goalType] would use demo data.
+  /// Returns true when the platform is not authorized OR the goal type has no
+  /// real health-data implementation yet (zone2Cardio, pace goals, rivlHealthScore).
+  bool isChallengeUsingDemoData(GoalType goalType) {
+    if (_isUsingDemoData) return true;
+
+    // These goal types always fall back to demo data in HealthService,
+    // even when the user is authorized.
+    switch (goalType) {
+      case GoalType.zone2Cardio:
+      case GoalType.milePace:
+      case GoalType.fiveKPace:
+      case GoalType.tenKPace:
+      case GoalType.rivlHealthScore:
+        return true;
+      case GoalType.steps:
+      case GoalType.distance:
+      case GoalType.sleepDuration:
+        return false;
+    }
   }
 
   // ============================================

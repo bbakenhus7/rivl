@@ -10,6 +10,7 @@ import '../../providers/streak_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../widgets/add_funds_sheet.dart';
+import '../../widgets/skeleton_loader.dart';
 import '../../providers/theme_provider.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
@@ -159,39 +160,109 @@ class _HomeScreenState extends State<HomeScreen> {
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            // App Bar with RIVL Logo
+            // App Bar with RIVL Logo — condenses on scroll
             SliverAppBar(
-              expandedHeight: 0,
-              floating: true,
+              expandedHeight: 180,
+              floating: false,
               pinned: true,
               backgroundColor: RivlColors.primaryDark,
-              flexibleSpace: Container(
-                decoration: const BoxDecoration(
-                  gradient: RivlColors.primaryDeepGradient,
-                ),
-              ),
-              title: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const RivlLogo(size: 28),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'RIVL',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 2,
+              flexibleSpace: LayoutBuilder(
+                builder: (context, constraints) {
+                  final top = constraints.biggest.height;
+                  final statusBarHeight = MediaQuery.of(context).padding.top;
+                  final collapsedHeight = kToolbarHeight + statusBarHeight;
+                  final expandedHeight = 180 + statusBarHeight;
+                  // 0.0 = fully collapsed, 1.0 = fully expanded
+                  final t = ((top - collapsedHeight) / (expandedHeight - collapsedHeight)).clamp(0.0, 1.0);
+
+                  // Interpolated sizes
+                  final logoSize = 28.0 + (36.0 * t);       // 28 → 64
+                  final titleFontSize = 18.0 + (10.0 * t);  // 18 → 28
+                  final letterSpacing = 2.0 + (4.0 * t);    // 2 → 6
+
+                  return Container(
+                    decoration: const BoxDecoration(
+                      gradient: RivlColors.primaryDeepGradient,
                     ),
-                  ),
-                ],
+                    child: SafeArea(
+                      child: t > 0.3
+                          // --- EXPANDED: centered column layout ---
+                          ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(height: 8 * t),
+                                Semantics(
+                                  label: 'RIVL logo',
+                                  excludeSemantics: true,
+                                  child: RivlLogo(size: logoSize),
+                                ),
+                                SizedBox(height: 8 * t + 4),
+                                Text(
+                                  'RIVL',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: titleFontSize,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: letterSpacing,
+                                  ),
+                                ),
+                                if (t > 0.6) ...[
+                                  SizedBox(height: 4 * t),
+                                  Opacity(
+                                    opacity: ((t - 0.6) / 0.4).clamp(0.0, 1.0),
+                                    child: Text(
+                                      'Compete. Win. Earn.',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.6),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        letterSpacing: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            )
+                          // --- COLLAPSED: compact row in app bar ---
+                          : Padding(
+                              padding: const EdgeInsets.only(left: 16, right: 56),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Semantics(
+                                      label: 'RIVL logo',
+                                      excludeSemantics: true,
+                                      child: const RivlLogo(size: 28),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      'RIVL',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 2,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                    ),
+                  );
+                },
               ),
               actions: [
                 // Streak badge
                 Consumer<StreakProvider>(
                   builder: (context, streak, _) {
                     if (streak.currentStreak <= 0) return const SizedBox.shrink();
-                    return Padding(
+                    return Semantics(
+                      label: '${streak.currentStreak} day streak',
+                      excludeSemantics: true,
+                      child: Padding(
                       padding: const EdgeInsets.only(right: 4),
                       child: Chip(
                         avatar: const Icon(Icons.whatshot, color: RivlColors.streak, size: 18),
@@ -208,6 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: EdgeInsets.zero,
                         visualDensity: VisualDensity.compact,
                       ),
+                    ),
                     );
                   },
                 ),
@@ -220,6 +292,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         label: Text('${notif.unreadCount}'),
                         child: const Icon(Icons.notifications_outlined, color: Colors.white),
                       ),
+                      tooltip: notif.hasUnread
+                          ? '${notif.unreadCount} unread notifications'
+                          : 'Notifications',
                       onPressed: () {
                         Navigator.push(
                           context,
@@ -233,6 +308,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Consumer<ThemeProvider>(
                   builder: (context, themeProv, _) {
                     return PopupMenuButton<ThemeMode>(
+                      tooltip: 'Change theme',
                       icon: Icon(
                         themeProv.themeMode == ThemeMode.light
                             ? Icons.light_mode
@@ -272,6 +348,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Info button
                 IconButton(
                   icon: const Icon(Icons.info_outline, color: Colors.white),
+                  tooltip: 'About RIVL',
                   onPressed: () => _showAppInfo(context),
                 ),
               ],
@@ -289,51 +366,53 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Demo data banner (when health data isn't authorized)
+                  // Demo data banner (when health data is sample/fake)
                   Consumer<HealthProvider>(
                     builder: (context, health, _) {
-                      if (!health.isDemoData) return const SizedBox.shrink();
+                      if (!health.isUsingDemoData) return const SizedBox.shrink();
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: FadeIn(
-                          child: GestureDetector(
-                            onTap: () => health.requestAuthorization(),
+                          child: Semantics(
+                            label: 'Showing sample health data. Tap Connect to link Apple Health or Google Fit.',
+                            button: true,
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 10),
+                                  horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
-                                color: RivlColors.warning.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(12),
+                                color: RivlColors.warning.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
-                                  color: RivlColors.warning.withOpacity(0.3),
+                                  color: RivlColors.warning.withOpacity(0.25),
                                 ),
                               ),
                               child: Row(
                                 children: [
-                                  Icon(Icons.science_outlined,
-                                      size: 18, color: RivlColors.warning),
-                                  const SizedBox(width: 10),
+                                  Icon(Icons.info_outline,
+                                      size: 16, color: RivlColors.warning),
+                                  const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      'Showing demo health data',
+                                      'Showing sample data. Connect Apple Health or Google Fit for real metrics.',
                                       style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
                                         color: RivlColors.warning,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                   ),
-                                  Text(
-                                    'Tap to connect',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: RivlColors.warning,
-                                      fontWeight: FontWeight.w500,
+                                  GestureDetector(
+                                    onTap: () => health.requestAuthorization(),
+                                    child: Text(
+                                      'Connect',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: RivlColors.primary,
+                                        fontWeight: FontWeight.w700,
+                                        decoration: TextDecoration.underline,
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(width: 4),
-                                  Icon(Icons.arrow_forward_ios,
-                                      size: 12, color: RivlColors.warning),
                                 ],
                               ),
                             ),
@@ -452,24 +531,37 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
 
-                  // RIVL Health Score Card
-                  StaggeredListAnimation(
-                    index: 1,
-                    child: const _RivlHealthScoreCard(),
-                  ),
-                  const SizedBox(height: 16),
+                  // RIVL Health Score Card, Activity Rings, Health Categories
+                  // Show skeleton placeholders while health data is loading
+                  Consumer<HealthProvider>(
+                    builder: (context, health, _) {
+                      if (health.isLoading) {
+                        return const _HomeScreenSkeleton();
+                      }
+                      return Column(
+                        children: [
+                          // RIVL Health Score Card
+                          StaggeredListAnimation(
+                            index: 1,
+                            child: const _RivlHealthScoreCard(),
+                          ),
+                          const SizedBox(height: 16),
 
-                  // Activity Rings (standalone)
-                  StaggeredListAnimation(
-                    index: 2,
-                    child: const _ActivityBarsCard(),
-                  ),
-                  const SizedBox(height: 16),
+                          // Activity Rings (standalone)
+                          StaggeredListAnimation(
+                            index: 2,
+                            child: const _ActivityBarsCard(),
+                          ),
+                          const SizedBox(height: 16),
 
-                  // Health Category Tiles (2x2 grid)
-                  StaggeredListAnimation(
-                    index: 3,
-                    child: const _HealthCategoryGrid(),
+                          // Health Category Tiles (2x2 grid)
+                          StaggeredListAnimation(
+                            index: 3,
+                            child: const _HealthCategoryGrid(),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
 
@@ -549,7 +641,10 @@ class _RivlHealthScoreCard extends StatelessWidget {
         final grade = health.rivlHealthGrade;
         final color = _getGradeColor(grade);
 
-        return GestureDetector(
+        return Semantics(
+          label: 'RIVL Health Score: $score out of 100, grade $grade. Tap for details',
+          button: true,
+          child: GestureDetector(
           onTap: () {
             Navigator.push(
               context,
@@ -688,6 +783,7 @@ class _RivlHealthScoreCard extends StatelessWidget {
               ],
             ),
           ),
+        ),
         );
       },
     );
@@ -1080,7 +1176,10 @@ class _CategoryTile extends StatelessWidget {
       builder: (context, health, _) {
         final preview = _getPreview(health);
 
-        return GestureDetector(
+        return Semantics(
+          label: '${config.name}: ${preview.heroValue} ${preview.heroLabel}. Tap for details',
+          button: true,
+          child: GestureDetector(
           onTap: () {
             Navigator.push(
               context,
@@ -1194,6 +1293,7 @@ class _CategoryTile extends StatelessWidget {
               ],
             ),
           ),
+        ),
         );
       },
     );
@@ -1361,6 +1461,52 @@ class _GlanceStat extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Skeleton placeholder shown while health data is loading
+class _HomeScreenSkeleton extends StatelessWidget {
+  const _HomeScreenSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerEffect(
+      child: Padding(
+        padding: const EdgeInsets.only(top: 0),
+        child: Column(
+          children: [
+            // Health score card skeleton
+            SkeletonBox(height: 200, width: double.infinity, borderRadius: 16),
+            const SizedBox(height: 16),
+            // Activity rings card skeleton
+            SkeletonBox(height: 280, width: double.infinity, borderRadius: 24),
+            const SizedBox(height: 16),
+            // Health Categories header skeleton
+            Align(
+              alignment: Alignment.centerLeft,
+              child: SkeletonBox(height: 18, width: 140, borderRadius: 6),
+            ),
+            const SizedBox(height: 12),
+            // Category grid skeleton (2x2)
+            Row(
+              children: [
+                Expanded(child: SkeletonBox(height: 160, borderRadius: 20)),
+                const SizedBox(width: 12),
+                Expanded(child: SkeletonBox(height: 160, borderRadius: 20)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(child: SkeletonBox(height: 160, borderRadius: 20)),
+                const SizedBox(width: 12),
+                Expanded(child: SkeletonBox(height: 160, borderRadius: 20)),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

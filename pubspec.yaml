@@ -17,6 +17,7 @@ dependencies:
   cloud_functions: ^6.0.6
   firebase_messaging: ^16.1.1
   firebase_analytics: ^12.1.1
+  firebase_crashlytics: ^5.0.7
   
   # Authentication
   sign_in_with_apple: ^7.0.1
@@ -27,6 +28,9 @@ dependencies:
   
   # State Management
   provider: ^6.1.1
+
+  # Routing
+  go_router: ^14.8.1
   
   # Payments
   flutter_stripe: ^12.1.1
@@ -42,6 +46,7 @@ dependencies:
   shared_preferences: ^2.2.2
   url_launcher: ^6.2.4
   share_plus: ^12.0.1
+  connectivity_plus: ^6.0.0
   
   # Icons
   cupertino_icons: ^1.0.6

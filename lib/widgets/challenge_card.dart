@@ -48,7 +48,20 @@ class ChallengeCard extends StatelessWidget {
       accentColor = RivlColors.primary;
     }
 
-    return ScaleOnTap(
+    final String challengeLabel = challenge.isTeamVsTeam
+        ? '${challenge.teamA?.name ?? "Squad"} vs ${challenge.teamB?.name ?? "Squad"}'
+        : 'Challenge vs ${challenge.opponentName ?? "Opponent"}';
+    final String statusLabel = '${challenge.statusDisplayName}'
+        '${challenge.status == ChallengeStatus.active ? ", ${challenge.timeRemaining} remaining" : ""}';
+    final String prizeLabel = challenge.stakeAmount == 0
+        ? 'Free challenge'
+        : '\$${challenge.prizeAmount.toInt()} prize';
+
+    return Semantics(
+      label: '$challengeLabel. $statusLabel. $prizeLabel',
+      button: true,
+      enabled: onTap != null,
+      child: ScaleOnTap(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
@@ -232,23 +245,27 @@ class ChallengeCard extends StatelessWidget {
                       children: [
                         if (onDecline != null)
                           Expanded(
-                            child: ScaleOnTap(
-                              onTap: onDecline,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: context.textSecondary.withOpacity(0.3),
+                            child: Semantics(
+                              label: 'Decline challenge',
+                              button: true,
+                              child: ScaleOnTap(
+                                onTap: onDecline,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: context.textSecondary.withOpacity(0.3),
+                                    ),
                                   ),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    'Decline',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                      color: context.textSecondary,
+                                  child: Center(
+                                    child: Text(
+                                      'Decline',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                        color: context.textSecondary,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -260,23 +277,27 @@ class ChallengeCard extends StatelessWidget {
                         if (onAccept != null)
                           Expanded(
                             flex: 2,
-                            child: ScaleOnTap(
-                              onTap: onAccept,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [RivlColors.primary, RivlColors.primaryLight],
+                            child: Semantics(
+                              label: 'Accept challenge',
+                              button: true,
+                              child: ScaleOnTap(
+                                onTap: onAccept,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [RivlColors.primary, RivlColors.primaryLight],
+                                    ),
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Center(
-                                  child: Text(
-                                    'Accept Challenge',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13,
-                                      color: Colors.white,
+                                  child: const Center(
+                                    child: Text(
+                                      'Accept Challenge',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -333,6 +354,7 @@ class ChallengeCard extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }

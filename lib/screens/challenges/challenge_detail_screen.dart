@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/challenge_provider.dart';
+import '../../providers/health_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
@@ -196,6 +197,61 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+
+                  // -- Demo data warning for challenge progress --
+                  Consumer<HealthProvider>(
+                    builder: (context, healthProvider, _) {
+                      if (!healthProvider.isChallengeUsingDemoData(challenge.goalType)) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: RivlColors.warning.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: RivlColors.warning.withOpacity(0.25),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline,
+                                  size: 16, color: RivlColors.warning),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  healthProvider.isAuthorized
+                                      ? 'Progress for ${challenge.goalType.displayName} uses sample data (not yet supported).'
+                                      : 'Showing sample progress. Connect Apple Health or Google Fit for real data.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: RivlColors.warning,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              if (!healthProvider.isAuthorized)
+                                GestureDetector(
+                                  onTap: () => healthProvider.requestAuthorization(),
+                                  child: Text(
+                                    'Connect',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: RivlColors.primary,
+                                      fontWeight: FontWeight.w700,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
 
                   // -- Animated prize amount --
                   SlideIn(

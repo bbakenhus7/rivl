@@ -10,6 +10,7 @@ import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../../widgets/challenge_card.dart';
 import '../../widgets/add_funds_sheet.dart';
+import '../../widgets/skeleton_loader.dart';
 import '../../widgets/confetti_celebration.dart';
 import 'challenge_detail_screen.dart';
 
@@ -51,7 +52,11 @@ class _ChallengesScreenState extends State<ChallengesScreen> with SingleTickerPr
           tabs: [
             Tab(
               child: Consumer<ChallengeProvider>(
-                builder: (context, p, _) => Row(
+                builder: (context, p, _) => Semantics(
+                  label: p.activeChallenges.isNotEmpty
+                      ? 'Active, ${p.activeChallenges.length} challenges'
+                      : 'Active',
+                  child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text('Active'),
@@ -75,11 +80,16 @@ class _ChallengesScreenState extends State<ChallengesScreen> with SingleTickerPr
                     ],
                   ],
                 ),
+                ),
               ),
             ),
             Tab(
               child: Consumer<ChallengeProvider>(
-                builder: (context, p, _) => Row(
+                builder: (context, p, _) => Semantics(
+                  label: p.pendingChallenges.isNotEmpty
+                      ? 'Pending, ${p.pendingChallenges.length} challenges'
+                      : 'Pending',
+                  child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text('Pending'),
@@ -102,6 +112,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> with SingleTickerPr
                       ),
                     ],
                   ],
+                ),
                 ),
               ),
             ),
@@ -130,9 +141,16 @@ class _ChallengeList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<ChallengeProvider>(
       builder: (context, provider, _) {
-        // Show loading spinner on initial load
+        // Show skeleton cards on initial load
         if (provider.isLoading && provider.challenges.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
+          return SkeletonList(
+            padding: const EdgeInsets.all(16),
+            itemCount: 4,
+            itemBuilder: (_, __) => const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: ChallengeCardSkeleton(),
+            ),
+          );
         }
 
         List<ChallengeModel> challenges;

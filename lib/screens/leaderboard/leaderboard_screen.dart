@@ -7,6 +7,7 @@ import '../../models/user_model.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../../widgets/skeleton_loader.dart';
+import '../../widgets/cached_avatar.dart';
 import '../main_screen.dart';
 
 enum LeaderboardFilter { global, friends, weekly, monthly }
@@ -366,22 +367,12 @@ class _PodiumCard extends StatelessWidget {
           Stack(
             alignment: Alignment.bottomCenter,
             children: [
-              CircleAvatar(
+              CachedAvatar(
+                imageUrl: entry.profileImageUrl,
+                displayName: entry.displayName,
                 radius: isFirst ? 40 : 32,
                 backgroundColor: color.withOpacity(0.3),
-                backgroundImage: entry.profileImageUrl != null
-                    ? NetworkImage(entry.profileImageUrl!)
-                    : null,
-                child: entry.profileImageUrl == null
-                    ? Text(
-                        (entry.displayName.isNotEmpty ? entry.displayName[0] : '?').toUpperCase(),
-                        style: TextStyle(
-                          fontSize: isFirst ? 28 : 22,
-                          fontWeight: FontWeight.bold,
-                          color: color,
-                        ),
-                      )
-                    : null,
+                textColor: color,
               ),
               Positioned(
                 bottom: -4,
@@ -507,21 +498,10 @@ class _LeaderboardTile extends StatelessWidget {
               ),
 
               // Avatar
-              CircleAvatar(
+              CachedAvatar(
+                imageUrl: entry.profileImageUrl,
+                displayName: entry.displayName,
                 radius: 22,
-                backgroundColor: RivlColors.primary.withOpacity(0.1),
-                backgroundImage: entry.profileImageUrl != null
-                    ? NetworkImage(entry.profileImageUrl!)
-                    : null,
-                child: entry.profileImageUrl == null
-                    ? Text(
-                        (entry.displayName.isNotEmpty ? entry.displayName[0] : '?').toUpperCase(),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: RivlColors.primary,
-                        ),
-                      )
-                    : null,
               ),
               const SizedBox(width: 12),
 
@@ -647,22 +627,10 @@ class _UserProfileSheet extends StatelessWidget {
                 Stack(
                   alignment: Alignment.bottomRight,
                   children: [
-                    CircleAvatar(
+                    CachedAvatar(
+                      imageUrl: entry.profileImageUrl,
+                      displayName: entry.displayName,
                       radius: 50,
-                      backgroundColor: RivlColors.primary.withOpacity(0.1),
-                      backgroundImage: entry.profileImageUrl != null
-                          ? NetworkImage(entry.profileImageUrl!)
-                          : null,
-                      child: entry.profileImageUrl == null
-                          ? Text(
-                              (entry.displayName.isNotEmpty ? entry.displayName[0] : '?').toUpperCase(),
-                              style: const TextStyle(
-                                fontSize: 36,
-                                fontWeight: FontWeight.bold,
-                                color: RivlColors.primary,
-                              ),
-                            )
-                          : null,
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(
