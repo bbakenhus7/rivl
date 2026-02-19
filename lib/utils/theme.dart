@@ -32,6 +32,9 @@ class RivlColors {
   static const Color error = Color(0xFFF44336);
   static const Color info = Color(0xFF2196F3);
 
+  /// Semantic alias for streak/urgency indicators (same as warning orange)
+  static const Color streak = warning;
+
   // Gradients
   static const LinearGradient primaryGradient = LinearGradient(
     colors: [primary, primaryLight],

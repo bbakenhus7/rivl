@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/theme.dart';
+import '../utils/animations.dart';
 import '../widgets/rivl_logo.dart';
 import 'auth/login_screen.dart';
 import 'main_screen.dart';
@@ -84,7 +85,7 @@ class _SplashScreenState extends State<SplashScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MainScreen()),
+        FadePageRoute(page: const MainScreen()),
       );
     });
   }
@@ -93,7 +94,7 @@ class _SplashScreenState extends State<SplashScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        FadePageRoute(page: const LoginScreen()),
       );
     });
   }
@@ -123,23 +124,29 @@ class _SplashScreenState extends State<SplashScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo with glow
+                // Logo — white R + heartbeat on the gradient background
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  width: 100,
+                  height: 100,
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.25),
+                      width: 1.5,
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withOpacity(0.15),
                         blurRadius: 30,
-                        spreadRadius: 5,
+                        spreadRadius: 2,
                       ),
                     ],
                   ),
-                  child: const Padding(
-                    padding: EdgeInsets.all(4),
-                    child: RivlLogo(size: 56),
+                  padding: const EdgeInsets.all(16),
+                  child: const RivlLogo(
+                    size: 68,
+                    variant: RivlLogoVariant.white,
                   ),
                 ),
                 const SizedBox(height: 32),

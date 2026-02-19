@@ -53,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       if (success && mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const MainScreen()),
+          FadePageRoute(page: const MainScreen()),
         );
         return;
       }
@@ -71,70 +71,96 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 40),
-
-              // Logo and branding
-              SlideIn(
-                delay: const Duration(milliseconds: 100),
-                child: _buildHeader(),
-              ),
-              const SizedBox(height: 48),
-
-              // Login form
-              SlideIn(
-                delay: const Duration(milliseconds: 200),
-                child: _buildForm(),
-              ),
-              const SizedBox(height: 24),
-
-              // Error message
-              if (_errorMessage != null)
-                SlideIn(
-                  child: _buildErrorMessage(),
+      body: Stack(
+        children: [
+          // Bottom-right gradient fade decoration
+          Positioned(
+            bottom: -80,
+            right: -80,
+            child: Container(
+              width: 320,
+              height: 320,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    RivlColors.primary.withOpacity(0.12),
+                    RivlColors.primary.withOpacity(0.04),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.5, 1.0],
                 ),
-
-              // Login button
-              SlideIn(
-                delay: const Duration(milliseconds: 300),
-                child: _buildLoginButton(),
               ),
-              const SizedBox(height: 16),
-
-              // Forgot password
-              SlideIn(
-                delay: const Duration(milliseconds: 350),
-                child: _buildForgotPassword(),
-              ),
-              const SizedBox(height: 32),
-
-              // Divider
-              SlideIn(
-                delay: const Duration(milliseconds: 400),
-                child: _buildDivider(),
-              ),
-              const SizedBox(height: 32),
-
-              // Social login buttons
-              SlideIn(
-                delay: const Duration(milliseconds: 450),
-                child: _buildSocialLogin(),
-              ),
-              const SizedBox(height: 32),
-
-              // Sign up link
-              SlideIn(
-                delay: const Duration(milliseconds: 500),
-                child: _buildSignUpLink(),
-              ),
-            ],
+            ),
           ),
-        ),
+
+          // Main content
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 40),
+
+                  // Logo and branding
+                  SlideIn(
+                    delay: const Duration(milliseconds: 100),
+                    child: _buildHeader(),
+                  ),
+                  const SizedBox(height: 48),
+
+                  // Login form
+                  SlideIn(
+                    delay: const Duration(milliseconds: 200),
+                    child: _buildForm(),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Error message
+                  if (_errorMessage != null)
+                    SlideIn(
+                      child: _buildErrorMessage(),
+                    ),
+
+                  // Login button
+                  SlideIn(
+                    delay: const Duration(milliseconds: 300),
+                    child: _buildLoginButton(),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Forgot password
+                  SlideIn(
+                    delay: const Duration(milliseconds: 350),
+                    child: _buildForgotPassword(),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Divider
+                  SlideIn(
+                    delay: const Duration(milliseconds: 400),
+                    child: _buildDivider(),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Social login buttons
+                  SlideIn(
+                    delay: const Duration(milliseconds: 450),
+                    child: _buildSocialLogin(),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Sign up link
+                  SlideIn(
+                    delay: const Duration(milliseconds: 500),
+                    child: _buildSignUpLink(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -142,26 +168,21 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildHeader() {
     return Column(
       children: [
-        // Logo
+        // App-store-ready logo (SVG includes its own rounded background)
         Container(
-          width: 80,
-          height: 80,
           decoration: BoxDecoration(
-            gradient: RivlColors.primaryGradient,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                color: RivlColors.primary.withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+                color: RivlColors.primary.withOpacity(0.25),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
-          padding: const EdgeInsets.all(12),
-          child: const RivlLogo(
-            size: 56,
-            color: Colors.white,
-            colorBlendMode: BlendMode.srcIn,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: const RivlLogo(size: 88),
           ),
         ),
         const SizedBox(height: 24),
@@ -387,9 +408,7 @@ class _LoginScreenState extends State<LoginScreen> {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const ForgotPasswordScreen(),
-            ),
+            SlidePageRoute(page: const ForgotPasswordScreen()),
           );
         },
         child: const Text('Forgot Password?'),
@@ -437,7 +456,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     await context.read<AuthProvider>().signInWithApple();
                 if (success && mounted) {
                   Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const MainScreen()),
+                    FadePageRoute(page: const MainScreen()),
                   );
                   return;
                 }
@@ -476,7 +495,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     await context.read<AuthProvider>().signInWithGoogle();
                 if (success && mounted) {
                   Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const MainScreen()),
+                    FadePageRoute(page: const MainScreen()),
                   );
                   return;
                 }
@@ -515,9 +534,7 @@ class _LoginScreenState extends State<LoginScreen> {
           onPressed: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const SignUpScreen(),
-              ),
+              SlidePageRoute(page: const SignUpScreen()),
             );
           },
           style: TextButton.styleFrom(

@@ -12,6 +12,7 @@ import '../../models/user_model.dart';
 import '../../services/firebase_service.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
+import '../../widgets/section_header.dart';
 import '../wallet/wallet_screen.dart';
 import '../notifications/notifications_screen.dart';
 import 'health_connection_screen.dart';
@@ -314,15 +315,13 @@ class _WalletQuickAccess extends StatelessWidget {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const WalletScreen()),
+              SlidePageRoute(page: const WalletScreen()),
             );
           },
           child: Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF2E7D32), Color(0xFF43A047)],
-              ),
+              gradient: RivlColors.successGradient,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
@@ -392,7 +391,7 @@ class _DetailedStats extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Performance', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          const SectionHeader(title: 'Performance'),
           const SizedBox(height: 16),
           _StatRow(
             icon: Icons.local_fire_department,
@@ -1203,15 +1202,12 @@ class _AchievementsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Achievements', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-              Text(
-                '${achievements.where((a) => a.unlocked).length}/${achievements.length}',
-                style: TextStyle(fontSize: 13, color: context.textSecondary, fontWeight: FontWeight.w500),
-              ),
-            ],
+          SectionHeader(
+            title: 'Achievements',
+            trailing: Text(
+              '${achievements.where((a) => a.unlocked).length}/${achievements.length}',
+              style: TextStyle(fontSize: 13, color: context.textSecondary, fontWeight: FontWeight.w500),
+            ),
           ),
           const SizedBox(height: 14),
           Wrap(
@@ -1406,7 +1402,7 @@ class _AccountActions extends StatelessWidget {
                 badge: requestCount > 0 ? '$requestCount' : null,
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const FriendsScreen()),
+                  SlidePageRoute(page: const FriendsScreen()),
                 ),
               );
             },
@@ -1417,7 +1413,7 @@ class _AccountActions extends StatelessWidget {
             label: 'Health App Connection',
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const HealthConnectionScreen()),
+              SlidePageRoute(page: const HealthConnectionScreen()),
             ),
           ),
           Divider(height: 1, indent: 56, color: context.surfaceVariant),
@@ -1426,7 +1422,7 @@ class _AccountActions extends StatelessWidget {
             label: 'Notifications',
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+              SlidePageRoute(page: const NotificationsScreen()),
             ),
           ),
           Divider(height: 1, indent: 56, color: context.surfaceVariant),
@@ -1435,7 +1431,7 @@ class _AccountActions extends StatelessWidget {
             label: 'Help & Support',
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
+              SlidePageRoute(page: const HelpSupportScreen()),
             ),
           ),
         ],
@@ -1545,7 +1541,7 @@ class _SettingsSheet extends StatelessWidget {
               await context.read<AuthProvider>().signOut();
               if (context.mounted) {
                 Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  FadePageRoute(page: const LoginScreen()),
                   (route) => false,
                 );
               }

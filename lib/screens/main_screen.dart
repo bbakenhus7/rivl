@@ -255,9 +255,39 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 ),
                 label: 'Challenges',
               ),
-              const NavigationDestination(
-                icon: Icon(Icons.add_circle_outline, size: 32),
-                selectedIcon: Icon(Icons.add_circle, size: 32),
+              NavigationDestination(
+                icon: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    gradient: RivlColors.primaryGradient,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: RivlColors.primary.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.add, color: Colors.white, size: 24),
+                ),
+                selectedIcon: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    gradient: RivlColors.primaryDeepGradient,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: RivlColors.primary.withOpacity(0.4),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.add, color: Colors.white, size: 26),
+                ),
                 label: 'Create',
               ),
               const NavigationDestination(

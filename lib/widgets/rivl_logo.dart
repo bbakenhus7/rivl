@@ -1,34 +1,47 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 /// Reusable RIVL logo widget.
 ///
-/// Displays the app icon: purple split background, white R lettermark,
-/// and green heartbeat ECG line.
+/// Displays the app icon SVG: rounded purple gradient background,
+/// white R lettermark, and green heartbeat ECG accent line.
+///
+/// Set [variant] to [RivlLogoVariant.white] for the white-only
+/// version (no background) — ideal for placing on coloured surfaces.
+enum RivlLogoVariant { full, white }
+
 class RivlLogo extends StatelessWidget {
   final double size;
-  final Color? color;
-  final BlendMode? colorBlendMode;
+  final RivlLogoVariant variant;
 
   const RivlLogo({
     super.key,
     required this.size,
-    this.color,
-    this.colorBlendMode,
+    this.variant = RivlLogoVariant.full,
+    // Kept for backward compat — ignored now that we use SVG
+    Color? color,
+    BlendMode? colorBlendMode,
   });
+
+  String get _asset => variant == RivlLogoVariant.white
+      ? 'assets/images/rivl_logo_white.svg'
+      : 'assets/images/rivl_logo.svg';
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      'assets/images/rivl_logo.png',
+    return SvgPicture.asset(
+      _asset,
       width: size,
       height: size,
       fit: BoxFit.contain,
-      color: color,
-      colorBlendMode: colorBlendMode,
-      errorBuilder: (_, __, ___) => Icon(
-        Icons.sports_score,
-        size: size,
-        color: color ?? Theme.of(context).colorScheme.primary,
+      placeholderBuilder: (_) => SizedBox(
+        width: size,
+        height: size,
+        child: Icon(
+          Icons.sports_score,
+          size: size * 0.6,
+          color: Theme.of(context).colorScheme.primary,
+        ),
       ),
     );
   }

@@ -16,6 +16,8 @@ import '../../utils/animations.dart';
 
 import '../../models/health_category.dart';
 import '../../widgets/challenge_card.dart';
+import '../../widgets/section_header.dart';
+import '../../widgets/rivl_logo.dart';
 import '../challenges/challenge_detail_screen.dart';
 import '../main_screen.dart';
 import '../notifications/notifications_screen.dart';
@@ -163,14 +165,21 @@ class _HomeScreenState extends State<HomeScreen> {
               floating: true,
               pinned: true,
               backgroundColor: RivlColors.primaryDark,
-              title: const Text(
-                'RIVL',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 2,
-                ),
+              title: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const RivlLogo(size: 28),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'RIVL',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
               ),
               flexibleSpace: FlexibleSpaceBar(
                 background: Container(
@@ -178,30 +187,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     gradient: RivlColors.primaryDeepGradient,
                   ),
                   child: SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'RIVL',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 2,
-                            ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const RivlLogo(
+                          size: 48,
+                          variant: RivlLogoVariant.white,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Compete. Win. Earn.',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.85),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 0.5,
                           ),
-                          Text(
-                            'AI-Powered Fitness Competition',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -214,7 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     return Padding(
                       padding: const EdgeInsets.only(right: 4),
                       child: Chip(
-                        avatar: const Icon(Icons.whatshot, color: Colors.orange, size: 18),
+                        avatar: const Icon(Icons.whatshot, color: RivlColors.streak, size: 18),
                         label: Text(
                           '${streak.currentStreak}',
                           style: const TextStyle(
@@ -243,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                          SlidePageRoute(page: const NotificationsScreen()),
                         );
                       },
                     );
@@ -322,16 +325,16 @@ class _HomeScreenState extends State<HomeScreen> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 14, vertical: 10),
                               decoration: BoxDecoration(
-                                color: Colors.amber.withOpacity(0.12),
+                                color: RivlColors.warning.withOpacity(0.12),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: Colors.amber.withOpacity(0.3),
+                                  color: RivlColors.warning.withOpacity(0.3),
                                 ),
                               ),
                               child: Row(
                                 children: [
                                   Icon(Icons.science_outlined,
-                                      size: 18, color: Colors.amber[800]),
+                                      size: 18, color: RivlColors.warning),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
@@ -339,7 +342,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
-                                        color: Colors.amber[800],
+                                        color: RivlColors.warning,
                                       ),
                                     ),
                                   ),
@@ -347,13 +350,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                     'Tap to connect',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.amber[700],
+                                      color: RivlColors.warning,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                   const SizedBox(width: 4),
                                   Icon(Icons.arrow_forward_ios,
-                                      size: 12, color: Colors.amber[700]),
+                                      size: 12, color: RivlColors.warning),
                                 ],
                               ),
                             ),
@@ -374,21 +377,21 @@ class _HomeScreenState extends State<HomeScreen> {
                           FadeIn(
                             child: Row(
                               children: [
-                                Icon(Icons.notifications_active, size: 18, color: Colors.orange),
+                                Icon(Icons.notifications_active, size: 18, color: RivlColors.warning),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Action Required',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.orange[700],
+                                    color: RivlColors.warning,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: Colors.orange.withOpacity(0.15),
+                                    color: RivlColors.warning.withOpacity(0.15),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(
@@ -396,7 +399,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.orange,
+                                      color: RivlColors.warning,
                                     ),
                                   ),
                                 ),
@@ -415,9 +418,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   onTap: () {
                                     Navigator.push(
                                       context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            ChallengeDetailScreen(challengeId: challenge.id),
+                                      SlidePageRoute(
+                                        page: ChallengeDetailScreen(challengeId: challenge.id),
                                       ),
                                     );
                                   },
@@ -505,15 +507,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Active Challenges', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                TextButton(
-                                  onPressed: () => MainScreen.onTabSelected?.call(1),
-                                  child: const Text('See All'),
-                                ),
-                              ],
+                            SectionHeader(
+                              title: 'Active Challenges',
+                              actionLabel: 'See All',
+                              onAction: () => MainScreen.onTabSelected?.call(1),
                             ),
                             const SizedBox(height: 12),
                             ...provider.activeChallenges.take(2).map((challenge) {
@@ -525,8 +522,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   onTap: () {
                                     Navigator.push(
                                       context,
-                                      MaterialPageRoute(
-                                        builder: (_) => ChallengeDetailScreen(challengeId: challenge.id),
+                                      SlidePageRoute(
+                                        page: ChallengeDetailScreen(challengeId: challenge.id),
                                       ),
                                     );
                                   },
@@ -561,7 +558,7 @@ class _RivlHealthScoreCard extends StatelessWidget {
       case 'B':
         return Colors.lightGreen;
       case 'C':
-        return Colors.orange;
+        return RivlColors.warning;
       default:
         return RivlColors.error;
     }
@@ -579,8 +576,8 @@ class _RivlHealthScoreCard extends StatelessWidget {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => HealthMetricDetailScreen(
+              SlidePageRoute(
+                page: HealthMetricDetailScreen(
                   metricType: HealthMetricType.healthScore,
                   icon: Icons.favorite_rounded,
                   label: 'RIVL Health Score',
@@ -735,7 +732,7 @@ class _ActivityBarsCard extends StatelessWidget {
 
   Color _getMotivationalColor(double stepsProgress) {
     if (stepsProgress >= 1.0) return RivlColors.success;
-    if (stepsProgress >= 0.75) return Colors.orange;
+    if (stepsProgress >= 0.75) return RivlColors.warning;
     if (stepsProgress >= 0.5) return RivlColors.primary;
     if (stepsProgress >= 0.25) return Colors.lightGreen;
     return Colors.grey;
@@ -780,39 +777,33 @@ class _ActivityBarsCard extends StatelessWidget {
           child: Column(
             children: [
               // Title row with motivational badge
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Today's Activity",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                  ),
-                  FadeIn(
-                    delay: const Duration(milliseconds: 600),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: motivationalColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(motivationalIcon, color: motivationalColor, size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            motivationalMsg,
-                            style: TextStyle(
-                              color: motivationalColor,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                            ),
+              SectionHeader(
+                title: "Today's Activity",
+                trailing: FadeIn(
+                  delay: const Duration(milliseconds: 600),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: motivationalColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(motivationalIcon, color: motivationalColor, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          motivationalMsg,
+                          style: TextStyle(
+                            color: motivationalColor,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
               const SizedBox(height: 28),
 
@@ -1065,10 +1056,7 @@ class _HealthCategoryGrid extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Health Categories',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
+        const SectionHeader(title: 'Health Categories'),
         const SizedBox(height: 12),
         GridView.count(
           shrinkWrap: true,
@@ -1119,8 +1107,8 @@ class _CategoryTile extends StatelessWidget {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => HealthCategoryDetailScreen(category: category),
+              SlidePageRoute(
+                page: HealthCategoryDetailScreen(category: category),
               ),
             );
           },
@@ -1326,7 +1314,7 @@ class _QuickGlanceRow extends StatelessWidget {
                 icon: Icons.whatshot,
                 label: 'Streak',
                 value: '${streak.currentStreak}d',
-                color: Colors.orange,
+                color: RivlColors.streak,
               ),
             ),
           ],

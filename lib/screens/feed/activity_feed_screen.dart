@@ -8,6 +8,7 @@ import '../../providers/battle_pass_provider.dart';
 import '../../models/activity_feed_model.dart';
 import '../../models/battle_pass_model.dart';
 import '../../utils/theme.dart';
+import '../../utils/animations.dart';
 import '../challenges/challenge_detail_screen.dart';
 import '../leaderboard/leaderboard_screen.dart';
 
@@ -1166,9 +1167,8 @@ class _ActivityFeedTile extends StatelessWidget {
           ? () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      ChallengeDetailScreen(challengeId: item.challengeId!),
+                SlidePageRoute(
+                  page: ChallengeDetailScreen(challengeId: item.challengeId!),
                 ),
               );
             }

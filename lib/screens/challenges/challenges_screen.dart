@@ -88,7 +88,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> with SingleTickerPr
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                         decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.15),
+                          color: RivlColors.warning.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
@@ -96,7 +96,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> with SingleTickerPr
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: Colors.orange,
+                            color: RivlColors.warning,
                           ),
                         ),
                       ),
@@ -154,7 +154,7 @@ class _ChallengeList extends StatelessWidget {
             emptyTitle = 'No pending invites';
             emptySubtitle = 'When someone challenges you,\nit will appear here.';
             emptyIcon = Icons.mail_outline;
-            emptyColor = Colors.orange;
+            emptyColor = RivlColors.warning;
             break;
           case ChallengeStatus.completed:
             challenges = provider.completedChallenges;
@@ -205,8 +205,8 @@ class _ChallengeList extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => ChallengeDetailScreen(challengeId: challenge.id),
+                        SlidePageRoute(
+                          page: ChallengeDetailScreen(challengeId: challenge.id),
                         ),
                       );
                     },
