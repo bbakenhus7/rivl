@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../providers/challenge_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../models/challenge_model.dart';
+import '../../utils/haptics.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../main_screen.dart';
@@ -115,12 +116,14 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
           if (!funded || !mounted) return;
         }
       }
+      Haptics.light();
       setState(() => _currentStep++);
     }
   }
 
   void _previousStep() {
     if (_currentStep > 0) {
+      Haptics.light();
       setState(() => _currentStep--);
     }
   }

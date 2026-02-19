@@ -12,6 +12,7 @@ import '../../providers/notification_provider.dart';
 import '../../widgets/add_funds_sheet.dart';
 import '../../widgets/skeleton_loader.dart';
 import '../../providers/theme_provider.dart';
+import '../../utils/haptics.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 
@@ -294,6 +295,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ? '${notif.unreadCount} unread notifications'
                           : 'Notifications',
                       onPressed: () {
+                        Haptics.light();
                         Navigator.push(
                           context,
                           SlidePageRoute(page: const NotificationsScreen()),
@@ -319,7 +321,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      onSelected: (mode) => themeProv.setThemeMode(mode),
+                      onSelected: (mode) {
+                        Haptics.selection();
+                        themeProv.setThemeMode(mode);
+                      },
                       itemBuilder: (_) => [
                         _themeMenuItem(
                           ThemeMode.light,
@@ -642,8 +647,9 @@ class _RivlHealthScoreCard extends StatelessWidget {
         return Semantics(
           label: 'RIVL Health Score: $score out of 100, grade $grade. Tap for details',
           button: true,
-          child: GestureDetector(
+          child: ScaleOnTap(
           onTap: () {
+            Haptics.light();
             Navigator.push(
               context,
               SlidePageRoute(
@@ -1177,8 +1183,9 @@ class _CategoryTile extends StatelessWidget {
         return Semantics(
           label: '${config.name}: ${preview.heroValue} ${preview.heroLabel}. Tap for details',
           button: true,
-          child: GestureDetector(
+          child: ScaleOnTap(
           onTap: () {
+            Haptics.light();
             Navigator.push(
               context,
               SlidePageRoute(

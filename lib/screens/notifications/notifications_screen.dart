@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../utils/haptics.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../challenges/challenge_detail_screen.dart';
@@ -23,6 +24,7 @@ class NotificationsScreen extends StatelessWidget {
               if (!provider.hasUnread) return const SizedBox.shrink();
               return TextButton(
                 onPressed: () {
+                  Haptics.light();
                   final userId = context.read<AuthProvider>().user?.id;
                   if (userId != null) {
                     provider.markAllAsRead(userId);
@@ -45,120 +47,230 @@ class NotificationsScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.notifications_none, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: context.surfaceVariant,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.notifications_none_rounded, size: 40, color: context.textSecondary),
+                  ),
+                  const SizedBox(height: 20),
                   Text(
                     'No notifications yet',
                     style: TextStyle(
                       fontSize: 18,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
+                      color: context.textPrimary,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'You\'ll see challenge updates and rewards here',
-                    style: TextStyle(color: Colors.grey[500]),
+                    'Challenge updates and rewards will appear here',
+                    style: TextStyle(color: context.textSecondary, fontSize: 14),
                   ),
                 ],
               ),
             );
           }
 
+          // Group notifications by date
+          final grouped = _groupByDate(provider.notifications);
+          final sections = grouped.entries.toList();
+
           return ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: provider.notifications.length + (provider.hasMore ? 1 : 0),
+            padding: const EdgeInsets.only(top: Spacing.sm, bottom: Spacing.xl),
+            itemCount: _countItems(sections) + (provider.hasMore ? 1 : 0),
             itemBuilder: (context, index) {
-              // "Load more" button at the end
-              if (index >= provider.notifications.length) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Center(
-                    child: provider.isLoadingMore
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : TextButton(
-                            onPressed: () => provider.loadMore(),
-                            child: const Text('Load more'),
-                          ),
-                  ),
-                );
+              // Figure out which section + item this index maps to
+              int remaining = index;
+              for (final section in sections) {
+                // Section header
+                if (remaining == 0) {
+                  return _DateHeader(label: section.key);
+                }
+                remaining--;
+                // Items in section
+                if (remaining < section.value.length) {
+                  final notification = section.value[remaining];
+                  return _NotificationTile(notification: notification, provider: provider);
+                }
+                remaining -= section.value.length;
               }
-
-              final notification = provider.notifications[index];
-              final isRead = notification['read'] == true;
-              final type = notification['type'] as String? ?? 'general';
-              final createdAt = (notification['createdAt'] as Timestamp?)?.toDate();
-
-              return Container(
-                color: isRead ? null : RivlColors.primary.withOpacity(0.05),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  leading: CircleAvatar(
-                    backgroundColor: provider.getNotificationColor(type).withOpacity(0.15),
-                    child: Icon(
-                      provider.getNotificationIcon(type),
-                      color: provider.getNotificationColor(type),
-                      size: 22,
-                    ),
-                  ),
-                  title: Text(
-                    notification['title'] ?? '',
-                    style: TextStyle(
-                      fontWeight: isRead ? FontWeight.normal : FontWeight.w600,
-                      fontSize: 15,
-                    ),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        notification['body'] ?? '',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                      ),
-                      if (createdAt != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            _timeAgo(createdAt),
-                            style: TextStyle(color: Colors.grey[400], fontSize: 12),
-                          ),
+              // "Load more" button
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: Spacing.md),
+                child: Center(
+                  child: provider.isLoadingMore
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : TextButton(
+                          onPressed: () => provider.loadMore(),
+                          child: const Text('Load more'),
                         ),
-                    ],
-                  ),
-                  trailing: isRead
-                      ? null
-                      : Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: RivlColors.primary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                  onTap: () {
-                    if (!isRead) {
-                      provider.markAsRead(notification['id']);
-                    }
-                    // Navigate based on notification type/data
-                    final data = notification['data'] as Map<String, dynamic>?;
-                    final challengeId = data?['challengeId'] as String?;
-                    if (challengeId != null && challengeId.isNotEmpty) {
-                      Navigator.push(
-                        context,
-                        SlidePageRoute(
-                          page: ChallengeDetailScreen(challengeId: challengeId),
-                        ),
-                      );
-                    }
-                  },
                 ),
               );
             },
           );
+        },
+      ),
+    );
+  }
+
+  int _countItems(List<MapEntry<String, List<Map<String, dynamic>>>> sections) {
+    int count = 0;
+    for (final section in sections) {
+      count++; // header
+      count += section.value.length;
+    }
+    return count;
+  }
+
+  Map<String, List<Map<String, dynamic>>> _groupByDate(List<Map<String, dynamic>> notifications) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final thisWeek = today.subtract(const Duration(days: 7));
+
+    final Map<String, List<Map<String, dynamic>>> groups = {};
+
+    for (final n in notifications) {
+      final createdAt = (n['createdAt'] as Timestamp?)?.toDate();
+      if (createdAt == null) {
+        groups.putIfAbsent('Earlier', () => []).add(n);
+        continue;
+      }
+
+      final date = DateTime(createdAt.year, createdAt.month, createdAt.day);
+      final String label;
+      if (date == today || date.isAfter(today)) {
+        label = 'Today';
+      } else if (date == yesterday || (date.isAfter(yesterday) && date.isBefore(today))) {
+        label = 'Yesterday';
+      } else if (date.isAfter(thisWeek)) {
+        label = 'This Week';
+      } else {
+        label = 'Earlier';
+      }
+      groups.putIfAbsent(label, () => []).add(n);
+    }
+
+    return groups;
+  }
+}
+
+class _DateHeader extends StatelessWidget {
+  final String label;
+  const _DateHeader({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Spacing.pagePadding, Spacing.md, Spacing.pagePadding, Spacing.xs),
+      child: Text(
+        label.toUpperCase(),
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: context.textSecondary,
+          letterSpacing: 1.0,
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationTile extends StatelessWidget {
+  final Map<String, dynamic> notification;
+  final NotificationProvider provider;
+
+  const _NotificationTile({required this.notification, required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    final isRead = notification['read'] == true;
+    final type = notification['type'] as String? ?? 'general';
+    final createdAt = (notification['createdAt'] as Timestamp?)?.toDate();
+    final color = provider.getNotificationColor(type);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: 2),
+      decoration: BoxDecoration(
+        color: isRead ? null : RivlColors.primary.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(Radii.md),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.xs),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.md)),
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(Radii.md),
+          ),
+          child: Icon(
+            provider.getNotificationIcon(type),
+            color: color,
+            size: 22,
+          ),
+        ),
+        title: Text(
+          notification['title'] ?? '',
+          style: TextStyle(
+            fontWeight: isRead ? FontWeight.w500 : FontWeight.w600,
+            fontSize: 15,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 2),
+            Text(
+              notification['body'] ?? '',
+              style: TextStyle(color: context.textSecondary, fontSize: 13),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (createdAt != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  _timeAgo(createdAt),
+                  style: TextStyle(color: context.textSecondary.withValues(alpha: 0.6), fontSize: 12),
+                ),
+              ),
+          ],
+        ),
+        trailing: isRead
+            ? Icon(Icons.chevron_right_rounded, size: 20, color: context.textSecondary.withValues(alpha: 0.4))
+            : Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: RivlColors.primary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+        onTap: () {
+          Haptics.light();
+          if (!isRead) {
+            provider.markAsRead(notification['id']);
+          }
+          final data = notification['data'] as Map<String, dynamic>?;
+          final challengeId = data?['challengeId'] as String?;
+          if (challengeId != null && challengeId.isNotEmpty) {
+            Navigator.push(
+              context,
+              SlidePageRoute(
+                page: ChallengeDetailScreen(challengeId: challengeId),
+              ),
+            );
+          }
         },
       ),
     );

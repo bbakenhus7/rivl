@@ -2,6 +2,37 @@
 
 import 'package:flutter/material.dart';
 
+/// Consistent spacing scale used across all screens and widgets.
+class Spacing {
+  Spacing._();
+  static const double xs = 4;
+  static const double sm = 8;
+  static const double md = 16;
+  static const double lg = 24;
+  static const double xl = 32;
+  static const double xxl = 48;
+
+  /// Standard horizontal page padding
+  static const double pagePadding = 20;
+
+  /// Standard card inner padding
+  static const double cardPadding = 16;
+
+  /// Standard section gap (between cards/sections on a screen)
+  static const double sectionGap = 20;
+}
+
+/// Standard border radius values
+class Radii {
+  Radii._();
+  static const double sm = 8;
+  static const double md = 12;
+  static const double lg = 16;
+  static const double xl = 20;
+  static const double xxl = 24;
+  static const double pill = 100;
+}
+
 class RivlColors {
   // Primary colors (purple-indigo)
   static const Color primary = Color(0xFF6C5CE7);
@@ -548,6 +579,65 @@ extension ThemeContext on BuildContext {
   Color get surfaceVariant => Theme.of(this).brightness == Brightness.light
       ? RivlColors.lightSurfaceVariant
       : RivlColors.darkSurfaceVariant;
+}
+
+/// A consistent card wrapper used across the app.
+/// Provides subtle elevation, proper border radius, and theme-aware styling.
+class RivlCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+  final VoidCallback? onTap;
+  final LinearGradient? gradient;
+  final Color? color;
+  final double borderRadius;
+
+  const RivlCard({
+    super.key,
+    required this.child,
+    this.padding,
+    this.onTap,
+    this.gradient,
+    this.color,
+    this.borderRadius = Radii.lg,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final effectivePadding = padding ?? const EdgeInsets.all(Spacing.cardPadding);
+
+    final container = Container(
+      padding: effectivePadding,
+      decoration: BoxDecoration(
+        gradient: gradient,
+        color: gradient == null ? (color ?? (isDark ? RivlColors.darkSurface : RivlColors.lightSurface)) : null,
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(
+          color: isDark
+            ? Colors.white.withValues(alpha: 0.06)
+            : Colors.black.withValues(alpha: 0.04),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+              ? Colors.black.withValues(alpha: 0.2)
+              : Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: child,
+    );
+
+    if (onTap == null) return container;
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: container,
+    );
+  }
 }
 
 // Text styles - Now theme-aware!

@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/battle_pass_provider.dart';
 import '../../models/activity_feed_model.dart';
 import '../../models/battle_pass_model.dart';
+import '../../utils/haptics.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../challenges/challenge_detail_screen.dart';
@@ -26,7 +27,10 @@ class _ActivityFeedScreenState extends State<ActivityFeedScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 3, vsync: this)
+      ..addListener(() {
+        if (!_tabController.indexIsChanging) Haptics.selection();
+      });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ActivityFeedProvider>().startListening();
       final auth = context.read<AuthProvider>();

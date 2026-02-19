@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../utils/haptics.dart';
 import '../utils/theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/challenge_provider.dart';
@@ -22,7 +23,6 @@ import 'challenges/challenges_screen.dart';
 import 'create/create_challenge_screen.dart';
 import 'feed/activity_feed_screen.dart';
 import 'profile/profile_screen.dart';
-import 'notifications/notifications_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -240,6 +240,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             child: NavigationBar(
               selectedIndex: _currentIndex,
               onDestinationSelected: (index) {
+                Haptics.selection();
                 setState(() => _currentIndex = index);
               },
               surfaceTintColor: Colors.transparent,
@@ -282,20 +283,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   button: true,
                   excludeSemantics: true,
                   child: Container(
-                    width: 48,
-                    height: 48,
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
-                      gradient: RivlColors.primaryGradient,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: RivlColors.primary.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                      color: RivlColors.primary,
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(Icons.add, color: Colors.white, size: 24),
+                    child: const Icon(Icons.add_rounded, color: Colors.white, size: 22),
                   ),
                 ),
                 selectedIcon: Semantics(
@@ -303,20 +297,20 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   button: true,
                   excludeSemantics: true,
                   child: Container(
-                    width: 48,
-                    height: 48,
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
-                      gradient: RivlColors.primaryDeepGradient,
-                      shape: BoxShape.circle,
+                      color: RivlColors.primaryDark,
+                      borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                          color: RivlColors.primary.withOpacity(0.4),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
+                          color: RivlColors.primary.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.add, color: Colors.white, size: 26),
+                    child: const Icon(Icons.add_rounded, color: Colors.white, size: 24),
                   ),
                 ),
                 label: AppStrings.create,

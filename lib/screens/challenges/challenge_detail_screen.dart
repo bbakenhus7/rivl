@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/challenge_provider.dart';
 import '../../providers/health_provider.dart';
 import '../../providers/wallet_provider.dart';
+import '../../utils/haptics.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../../models/challenge_model.dart';
@@ -1387,6 +1388,7 @@ class _PendingActionsState extends State<_PendingActions> {
   bool _declining = false;
 
   Future<void> _accept() async {
+    Haptics.heavy();
     var walletBalance = context.read<WalletProvider>().balance;
 
     // Prompt to add funds if balance is insufficient
@@ -1427,6 +1429,7 @@ class _PendingActionsState extends State<_PendingActions> {
   }
 
   Future<void> _decline() async {
+    Haptics.medium();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(

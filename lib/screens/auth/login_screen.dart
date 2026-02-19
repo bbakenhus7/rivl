@@ -1,14 +1,16 @@
 // screens/auth/login_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../config/router.dart';
 import '../../providers/auth_provider.dart';
+import '../../utils/haptics.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../../widgets/rivl_logo.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
-import '../main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -54,13 +56,13 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
       if (success && mounted) {
+        Haptics.success();
         FocusScope.of(context).unfocus();
-        Navigator.of(context).pushReplacement(
-          FadePageRoute(page: const MainScreen()),
-        );
+        context.go(AppRoutes.home);
         return;
       }
     } catch (e) {
+      Haptics.error();
       setState(() {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
       });
@@ -459,10 +461,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 final success =
                     await context.read<AuthProvider>().signInWithApple();
                 if (success && mounted) {
+                  Haptics.success();
                   FocusScope.of(context).unfocus();
-                  Navigator.of(context).pushReplacement(
-                    FadePageRoute(page: const MainScreen()),
-                  );
+                  context.go(AppRoutes.home);
                   return;
                 }
                 // Show error from provider if sign-in failed
@@ -500,10 +501,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 final success =
                     await context.read<AuthProvider>().signInWithGoogle();
                 if (success && mounted) {
+                  Haptics.success();
                   FocusScope.of(context).unfocus();
-                  Navigator.of(context).pushReplacement(
-                    FadePageRoute(page: const MainScreen()),
-                  );
+                  context.go(AppRoutes.home);
                   return;
                 }
                 if (mounted) {

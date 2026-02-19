@@ -1,12 +1,14 @@
 // screens/auth/signup_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../config/router.dart';
 import '../../providers/auth_provider.dart';
+import '../../utils/haptics.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../../widgets/rivl_logo.dart';
-import '../main_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -53,11 +55,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
 
     if (success && mounted) {
+      Haptics.success();
       FocusScope.of(context).unfocus();
-      Navigator.of(context).pushAndRemoveUntil(
-        FadePageRoute(page: const MainScreen()),
-        (route) => false,
-      );
+      context.go(AppRoutes.home);
     }
   }
 

@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../models/challenge_model.dart';
+import '../utils/haptics.dart';
 import '../utils/theme.dart';
 import '../utils/animations.dart';
 
@@ -62,7 +63,10 @@ class ChallengeCard extends StatelessWidget {
       button: true,
       enabled: onTap != null,
       child: ScaleOnTap(
-      onTap: onTap,
+      onTap: () {
+        Haptics.light();
+        onTap?.call();
+      },
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -249,7 +253,10 @@ class ChallengeCard extends StatelessWidget {
                               label: 'Decline challenge',
                               button: true,
                               child: ScaleOnTap(
-                                onTap: onDecline,
+                                onTap: () {
+                                  Haptics.medium();
+                                  onDecline?.call();
+                                },
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(vertical: 10),
                                   decoration: BoxDecoration(
@@ -281,7 +288,10 @@ class ChallengeCard extends StatelessWidget {
                               label: 'Accept challenge',
                               button: true,
                               child: ScaleOnTap(
-                                onTap: onAccept,
+                                onTap: () {
+                                  Haptics.heavy();
+                                  onAccept?.call();
+                                },
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(vertical: 10),
                                   decoration: BoxDecoration(

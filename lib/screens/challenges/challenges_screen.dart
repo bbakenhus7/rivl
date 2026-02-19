@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/challenge_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../models/challenge_model.dart';
+import '../../utils/haptics.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../../widgets/challenge_card.dart';
@@ -27,7 +28,10 @@ class _ChallengesScreenState extends State<ChallengesScreen> with SingleTickerPr
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 3, vsync: this)
+      ..addListener(() {
+        if (!_tabController.indexIsChanging) Haptics.selection();
+      });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<AuthProvider>();
       if (auth.user == null) {

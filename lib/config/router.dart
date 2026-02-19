@@ -92,20 +92,41 @@ GoRouter createRouter(AuthProvider authProvider) {
         builder: (context, state) => const SplashScreen(),
       ),
 
-      // Auth screens
+      // Auth screens — fade transitions for auth flow
       GoRoute(
         path: AppRoutes.login,
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const LoginScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 300),
+        ),
       ),
       GoRoute(
         path: AppRoutes.signup,
-        builder: (context, state) => const SignUpScreen(),
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const SignUpScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 300),
+        ),
       ),
 
       // Main app (tabs handled internally by MainScreen's IndexedStack)
       GoRoute(
         path: AppRoutes.home,
-        builder: (context, state) => const MainScreen(),
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const MainScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 300),
+        ),
       ),
 
       // These routes also show MainScreen but pre-select a tab.
@@ -135,18 +156,33 @@ GoRouter createRouter(AuthProvider authProvider) {
       // ---------------------------------------------------------------
       GoRoute(
         path: AppRoutes._challengeDetail,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final id = state.pathParameters['id'] ?? '';
-          return ChallengeDetailScreen(challengeId: id);
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: ChallengeDetailScreen(challengeId: id),
+            transitionsBuilder: _slideFromRight,
+            transitionDuration: const Duration(milliseconds: 300),
+          );
         },
       ),
       GoRoute(
         path: AppRoutes.wallet,
-        builder: (context, state) => const WalletScreen(),
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const WalletScreen(),
+          transitionsBuilder: _slideFromRight,
+          transitionDuration: const Duration(milliseconds: 300),
+        ),
       ),
       GoRoute(
         path: AppRoutes.notifications,
-        builder: (context, state) => const NotificationsScreen(),
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const NotificationsScreen(),
+          transitionsBuilder: _slideFromRight,
+          transitionDuration: const Duration(milliseconds: 300),
+        ),
       ),
     ],
 
@@ -189,5 +225,24 @@ GoRouter createRouter(AuthProvider authProvider) {
         ),
       ),
     ),
+  );
+}
+
+/// Shared slide-from-right transition for detail screens.
+Widget _slideFromRight(
+  BuildContext context,
+  Animation<double> animation,
+  Animation<double> secondaryAnimation,
+  Widget child,
+) {
+  return SlideTransition(
+    position: Tween<Offset>(
+      begin: const Offset(1.0, 0.0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+    )),
+    child: child,
   );
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../models/wallet_model.dart';
+import '../../utils/haptics.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 
@@ -121,6 +122,7 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   void _showDepositSheet(BuildContext context) {
+    Haptics.medium();
     final walletProvider = context.read<WalletProvider>();
     showModalBottomSheet(
       context: context,
@@ -133,6 +135,7 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   void _showWithdrawSheet(BuildContext context) {
+    Haptics.medium();
     final walletProvider = context.read<WalletProvider>();
     showModalBottomSheet(
       context: context,

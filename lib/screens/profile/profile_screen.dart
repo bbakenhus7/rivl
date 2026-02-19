@@ -3,13 +3,16 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../config/router.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/health_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../models/user_model.dart';
 import '../../services/firebase_service.dart';
+import '../../utils/haptics.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 import '../../widgets/section_header.dart';
@@ -21,7 +24,6 @@ import 'health_connection_screen.dart';
 import 'help_support_screen.dart';
 import 'friends_screen.dart';
 import '../../providers/friend_provider.dart';
-import '../auth/login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -405,6 +407,7 @@ class _WalletQuickAccess extends StatelessWidget {
           button: true,
           child: ScaleOnTap(
           onTap: () {
+            Haptics.light();
             Navigator.push(
               context,
               SlidePageRoute(page: const WalletScreen()),
@@ -1553,7 +1556,10 @@ class _ActionTile extends StatelessWidget {
       label: badge != null ? '$label, $badge new' : label,
       button: true,
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          Haptics.light();
+          onTap();
+        },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1688,12 +1694,10 @@ class _SettingsSheet extends StatelessWidget {
             title: const Text('Sign Out', style: TextStyle(color: RivlColors.error)),
             onTap: () async {
               Navigator.pop(context); // close bottom sheet
+              Haptics.medium();
               await context.read<AuthProvider>().signOut();
               if (context.mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
-                  FadePageRoute(page: const LoginScreen()),
-                  (route) => false,
-                );
+                context.go(AppRoutes.login);
               }
             },
           ),
