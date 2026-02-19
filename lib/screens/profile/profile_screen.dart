@@ -49,7 +49,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           return CustomScrollView(
             slivers: [
-              // Gradient header with profile info
+              // Gradient header with profile info — condenses on scroll
               SliverAppBar(
                 expandedHeight: 260,
                 pinned: true,
@@ -60,72 +60,165 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onPressed: () => _showSettings(context),
                   ),
                 ],
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Container(
-                    decoration: const BoxDecoration(
-                      gradient: RivlColors.primaryDeepGradient,
-                    ),
-                    child: SafeArea(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(height: 16),
-                          // Avatar with ring border
-                          Container(
-                            padding: const EdgeInsets.all(3),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
-                            ),
-                            child: CircleAvatar(
-                              radius: 44,
-                              backgroundColor: Colors.white.withOpacity(0.2),
-                              backgroundImage: user.profileImageUrl != null
-                                  ? NetworkImage(user.profileImageUrl!)
-                                  : null,
-                              child: user.profileImageUrl == null
-                                  ? Text(
-                                      user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
-                                      style: const TextStyle(
-                                        fontSize: 36,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : null,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            user.displayName,
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '@${user.username}',
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: Colors.white.withOpacity(0.75),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              if (user.isVerified)
-                                _HeaderBadge(icon: Icons.verified, label: 'Verified'),
-                              if (user.isPremium)
-                                _HeaderBadge(icon: Icons.star, label: 'Premium'),
-                            ],
-                          ),
-                        ],
+                flexibleSpace: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final top = constraints.biggest.height;
+                    final statusBarHeight = MediaQuery.of(context).padding.top;
+                    final collapsedHeight = kToolbarHeight + statusBarHeight;
+                    final expandedHeight = 260 + statusBarHeight;
+                    // 0.0 = fully collapsed, 1.0 = fully expanded
+                    final t = ((top - collapsedHeight) / (expandedHeight - collapsedHeight)).clamp(0.0, 1.0);
+
+                    // Sizes interpolated between collapsed and expanded
+                    final avatarRadius = 16.0 + (28.0 * t); // 16 → 44
+                    final nameFontSize = 16.0 + (6.0 * t);  // 16 → 22
+                    final usernameFontSize = 12.0 + (3.0 * t); // 12 → 15
+                    final borderWidth = 1.0 + (1.0 * t);    // 1 → 2
+
+                    return Container(
+                      decoration: const BoxDecoration(
+                        gradient: RivlColors.primaryDeepGradient,
                       ),
-                    ),
-                  ),
+                      child: SafeArea(
+                        child: t > 0.3
+                            // --- EXPANDED: centered column layout ---
+                            ? Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(height: 16 * t),
+                                  Container(
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white.withOpacity(0.5),
+                                        width: borderWidth,
+                                      ),
+                                    ),
+                                    child: CircleAvatar(
+                                      radius: avatarRadius,
+                                      backgroundColor: Colors.white.withOpacity(0.2),
+                                      backgroundImage: user.profileImageUrl != null
+                                          ? NetworkImage(user.profileImageUrl!)
+                                          : null,
+                                      child: user.profileImageUrl == null
+                                          ? Text(
+                                              user.displayName.isNotEmpty
+                                                  ? user.displayName[0].toUpperCase()
+                                                  : '?',
+                                              style: TextStyle(
+                                                fontSize: 14 + (22 * t),
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            )
+                                          : null,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8 * t + 4),
+                                  Text(
+                                    user.displayName,
+                                    style: TextStyle(
+                                      fontSize: nameFontSize,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '@${user.username}',
+                                    style: TextStyle(
+                                      fontSize: usernameFontSize,
+                                      color: Colors.white.withOpacity(0.75),
+                                    ),
+                                  ),
+                                  if (t > 0.6) ...[
+                                    SizedBox(height: 8 * t),
+                                    Opacity(
+                                      opacity: ((t - 0.6) / 0.4).clamp(0.0, 1.0),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          if (user.isVerified)
+                                            _HeaderBadge(icon: Icons.verified, label: 'Verified'),
+                                          if (user.isPremium)
+                                            _HeaderBadge(icon: Icons.star, label: 'Premium'),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              )
+                            // --- COLLAPSED: compact row in app bar ---
+                            : Padding(
+                                padding: const EdgeInsets.only(left: 16, right: 56),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(2),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.white.withOpacity(0.4),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: CircleAvatar(
+                                          radius: 16,
+                                          backgroundColor: Colors.white.withOpacity(0.2),
+                                          backgroundImage: user.profileImageUrl != null
+                                              ? NetworkImage(user.profileImageUrl!)
+                                              : null,
+                                          child: user.profileImageUrl == null
+                                              ? Text(
+                                                  user.displayName.isNotEmpty
+                                                      ? user.displayName[0].toUpperCase()
+                                                      : '?',
+                                                  style: const TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                  ),
+                                                )
+                                              : null,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Flexible(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              user.displayName,
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            Text(
+                                              '@${user.username}',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.white.withOpacity(0.7),
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                      ),
+                    );
+                  },
                 ),
               ),
 
