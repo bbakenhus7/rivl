@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- White "R" lettermark only (no background) — for use on colored backgrounds -->
+  <g transform="translate(132, 96)">
+    <path fill-rule="evenodd" d="
+      M 40 320 V 0 L 160 0
+      C 228 0, 260 38, 260 88
+      C 260 138, 230 172, 172 180
+      L 264 320 H 200 L 114 186 H 100 V 320 Z
+      M 100 56 V 134 H 150
+      C 196 134, 206 112, 206 94
+      C 206 76, 196 56, 150 56 Z
+    " fill="white"/>
+  </g>
+  <!-- Green heartbeat ECG accent -->
+  <g transform="translate(0, 370)">
+    <polyline points="
+      60,0 150,0
+      162,-8 172,8 180,0
+      210,0
+      222,14 238,-52 256,28 268,-6 278,0
+      320,0
+      334,-18 348,0
+      452,0
+    " fill="none" stroke="#4ADE80" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
