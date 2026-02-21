@@ -620,12 +620,12 @@ class _PersonalAttributes extends StatelessWidget {
     final stamina = _percentile(health.todaySteps.toDouble(), 6000, 3000);
 
     final stats = [
-      _RadarStat('STR', strength, '${(benchVal + squatVal).toInt()} lbs'),
-      _RadarStat('SPD', speed, avgPaceMinPerMile != null ? _formatPace(avgPaceMinPerMile) : '—'),
-      _RadarStat('END', endurance, '${health.vo2Max.toStringAsFixed(1)} VO2'),
-      _RadarStat('PWR', power, '${user.pullUpsPR ?? 0} reps'),
-      _RadarStat('VIT', vitality, '${health.recoveryScore}%'),
-      _RadarStat('STA', stamina, '${health.todaySteps} steps'),
+      _RadarStat('Strength', strength, '${(benchVal + squatVal).toInt()} lbs'),
+      _RadarStat('Speed', speed, avgPaceMinPerMile != null ? _formatPace(avgPaceMinPerMile) : '—'),
+      _RadarStat('Endurance', endurance, '${health.vo2Max.toStringAsFixed(1)} VO2'),
+      _RadarStat('Power', power, '${user.pullUpsPR ?? 0} reps'),
+      _RadarStat('Vitality', vitality, '${health.recoveryScore}%'),
+      _RadarStat('Stamina', stamina, '${health.todaySteps} steps'),
     ];
 
     final overallRating = (stats.fold(0.0, (sum, s) => sum + s.value) / stats.length).round();
@@ -656,7 +656,7 @@ class _PersonalAttributes extends StatelessWidget {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      '$overallRating OVR',
+                      '$overallRating Overall',
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
@@ -915,7 +915,7 @@ class _RadarChartPainter extends CustomPainter {
       // Label text
       final labelSpan = TextSpan(
         text: ' ${stats[i].label}',
-        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: textColor),
+        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: textColor),
       );
       final labelPainter = TextPainter(text: labelSpan, textDirection: TextDirection.ltr)..layout();
 
@@ -945,7 +945,7 @@ class _StatBar extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 32,
+            width: 68,
             child: Text(
               stat.label,
               style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: context.textSecondary),
