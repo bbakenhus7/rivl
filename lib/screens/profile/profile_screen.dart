@@ -51,7 +51,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         builder: (context, authProvider, _) {
           final user = authProvider.user ?? UserModel.demo();
 
-          return CustomScrollView(
+          return RefreshIndicator(
+            onRefresh: () => authProvider.refreshUser(),
+            child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               // Gradient header with profile info — condenses on scroll
               SliverAppBar(
@@ -299,6 +302,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ],
+          ),
           );
         },
       ),
@@ -1676,28 +1680,92 @@ class _SettingsSheet extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.person_outline),
             title: const Text('Edit Profile'),
-            onTap: () => Navigator.pop(context),
+            trailing: const Icon(Icons.chevron_right, size: 20),
+            onTap: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Edit Profile coming soon!'),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              );
+            },
           ),
           ListTile(
             leading: const Icon(Icons.lock_outline),
             title: const Text('Change Password'),
-            onTap: () => Navigator.pop(context),
+            trailing: const Icon(Icons.chevron_right, size: 20),
+            onTap: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Change Password coming soon!'),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              );
+            },
           ),
           ListTile(
             leading: const Icon(Icons.privacy_tip_outlined),
             title: const Text('Privacy Policy'),
-            onTap: () => Navigator.pop(context),
+            trailing: const Icon(Icons.open_in_new, size: 18),
+            onTap: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Privacy Policy coming soon!'),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              );
+            },
           ),
           ListTile(
             leading: const Icon(Icons.description_outlined),
             title: const Text('Terms of Service'),
-            onTap: () => Navigator.pop(context),
+            trailing: const Icon(Icons.open_in_new, size: 18),
+            onTap: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Terms of Service coming soon!'),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              );
+            },
           ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: RivlColors.error),
             title: const Text('Sign Out', style: TextStyle(color: RivlColors.error)),
             onTap: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Sign Out'),
+                  content: const Text('Are you sure you want to sign out?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Sign Out',
+                          style: TextStyle(color: RivlColors.error)),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed != true) return;
+              if (!context.mounted) return;
               final auth = context.read<AuthProvider>();
               final router = GoRouter.of(context);
               Navigator.pop(context); // close bottom sheet

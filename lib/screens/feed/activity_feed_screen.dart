@@ -10,6 +10,7 @@ import '../../models/battle_pass_model.dart';
 import '../../utils/haptics.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
+import '../../widgets/skeleton_loader.dart';
 import '../challenges/challenge_detail_screen.dart';
 import '../leaderboard/leaderboard_screen.dart';
 
@@ -91,7 +92,7 @@ class _ActivityTab extends StatelessWidget {
     return Consumer<ActivityFeedProvider>(
       builder: (context, provider, _) {
         if (provider.isLoading && provider.feedItems.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
+          return const _ActivityFeedSkeleton();
         }
 
         if (provider.feedItems.isEmpty) {
@@ -204,7 +205,7 @@ class _LeaderboardTabState extends State<_LeaderboardTab>
     super.build(context);
 
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const _LeaderboardSkeleton();
     }
 
     return RefreshIndicator(
@@ -456,7 +457,7 @@ class _SeasonTab extends StatelessWidget {
     return Consumer<BattlePassProvider>(
       builder: (context, provider, _) {
         if (provider.isLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return const _SeasonSkeleton();
         }
 
         final progress = provider.progress;
@@ -590,11 +591,17 @@ class _SeasonTab extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFF8E1), Color(0xFFFFECB3)],
+                    gradient: LinearGradient(
+                      colors: Theme.of(context).brightness == Brightness.dark
+                          ? [const Color(0xFF3D3520), const Color(0xFF4A3A1A)]
+                          : [const Color(0xFFFFF8E1), const Color(0xFFFFECB3)],
                     ),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.amber.withOpacity(0.4)),
+                    border: Border.all(
+                        color: Colors.amber.withOpacity(
+                            Theme.of(context).brightness == Brightness.dark
+                                ? 0.3
+                                : 0.4)),
                   ),
                   child: Row(
                     children: [
@@ -659,6 +666,7 @@ class _SeasonTab extends StatelessWidget {
                 isPremium: provider.isPremiumUnlocked,
                 isClaimed: (r) => provider.isRewardClaimed(r.level, r.tier),
                 onClaim: (r) {
+                  Haptics.heavy();
                   final auth = context.read<AuthProvider>();
                   final userId = auth.user?.id;
                   if (userId == null) return;
@@ -1265,11 +1273,18 @@ class _ActivityFeedTile extends StatelessWidget {
                 ],
               ),
             ),
-            if (item.hasChallenge)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Icon(Icons.chevron_right, color: context.textSecondary, size: 20),
-              ),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                _KudosButton(item: item),
+                if (item.hasChallenge)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Icon(Icons.chevron_right, color: context.textSecondary, size: 20),
+                  ),
+              ],
+            ),
           ],
         ),
       ),
@@ -1305,5 +1320,164 @@ class _ActivityFeedTile extends StatelessWidget {
     if (diff.inHours < 24) return '${diff.inHours}h';
     if (diff.inDays < 7) return '${diff.inDays}d';
     return '${(diff.inDays / 7).floor()}w';
+  }
+}
+
+class _KudosButton extends StatelessWidget {
+  final ActivityFeedItem item;
+
+  const _KudosButton({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final userId = context.read<AuthProvider>().user?.id ?? 'demo-user';
+    final hasKudos = item.kudosBy.contains(userId);
+    final count = item.kudosCount;
+
+    return Semantics(
+      label: hasKudos ? 'Remove kudos' : 'Give kudos',
+      button: true,
+      child: SizedBox(
+      width: 44,
+      height: 44,
+      child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        Haptics.light();
+        context.read<ActivityFeedProvider>().toggleKudos(item.id, userId);
+      },
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Icon(
+              hasKudos ? Icons.favorite : Icons.favorite_border,
+              key: ValueKey(hasKudos),
+              size: 20,
+              color: hasKudos ? RivlColors.error : context.textSecondary.withValues(alpha: 0.5),
+            ),
+          ),
+          if (count > 0)
+            Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: hasKudos ? RivlColors.error : context.textSecondary,
+              ),
+            ),
+        ],
+      ),
+    ),
+    ),
+    );
+  }
+}
+
+// ============================================
+// SKELETON LOADERS
+// ============================================
+
+class _SeasonSkeleton extends StatelessWidget {
+  const _SeasonSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerEffect(
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Season header card
+            SkeletonBox(height: 100, borderRadius: 16),
+            const SizedBox(height: 16),
+            // XP progress bar area
+            SkeletonBox(height: 72, borderRadius: 12),
+            const SizedBox(height: 12),
+            // Premium banner
+            SkeletonBox(height: 48, borderRadius: 12),
+            const SizedBox(height: 16),
+            // Tier reward cards
+            for (int i = 0; i < 5; i++) ...[
+              SkeletonBox(height: 70, borderRadius: 14),
+              const SizedBox(height: 8),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActivityFeedSkeleton extends StatelessWidget {
+  const _ActivityFeedSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerEffect(
+      child: ListView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        itemCount: 5,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SkeletonCircle(size: 44),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SkeletonBox(height: 14, width: 180),
+                      const SizedBox(height: 6),
+                      SkeletonBox(height: 12, width: 120),
+                      const SizedBox(height: 6),
+                      SkeletonBox(height: 10, width: 40),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _LeaderboardSkeleton extends StatelessWidget {
+  const _LeaderboardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerEffect(
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        child: Column(
+          children: [
+            // "Your Rank" header card
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: SkeletonBox(height: 60, borderRadius: 16),
+            ),
+            // Podium area
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SkeletonBox(height: 180, borderRadius: 16),
+            ),
+            const SizedBox(height: 16),
+            // Leaderboard items
+            for (int i = 0; i < 5; i++) ...[
+              const LeaderboardItemSkeleton(),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }

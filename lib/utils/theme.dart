@@ -33,6 +33,33 @@ class Radii {
   static const double pill = 100;
 }
 
+/// Centralized type scale for consistent typography across the app.
+/// Use these instead of ad-hoc fontSize values.
+class RivlType {
+  RivlType._();
+
+  // Display — hero numbers, large stats
+  static const TextStyle displayLarge = TextStyle(fontSize: 32, fontWeight: FontWeight.w900);
+  static const TextStyle displayMedium = TextStyle(fontSize: 28, fontWeight: FontWeight.w800);
+
+  // Title — section headers, screen titles
+  static const TextStyle titleLarge = TextStyle(fontSize: 22, fontWeight: FontWeight.bold);
+  static const TextStyle titleMedium = TextStyle(fontSize: 18, fontWeight: FontWeight.w700);
+  static const TextStyle titleSmall = TextStyle(fontSize: 16, fontWeight: FontWeight.w600);
+
+  // Body — main content text
+  static const TextStyle bodyLarge = TextStyle(fontSize: 15, fontWeight: FontWeight.w500);
+  static const TextStyle bodyMedium = TextStyle(fontSize: 14, fontWeight: FontWeight.normal);
+  static const TextStyle bodySmall = TextStyle(fontSize: 13, fontWeight: FontWeight.normal);
+
+  // Caption — timestamps, metadata, badges
+  static const TextStyle captionLarge = TextStyle(fontSize: 12, fontWeight: FontWeight.w500);
+  static const TextStyle captionSmall = TextStyle(fontSize: 11, fontWeight: FontWeight.w500);
+
+  // Overline — tiny labels, badges
+  static const TextStyle overline = TextStyle(fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 0.5);
+}
+
 class RivlColors {
   // Primary colors (purple-indigo)
   static const Color primary = Color(0xFF6C5CE7);

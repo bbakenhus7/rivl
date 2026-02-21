@@ -158,7 +158,21 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: RefreshIndicator(
         onRefresh: () async {
-          await context.read<HealthProvider>().refreshData();
+          try {
+            await context.read<HealthProvider>().refreshData();
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Failed to refresh health data'),
+                  backgroundColor: RivlColors.error,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              );
+            }
+          }
         },
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -608,6 +622,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       },
                     ),
+                  ),
+                  // AI Coach Teaser
+                  FadeIn(
+                    delay: const Duration(milliseconds: 350),
+                    child: const _AICoachTeaser(),
                   ),
                   const SizedBox(height: 24),
                 ]),
@@ -1846,6 +1865,264 @@ class _GlanceStat extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Compact AI Coach teaser card on home screen
+class _AICoachTeaser extends StatelessWidget {
+  const _AICoachTeaser();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<HealthProvider>(
+      builder: (context, health, _) {
+        // Generate a contextual tip based on current health data
+        final tip = _generateTip(health);
+
+        return ScaleOnTap(
+          onTap: () {
+            Haptics.light();
+            _showCoachSheet(context, health);
+          },
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  RivlColors.primary.withValues(alpha: 0.08),
+                  Colors.purple.withValues(alpha: 0.06),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: RivlColors.primary.withValues(alpha: 0.15),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    gradient: RivlColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'AI Coach',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.purple.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'BETA',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.purple,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        tip,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: context.textSecondary,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: context.textSecondary, size: 20),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _generateTip(HealthProvider health) {
+    final steps = health.todaySteps;
+    final sleepHours = health.sleepHours;
+    final recovery = health.recoveryScore;
+
+    if (recovery < 40) {
+      return 'Your recovery is low today. Consider a lighter workout and prioritize sleep tonight.';
+    }
+    if (sleepHours > 0 && sleepHours < 6) {
+      return 'You got ${sleepHours.toStringAsFixed(1)}h of sleep. Aim for 7-9h to boost performance.';
+    }
+    if (steps > 10000) {
+      return 'Great job hitting ${(steps / 1000).toStringAsFixed(1)}K steps! Keep this momentum going.';
+    }
+    if (steps < 3000 && DateTime.now().hour > 14) {
+      return 'Only ${(steps / 1000).toStringAsFixed(1)}K steps so far. A quick 20-min walk can help!';
+    }
+    return 'Check in for personalized tips based on your health data and challenge performance.';
+  }
+
+  void _showCoachSheet(BuildContext context, HealthProvider health) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).padding.bottom + 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: ctx.surfaceVariant,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: RivlColors.primaryGradient,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.auto_awesome, color: Colors.white, size: 28),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('AI Coach', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                        SizedBox(height: 2),
+                        Text('Personalized fitness insights', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            _CoachInsightTile(
+              icon: Icons.directions_walk,
+              title: 'Steps',
+              insight: _stepsInsight(health),
+              color: RivlColors.info,
+            ),
+            _CoachInsightTile(
+              icon: Icons.bedtime,
+              title: 'Sleep',
+              insight: _sleepInsight(health),
+              color: Colors.indigo,
+            ),
+            _CoachInsightTile(
+              icon: Icons.battery_charging_full,
+              title: 'Recovery',
+              insight: _recoveryInsight(health),
+              color: RivlColors.success,
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _stepsInsight(HealthProvider health) {
+    final steps = health.todaySteps;
+    if (steps >= 10000) return 'You\'ve hit your 10K goal today! Excellent work.';
+    final remaining = 10000 - steps;
+    return '$remaining more steps to hit your daily goal. That\'s about ${(remaining / 1300).ceil()} minutes of brisk walking.';
+  }
+
+  String _sleepInsight(HealthProvider health) {
+    final hours = health.sleepHours;
+    if (hours >= 7) return 'Great sleep at ${hours.toStringAsFixed(1)}h. This supports recovery and performance.';
+    if (hours > 0) return 'Only ${hours.toStringAsFixed(1)}h of sleep. Try winding down 30 minutes earlier tonight.';
+    return 'No sleep data recorded yet. Make sure your wearable tracks sleep.';
+  }
+
+  String _recoveryInsight(HealthProvider health) {
+    final score = health.recoveryScore;
+    if (score >= 70) return 'Recovery score of $score% — you\'re ready for a hard session today.';
+    if (score >= 40) return 'Moderate recovery at $score%. A medium-intensity workout is ideal.';
+    return 'Low recovery at $score%. Active recovery or rest day recommended.';
+  }
+}
+
+class _CoachInsightTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String insight;
+  final Color color;
+
+  const _CoachInsightTile({
+    required this.icon,
+    required this.title,
+    required this.insight,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                const SizedBox(height: 2),
+                Text(
+                  insight,
+                  style: TextStyle(fontSize: 13, color: context.textSecondary, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

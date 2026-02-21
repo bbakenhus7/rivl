@@ -198,7 +198,13 @@ class CreateChallengeScreenState extends State<CreateChallengeScreen>
         final totalSteps = _totalSteps(challengeType, isCharity: isCharity);
         final titles = _stepTitles(challengeType, isCharity: isCharity);
 
-        return ConfettiCelebration(
+        return PopScope(
+          canPop: _currentStep == 0 || _challengeSent,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            _previousStep();
+          },
+          child: ConfettiCelebration(
           celebrate: _challengeSent,
           child: Scaffold(
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -266,6 +272,7 @@ class CreateChallengeScreenState extends State<CreateChallengeScreen>
                     ],
                   ),
           ),
+        ),
         );
       },
     );

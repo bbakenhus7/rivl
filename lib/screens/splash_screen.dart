@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../config/router.dart';
 import '../providers/auth_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/theme.dart';
 import '../widgets/rivl_logo.dart';
 
@@ -68,7 +69,13 @@ class _SplashScreenState extends State<SplashScreen>
       }
 
       if (authProvider.isAuthenticated) {
-        _navigateTo(AppRoutes.home);
+        final prefs = await SharedPreferences.getInstance();
+        final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
+        if (!hasSeenOnboarding) {
+          _navigateTo(AppRoutes.onboarding);
+        } else {
+          _navigateTo(AppRoutes.home);
+        }
       } else {
         _navigateTo(AppRoutes.login);
       }
@@ -162,18 +169,75 @@ class _SplashScreenState extends State<SplashScreen>
                 const SizedBox(height: 48),
 
                 // Loading
-                SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: CircularProgressIndicator(
-                    color: Colors.white.withOpacity(0.8),
-                    strokeWidth: 2.5,
-                  ),
-                ),
+                const _PulsingDots(),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PulsingDots extends StatefulWidget {
+  const _PulsingDots();
+
+  @override
+  State<_PulsingDots> createState() => _PulsingDotsState();
+}
+
+class _PulsingDotsState extends State<_PulsingDots>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Widget _dot(int index) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final t = ((_controller.value + index * 0.2) % 1.0);
+        final double scale;
+        if (t < 0.3) {
+          scale = 0.3 + (t / 0.3) * 0.7;
+        } else if (t < 0.6) {
+          scale = 1.0 - ((t - 0.3) / 0.3) * 0.7;
+        } else {
+          scale = 0.3;
+        }
+        return Container(
+          width: 10,
+          height: 10,
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.3 + scale * 0.7),
+            shape: BoxShape.circle,
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 48,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [_dot(0), _dot(1), _dot(2)],
       ),
     );
   }

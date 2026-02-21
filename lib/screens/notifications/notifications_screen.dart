@@ -8,10 +8,41 @@ import '../../providers/auth_provider.dart';
 import '../../utils/haptics.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
+import '../../widgets/skeleton_loader.dart';
 import '../challenges/challenge_detail_screen.dart';
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
+
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      final provider = context.read<NotificationProvider>();
+      if (provider.hasMore && !provider.isLoadingMore) {
+        provider.loadMore();
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +70,7 @@ class NotificationsScreen extends StatelessWidget {
       body: Consumer<NotificationProvider>(
         builder: (context, provider, _) {
           if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const _NotificationsSkeleton();
           }
 
           if (provider.notifications.isEmpty) {
@@ -79,9 +110,18 @@ class NotificationsScreen extends StatelessWidget {
           final grouped = _groupByDate(provider.notifications);
           final sections = grouped.entries.toList();
 
-          return ListView.builder(
+          final userId = context.read<AuthProvider>().user?.id;
+          return RefreshIndicator(
+            onRefresh: () async {
+              if (userId != null) {
+                await provider.initialize(userId);
+              }
+            },
+            child: ListView.builder(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(top: Spacing.sm, bottom: Spacing.xl),
-            itemCount: _countItems(sections) + (provider.hasMore ? 1 : 0),
+            itemCount: _countItems(sections) + (provider.isLoadingMore ? 1 : 0),
             itemBuilder: (context, index) {
               // Figure out which section + item this index maps to
               int remaining = index;
@@ -94,27 +134,27 @@ class NotificationsScreen extends StatelessWidget {
                 // Items in section
                 if (remaining < section.value.length) {
                   final notification = section.value[remaining];
-                  return _NotificationTile(notification: notification, provider: provider);
+                  return _SwipeableNotificationTile(
+                    notification: notification,
+                    provider: provider,
+                    userId: userId,
+                  );
                 }
                 remaining -= section.value.length;
               }
-              // "Load more" button
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: Spacing.md),
+              // Infinite scroll loading indicator
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: Spacing.md),
                 child: Center(
-                  child: provider.isLoadingMore
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : TextButton(
-                          onPressed: () => provider.loadMore(),
-                          child: const Text('Load more'),
-                        ),
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
                 ),
               );
             },
+          ),
           );
         },
       ),
@@ -180,6 +220,77 @@ class _DateHeader extends StatelessWidget {
           letterSpacing: 1.0,
         ),
       ),
+    );
+  }
+}
+
+class _SwipeableNotificationTile extends StatelessWidget {
+  final Map<String, dynamic> notification;
+  final NotificationProvider provider;
+  final String? userId;
+
+  const _SwipeableNotificationTile({
+    required this.notification,
+    required this.provider,
+    this.userId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final notifId = notification['id'] as String?;
+    final isRead = notification['read'] == true;
+
+    return Dismissible(
+      key: ValueKey(notifId ?? UniqueKey()),
+      background: Container(
+        margin: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: 2),
+        decoration: BoxDecoration(
+          color: RivlColors.primary.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(Radii.md),
+        ),
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 20),
+        child: const Icon(Icons.mark_email_read, color: RivlColors.primary),
+      ),
+      secondaryBackground: Container(
+        margin: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: 2),
+        decoration: BoxDecoration(
+          color: RivlColors.error.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(Radii.md),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: Icon(Icons.delete_outline, color: RivlColors.error),
+      ),
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          // Swipe right → mark as read
+          if (!isRead && notifId != null) {
+            Haptics.light();
+            provider.markAsRead(notifId);
+          }
+          return false; // Don't remove from list
+        } else {
+          // Swipe left → delete
+          Haptics.medium();
+          return true;
+        }
+      },
+      onDismissed: (_) {
+        if (notifId != null) {
+          provider.deleteNotification(notifId);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Notification deleted'),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      },
+      child: _NotificationTile(notification: notification, provider: provider),
     );
   }
 }
@@ -284,5 +395,46 @@ class _NotificationTile extends StatelessWidget {
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     return '${(diff.inDays / 7).floor()}w ago';
+  }
+}
+
+class _NotificationsSkeleton extends StatelessWidget {
+  const _NotificationsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerEffect(
+      child: ListView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(top: Spacing.sm, bottom: Spacing.xl),
+        itemCount: 6,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SkeletonBox(height: 44, width: 44, borderRadius: 12),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SkeletonBox(height: 14, width: 160),
+                      const SizedBox(height: 6),
+                      SkeletonBox(height: 12, width: 220),
+                      const SizedBox(height: 6),
+                      SkeletonBox(height: 10, width: 60),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const SkeletonCircle(size: 10),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 }

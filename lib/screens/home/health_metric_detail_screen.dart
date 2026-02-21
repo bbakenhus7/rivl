@@ -6,6 +6,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
 import '../../providers/health_provider.dart';
 import '../../utils/theme.dart';
+import '../../widgets/skeleton_loader.dart';
 
 /// A data point representing one day's value for any health metric.
 class MetricDataPoint {
@@ -134,7 +135,7 @@ class _HealthMetricDetailScreenState extends State<HealthMetricDetailScreen> {
         centerTitle: true,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const _MetricDetailSkeleton()
           : SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -869,6 +870,54 @@ class _StatCard extends StatelessWidget {
                 color: color,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MetricDetailSkeleton extends StatelessWidget {
+  const _MetricDetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerEffect(
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            SkeletonBox(height: 140, borderRadius: 20),
+            const SizedBox(height: 20),
+            Row(
+              children: List.generate(
+                3,
+                (i) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: SkeletonBox(height: 32, width: 56, borderRadius: 20),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SkeletonBox(height: 220, borderRadius: 20),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(child: SkeletonBox(height: 70, borderRadius: 16)),
+                const SizedBox(width: 10),
+                Expanded(child: SkeletonBox(height: 70, borderRadius: 16)),
+                const SizedBox(width: 10),
+                Expanded(child: SkeletonBox(height: 70, borderRadius: 16)),
+              ],
+            ),
+            const SizedBox(height: 20),
+            SkeletonBox(height: 100, borderRadius: 18),
+            const SizedBox(height: 20),
+            SkeletonBox(height: 120, borderRadius: 18),
+            const SizedBox(height: 32),
           ],
         ),
       ),

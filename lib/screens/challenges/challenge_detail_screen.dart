@@ -12,6 +12,7 @@ import '../../utils/animations.dart';
 import '../../models/challenge_model.dart';
 import '../../widgets/confetti_celebration.dart';
 import '../../widgets/add_funds_sheet.dart';
+import '../../widgets/skeleton_loader.dart';
 import '../main_screen.dart';
 
 class ChallengeDetailScreen extends StatefulWidget {
@@ -38,6 +39,10 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
       ),
       body: Consumer<ChallengeProvider>(
         builder: (context, provider, _) {
+          if (provider.isLoading && provider.challenges.isEmpty) {
+            return const _ChallengeDetailSkeleton();
+          }
+
           final matches = provider.challenges.where(
             (c) => c.id == widget.challengeId,
           );
@@ -168,7 +173,10 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
 
           return ConfettiCelebration(
             celebrate: showCelebration,
-            child: SingleChildScrollView(
+            child: RefreshIndicator(
+              onRefresh: () => provider.syncAllActiveChallenges(),
+              child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Column(
                 children: [
@@ -686,6 +694,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
                 ],
               ),
             ),
+            ),
           );
         },
       ),
@@ -698,6 +707,72 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen> {
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     return '${diff.inDays}d ago';
+  }
+}
+
+class _ChallengeDetailSkeleton extends StatelessWidget {
+  const _ChallengeDetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerEffect(
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Column(
+          children: [
+            // Status badge
+            Center(child: SkeletonBox(height: 32, width: 100, borderRadius: 24)),
+            const SizedBox(height: 16),
+            // Prize amount
+            Center(child: SkeletonBox(height: 52, width: 160, borderRadius: 8)),
+            const SizedBox(height: 8),
+            Center(child: SkeletonBox(height: 15, width: 80)),
+            const SizedBox(height: 20),
+            // Timeline bar
+            SkeletonBox(height: 8, borderRadius: 4),
+            const SizedBox(height: 24),
+            // Head-to-head progress bars
+            SkeletonBox(height: 60, borderRadius: 16),
+            const SizedBox(height: 24),
+            // VS avatars card
+            Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 28),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    Column(
+                      children: [
+                        const SkeletonCircle(size: 72),
+                        const SizedBox(height: 8),
+                        SkeletonBox(height: 14, width: 60),
+                        const SizedBox(height: 4),
+                        SkeletonBox(height: 22, width: 50),
+                      ],
+                    ),
+                    SkeletonCircle(size: 48),
+                    Column(
+                      children: [
+                        const SkeletonCircle(size: 72),
+                        const SizedBox(height: 8),
+                        SkeletonBox(height: 14, width: 60),
+                        const SizedBox(height: 4),
+                        SkeletonBox(height: 22, width: 50),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Details card
+            SkeletonBox(height: 180, borderRadius: 20),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -1265,6 +1340,26 @@ class _QuickRematchCard extends StatelessWidget {
       String? opponentId, String? opponentName) async {
     if (opponentId == null) return;
 
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Quick Rematch'),
+        content: Text(
+            'Send a \$${challenge.stakeAmount.toInt()} rematch to ${opponentName ?? 'opponent'}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Send Rematch'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
     final provider = context.read<ChallengeProvider>();
     final walletProvider = context.read<WalletProvider>();
     final messenger = ScaffoldMessenger.of(context);
@@ -1327,6 +1422,26 @@ class _QuickRematchCard extends StatelessWidget {
   void _doubleOrNothing(BuildContext context, ChallengeModel challenge,
       String? opponentId, String? opponentName) async {
     if (opponentId == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Double or Nothing'),
+        content: Text(
+            'Send a \$${(challenge.stakeAmount * 2).toInt()} challenge to ${opponentName ?? 'opponent'}?\n\nThat\'s double the original stake!'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Double It!'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
 
     final provider = context.read<ChallengeProvider>();
     final walletProvider = context.read<WalletProvider>();

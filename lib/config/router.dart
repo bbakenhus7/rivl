@@ -20,6 +20,7 @@ import '../screens/main_screen.dart';
 import '../screens/challenges/challenge_detail_screen.dart';
 import '../screens/wallet/wallet_screen.dart';
 import '../screens/notifications/notifications_screen.dart';
+import '../screens/onboarding/onboarding_screen.dart';
 
 /// Route path constants for the app.
 ///
@@ -39,6 +40,7 @@ class AppRoutes {
   static const profile = '/profile';
   static const wallet = '/wallet';
   static const notifications = '/notifications';
+  static const onboarding = '/onboarding';
 
   // Parameterized routes — use the helper methods below
   static const _challengeDetail = '/challenge/:id';
@@ -136,19 +138,39 @@ GoRouter createRouter(AuthProvider authProvider) {
       // can be wired up as a follow-up enhancement.
       GoRoute(
         path: AppRoutes.challenges,
-        builder: (context, state) => const MainScreen(),
+        redirect: (context, state) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            MainScreen.onTabSelected?.call(1);
+          });
+          return AppRoutes.home;
+        },
       ),
       GoRoute(
         path: AppRoutes.create,
-        builder: (context, state) => const MainScreen(),
+        redirect: (context, state) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            MainScreen.onTabSelected?.call(2);
+          });
+          return AppRoutes.home;
+        },
       ),
       GoRoute(
         path: AppRoutes.feed,
-        builder: (context, state) => const MainScreen(),
+        redirect: (context, state) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            MainScreen.onTabSelected?.call(3);
+          });
+          return AppRoutes.home;
+        },
       ),
       GoRoute(
         path: AppRoutes.profile,
-        builder: (context, state) => const MainScreen(),
+        redirect: (context, state) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            MainScreen.onTabSelected?.call(4);
+          });
+          return AppRoutes.home;
+        },
       ),
 
       // ---------------------------------------------------------------
@@ -181,6 +203,17 @@ GoRouter createRouter(AuthProvider authProvider) {
           key: state.pageKey,
           child: const NotificationsScreen(),
           transitionsBuilder: _slideFromRight,
+          transitionDuration: const Duration(milliseconds: 300),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.onboarding,
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const OnboardingScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
           transitionDuration: const Duration(milliseconds: 300),
         ),
       ),

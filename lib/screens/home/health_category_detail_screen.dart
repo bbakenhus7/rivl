@@ -128,6 +128,7 @@ class _HealthCategoryDetailScreenState
   late final HealthCategoryConfig _config;
   int _selectedDays = 7;
   bool _isLoading = true;
+  String? _error;
   Map<HealthMetricType, List<MetricDataPoint>> _metricData = {};
 
   @override
@@ -138,29 +139,39 @@ class _HealthCategoryDetailScreenState
   }
 
   void _loadData() {
-    setState(() => _isLoading = true);
-
-    final now = DateTime.now();
-    final data = <HealthMetricType, List<MetricDataPoint>>{};
-
-    for (final metricType in _config.metrics) {
-      final rng = Random(metricType.index * 1000 + now.day);
-      final points = <MetricDataPoint>[];
-      for (var i = _selectedDays - 1; i >= 0; i--) {
-        final date =
-            DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
-        points.add(MetricDataPoint(
-          date: date,
-          value: _generateDemoValue(rng, i, metricType),
-        ));
-      }
-      data[metricType] = points;
-    }
-
     setState(() {
-      _metricData = data;
-      _isLoading = false;
+      _isLoading = true;
+      _error = null;
     });
+
+    try {
+      final now = DateTime.now();
+      final data = <HealthMetricType, List<MetricDataPoint>>{};
+
+      for (final metricType in _config.metrics) {
+        final rng = Random(metricType.index * 1000 + now.day);
+        final points = <MetricDataPoint>[];
+        for (var i = _selectedDays - 1; i >= 0; i--) {
+          final date =
+              DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
+          points.add(MetricDataPoint(
+            date: date,
+            value: _generateDemoValue(rng, i, metricType),
+          ));
+        }
+        data[metricType] = points;
+      }
+
+      setState(() {
+        _metricData = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load health data';
+        _isLoading = false;
+      });
+    }
   }
 
   double _generateDemoValue(Random rng, int daysAgo, HealthMetricType type) {
@@ -243,6 +254,26 @@ class _HealthCategoryDetailScreenState
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, size: 48, color: Colors.grey[400]),
+                      const SizedBox(height: 16),
+                      Text(
+                        _error!,
+                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: _loadData,
+                        icon: const Icon(Icons.refresh, size: 18),
+                        label: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
           : SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 20),

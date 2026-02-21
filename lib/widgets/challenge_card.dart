@@ -12,6 +12,7 @@ class ChallengeCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onAccept;
   final VoidCallback? onDecline;
+  final bool isAccepting;
 
   const ChallengeCard({
     super.key,
@@ -20,6 +21,7 @@ class ChallengeCard extends StatelessWidget {
     this.onTap,
     this.onAccept,
     this.onDecline,
+    this.isAccepting = false,
   });
 
   @override
@@ -58,7 +60,11 @@ class ChallengeCard extends StatelessWidget {
         ? 'Free challenge'
         : '\$${challenge.prizeAmount.toInt()} prize';
 
-    return Semantics(
+    return Hero(
+      tag: 'challenge-card-${challenge.id}',
+      child: Material(
+        type: MaterialType.transparency,
+        child: Semantics(
       label: '$challengeLabel. $statusLabel. $prizeLabel',
       button: true,
       enabled: onTap != null,
@@ -288,26 +294,39 @@ class ChallengeCard extends StatelessWidget {
                               label: 'Accept challenge',
                               button: true,
                               child: ScaleOnTap(
-                                onTap: () {
+                                onTap: isAccepting ? null : () {
                                   Haptics.heavy();
                                   onAccept?.call();
                                 },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [RivlColors.primary, RivlColors.primaryLight],
-                                    ),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Center(
-                                    child: Text(
-                                      'Accept Challenge',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 13,
-                                        color: Colors.white,
+                                child: AnimatedOpacity(
+                                  opacity: isAccepting ? 0.7 : 1.0,
+                                  duration: const Duration(milliseconds: 200),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [RivlColors.primary, RivlColors.primaryLight],
                                       ),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Center(
+                                      child: isAccepting
+                                          ? const SizedBox(
+                                              height: 16,
+                                              width: 16,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.white,
+                                              ),
+                                            )
+                                          : const Text(
+                                              'Accept Challenge',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 13,
+                                                color: Colors.white,
+                                              ),
+                                            ),
                                     ),
                                   ),
                                 ),
@@ -364,6 +383,8 @@ class ChallengeCard extends StatelessWidget {
           ],
         ),
       ),
+    ),
+    ),
     ),
     );
   }

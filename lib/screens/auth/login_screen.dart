@@ -27,7 +27,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordFocusNode = FocusNode();
 
   bool _obscurePassword = true;
-  bool _rememberMe = false;
   bool _isLoading = false;
   bool _isAppleLoading = false;
   bool _isGoogleLoading = false;
@@ -203,7 +202,7 @@ class _LoginScreenState extends State<LoginScreen> {
           'Sign in to continue competing',
           style: TextStyle(
             fontSize: 16,
-            color: Colors.grey[600],
+            color: context.textSecondary,
           ),
         ),
       ],
@@ -313,35 +312,6 @@ class _LoginScreenState extends State<LoginScreen> {
             onFieldSubmitted: (_) => _handleLogin(),
           ),
           const SizedBox(height: 16),
-
-          // Remember me checkbox
-          Row(
-            children: [
-              SizedBox(
-                height: 24,
-                width: 24,
-                child: Checkbox(
-                  value: _rememberMe,
-                  onChanged: (value) {
-                    setState(() => _rememberMe = value ?? false);
-                  },
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () => setState(() => _rememberMe = !_rememberMe),
-                child: Text(
-                  'Remember me',
-                  style: TextStyle(
-                    color: Colors.grey[700],
-                  ),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -425,20 +395,20 @@ class _LoginScreenState extends State<LoginScreen> {
     return Row(
       children: [
         Expanded(
-          child: Divider(color: Colors.grey[300]),
+          child: Divider(color: context.textSecondary.withValues(alpha: 0.2)),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             'or continue with',
             style: TextStyle(
-              color: Colors.grey[500],
+              color: context.textSecondary,
               fontSize: 14,
             ),
           ),
         ),
         Expanded(
-          child: Divider(color: Colors.grey[300]),
+          child: Divider(color: context.textSecondary.withValues(alpha: 0.2)),
         ),
       ],
     );
@@ -535,7 +505,7 @@ class _LoginScreenState extends State<LoginScreen> {
       children: [
         Text(
           "Don't have an account? ",
-          style: TextStyle(color: Colors.grey[600]),
+          style: TextStyle(color: context.textSecondary),
         ),
         TextButton(
           onPressed: () {

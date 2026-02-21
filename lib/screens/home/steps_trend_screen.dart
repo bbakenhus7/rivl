@@ -18,6 +18,7 @@ class StepsTrendScreen extends StatefulWidget {
 class _StepsTrendScreenState extends State<StepsTrendScreen> {
   List<DailySteps> _steps = [];
   bool _isLoading = true;
+  String? _error;
   int _selectedDays = 30;
   int? _touchedIndex;
 
@@ -28,16 +29,28 @@ class _StepsTrendScreenState extends State<StepsTrendScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
-    final health = context.read<HealthProvider>();
-    final steps = await health.getDailySteps(_selectedDays);
+    try {
+      final health = context.read<HealthProvider>();
+      final steps = await health.getDailySteps(_selectedDays);
 
-    if (mounted) {
-      setState(() {
-        _steps = steps;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _steps = steps;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load steps data';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -69,6 +82,26 @@ class _StepsTrendScreenState extends State<StepsTrendScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, size: 48, color: Colors.grey[400]),
+                      const SizedBox(height: 16),
+                      Text(
+                        _error!,
+                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: _loadData,
+                        icon: const Icon(Icons.refresh, size: 18),
+                        label: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
           : SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.symmetric(horizontal: 20),

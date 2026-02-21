@@ -136,10 +136,19 @@ class _ChallengesScreenState extends State<ChallengesScreen> with SingleTickerPr
   }
 }
 
-class _ChallengeList extends StatelessWidget {
+class _ChallengeList extends StatefulWidget {
   final ChallengeStatus filter;
 
   const _ChallengeList({required this.filter});
+
+  @override
+  State<_ChallengeList> createState() => _ChallengeListState();
+}
+
+class _ChallengeListState extends State<_ChallengeList> {
+  String? _acceptingChallengeId;
+
+  ChallengeStatus get filter => widget.filter;
 
   @override
   Widget build(BuildContext context) {
@@ -237,6 +246,7 @@ class _ChallengeList extends StatelessWidget {
                   child: ChallengeCard(
                     challenge: challenge,
                     currentUserId: context.read<AuthProvider>().user?.id ?? 'demo-user',
+                    isAccepting: _acceptingChallengeId == challenge.id,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -247,40 +257,69 @@ class _ChallengeList extends StatelessWidget {
                     },
                     onAccept: isPending
                         ? () async {
-                            var walletBalance = context.read<WalletProvider>().balance;
+                            if (_acceptingChallengeId != null) return;
+                            setState(() => _acceptingChallengeId = challenge.id);
+                            try {
+                              var walletBalance = context.read<WalletProvider>().balance;
 
-                            // Prompt to add funds if balance is insufficient
-                            if (challenge.stakeAmount > 0 && walletBalance < challenge.stakeAmount) {
-                              final funded = await showAddFundsSheet(
-                                context,
-                                stakeAmount: challenge.stakeAmount,
-                                currentBalance: walletBalance,
+                              // Prompt to add funds if balance is insufficient
+                              if (challenge.stakeAmount > 0 && walletBalance < challenge.stakeAmount) {
+                                final funded = await showAddFundsSheet(
+                                  context,
+                                  stakeAmount: challenge.stakeAmount,
+                                  currentBalance: walletBalance,
+                                );
+                                if (!funded || !context.mounted) {
+                                  if (mounted) setState(() => _acceptingChallengeId = null);
+                                  return;
+                                }
+                                // Re-read balance after deposit
+                                walletBalance = context.read<WalletProvider>().balance;
+                              }
+
+                              final success = await provider.acceptChallenge(
+                                challenge.id,
+                                walletBalance: walletBalance,
                               );
-                              if (!funded || !context.mounted) return;
-                              // Re-read balance after deposit
-                              walletBalance = context.read<WalletProvider>().balance;
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(success
+                                      ? 'Challenge accepted! Good luck!'
+                                      : provider.errorMessage ?? 'Failed to accept challenge'),
+                                  backgroundColor: success ? RivlColors.success : RivlColors.error,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                              );
+                              provider.clearMessages();
+                            } finally {
+                              if (mounted) setState(() => _acceptingChallengeId = null);
                             }
-
-                            final success = await provider.acceptChallenge(
-                              challenge.id,
-                              walletBalance: walletBalance,
-                            );
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(success
-                                    ? 'Challenge accepted! Good luck!'
-                                    : provider.errorMessage ?? 'Failed to accept challenge'),
-                                backgroundColor: success ? RivlColors.success : RivlColors.error,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                            );
-                            provider.clearMessages();
                           }
                         : null,
                     onDecline: isPending
                         ? () async {
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Decline Challenge'),
+                                content: const Text(
+                                    'Are you sure you want to decline this challenge?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    child: const Text('Decline',
+                                        style: TextStyle(color: RivlColors.error)),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirmed != true || !context.mounted) return;
                             final success = await provider.declineChallenge(challenge.id);
                             if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(

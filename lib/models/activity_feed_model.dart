@@ -78,6 +78,9 @@ class ActivityFeedItem {
   String? get challengeId => data['challengeId'] as String?;
   double? get amount => (data['amount'] as num?)?.toDouble();
   String? get opponentName => data['opponentName'] as String?;
+  int get kudosCount => (data['kudosCount'] as int?) ?? 0;
+  List<String> get kudosBy =>
+      (data['kudosBy'] as List<dynamic>?)?.cast<String>() ?? [];
 
   factory ActivityFeedItem.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};

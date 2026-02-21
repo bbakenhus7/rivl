@@ -7,6 +7,7 @@ import '../../models/wallet_model.dart';
 import '../../utils/haptics.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
+import '../../widgets/skeleton_loader.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -33,7 +34,7 @@ class _WalletScreenState extends State<WalletScreen> {
       body: Consumer<WalletProvider>(
         builder: (context, provider, _) {
           if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const _WalletSkeleton();
           }
 
           return RefreshIndicator(
@@ -230,12 +231,16 @@ class _BalanceCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            '\$${balance.toStringAsFixed(2)}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 42,
-              fontWeight: FontWeight.bold,
+          Semantics(
+            label: 'Available balance: ${balance.toStringAsFixed(2)} dollars',
+            excludeSemantics: true,
+            child: Text(
+              '\$${balance.toStringAsFixed(2)}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 42,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           if (pendingBalance > 0) ...[
@@ -387,7 +392,7 @@ class _StatItem extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: 12,
-            color: Colors.grey[600],
+            color: context.textSecondary,
           ),
         ),
       ],
@@ -848,8 +853,58 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
   }
 }
 
-class _TransactionHistoryScreen extends StatelessWidget {
+class _WalletSkeleton extends StatelessWidget {
+  const _WalletSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerEffect(
+      child: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Balance card
+            SkeletonBox(height: 140, borderRadius: 20),
+            const SizedBox(height: 24),
+            // Action buttons
+            Row(
+              children: [
+                Expanded(child: SkeletonBox(height: 48, borderRadius: 12)),
+                const SizedBox(width: 16),
+                Expanded(child: SkeletonBox(height: 48, borderRadius: 12)),
+              ],
+            ),
+            const SizedBox(height: 24),
+            // Stats card
+            SkeletonBox(height: 120, borderRadius: 16),
+            const SizedBox(height: 24),
+            // "Recent Activity" header
+            SkeletonBox(height: 18, width: 120),
+            const SizedBox(height: 12),
+            // Transaction items
+            for (int i = 0; i < 4; i++) ...[
+              const TransactionItemSkeleton(),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TransactionHistoryScreen extends StatefulWidget {
   const _TransactionHistoryScreen();
+
+  @override
+  State<_TransactionHistoryScreen> createState() =>
+      _TransactionHistoryScreenState();
+}
+
+class _TransactionHistoryScreenState
+    extends State<_TransactionHistoryScreen> {
+  TransactionType? _filterType;
 
   @override
   Widget build(BuildContext context) {
@@ -859,20 +914,99 @@ class _TransactionHistoryScreen extends StatelessWidget {
       ),
       body: Consumer<WalletProvider>(
         builder: (context, provider, _) {
-          if (provider.transactions.isEmpty) {
-            return const Center(child: _EmptyTransactions());
-          }
+          final filtered = _filterType == null
+              ? provider.transactions
+              : provider.transactions
+                  .where((tx) => tx.type == _filterType)
+                  .toList();
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: provider.transactions.length,
-            itemBuilder: (context, index) {
-              return _TransactionTile(
-                transaction: provider.transactions[index],
-              );
-            },
+          return Column(
+            children: [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    _FilterChip(
+                      label: 'All',
+                      selected: _filterType == null,
+                      onSelected: () =>
+                          setState(() => _filterType = null),
+                    ),
+                    ...TransactionType.values.map((type) => Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: _FilterChip(
+                            label: type.name[0].toUpperCase() +
+                                type.name.substring(1),
+                            selected: _filterType == type,
+                            onSelected: () =>
+                                setState(() => _filterType = type),
+                          ),
+                        )),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: filtered.isEmpty
+                    ? const Center(child: _EmptyTransactions())
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) {
+                          return _TransactionTile(
+                            transaction: filtered[index],
+                          );
+                        },
+                      ),
+              ),
+            ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onSelected;
+
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Haptics.selection();
+        onSelected();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? RivlColors.primary.withOpacity(0.1)
+              : context.surfaceVariant,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected
+                ? RivlColors.primary.withOpacity(0.4)
+                : Colors.transparent,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+            color: selected ? RivlColors.primary : context.textSecondary,
+          ),
+        ),
       ),
     );
   }

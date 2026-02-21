@@ -74,6 +74,32 @@ class ActivityFeedProvider with ChangeNotifier {
     }
   }
 
+  /// Toggle kudos (like) on a feed item
+  Future<void> toggleKudos(String feedItemId, String userId) async {
+    try {
+      final docRef = _firestore.collection('activityFeed').doc(feedItemId);
+      final doc = await docRef.get();
+      if (!doc.exists) return;
+
+      final data = doc.data() as Map<String, dynamic>? ?? {};
+      final innerData = Map<String, dynamic>.from(data['data'] ?? {});
+      final kudosBy = List<String>.from(innerData['kudosBy'] ?? []);
+
+      if (kudosBy.contains(userId)) {
+        kudosBy.remove(userId);
+      } else {
+        kudosBy.add(userId);
+      }
+
+      await docRef.update({
+        'data.kudosBy': kudosBy,
+        'data.kudosCount': kudosBy.length,
+      });
+    } catch (e) {
+      debugPrint('Failed to toggle kudos: $e');
+    }
+  }
+
   /// Post challenge won activity
   Future<void> postChallengeWon({
     required String userId,

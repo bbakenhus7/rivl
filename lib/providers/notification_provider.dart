@@ -111,6 +111,20 @@ class NotificationProvider with ChangeNotifier {
     _safeNotify();
   }
 
+  /// Delete a notification
+  Future<void> deleteNotification(String notificationId) async {
+    _notifications.removeWhere((n) => n['id'] == notificationId);
+    _safeNotify();
+    try {
+      await _firestore
+          .collection('notifications')
+          .doc(notificationId)
+          .delete();
+    } catch (e) {
+      // Delete error — notification may reappear on next refresh
+    }
+  }
+
   /// Mark a notification as read
   Future<void> markAsRead(String notificationId) async {
     try {

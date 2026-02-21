@@ -1,12 +1,17 @@
 // screens/profile/friends_screen.dart
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/friend_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/firebase_service.dart';
 import '../../models/user_model.dart';
+import '../../utils/haptics.dart';
 import '../../utils/theme.dart';
+import '../../utils/animations.dart';
+import '../../widgets/cached_avatar.dart';
+import '../../widgets/skeleton_loader.dart';
 
 class FriendsScreen extends StatefulWidget {
   const FriendsScreen({super.key});
@@ -22,18 +27,34 @@ class _FriendsScreenState extends State<FriendsScreen>
   List<UserModel> _searchResults = [];
   bool _isSearching = false;
   final Set<String> _sentRequests = {};
+  Timer? _debounceTimer;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 3, vsync: this)
+      ..addListener(() {
+        if (!_tabController.indexIsChanging) Haptics.selection();
+      });
   }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    _debounceTimer?.cancel();
+    if (query.length < 2) {
+      setState(() => _searchResults = []);
+      return;
+    }
+    _debounceTimer = Timer(const Duration(milliseconds: 400), () {
+      _searchUsers(query);
+    });
   }
 
   Future<void> _searchUsers(String query) async {
@@ -45,7 +66,6 @@ class _FriendsScreenState extends State<FriendsScreen>
     setState(() => _isSearching = true);
     try {
       _searchResults = await FirebaseService().searchUsers(query);
-      // Remove current user from results
       _searchResults.removeWhere((u) => u.id == currentUserId);
     } catch (e) {
       _searchResults = [];
@@ -121,21 +141,28 @@ class _FriendsScreenState extends State<FriendsScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.people_outline,
-                    size: 64, color: Colors.grey[400]),
-                const SizedBox(height: 16),
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: context.surfaceVariant,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.people_outline, size: 40, color: context.textSecondary),
+                ),
+                const SizedBox(height: 20),
                 Text(
                   'No friends yet',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.grey[600],
-                      ),
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: context.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Add friends to challenge them with no fees!',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[500],
-                      ),
+                  style: TextStyle(color: context.textSecondary, fontSize: 14),
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton.icon(
@@ -148,71 +175,81 @@ class _FriendsScreenState extends State<FriendsScreen>
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: friendProvider.friends.length,
-          itemBuilder: (context, index) {
-            final friend = friendProvider.friends[index];
-            return ListTile(
-              leading: CircleAvatar(
-                backgroundColor: RivlColors.primary.withOpacity(0.12),
-                child: Text(
-                  (friend['displayName'] as String? ?? '?')[0].toUpperCase(),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: RivlColors.primary,
+        return RefreshIndicator(
+          onRefresh: () async {
+            final userId = context.read<AuthProvider>().user?.id;
+            if (userId != null) {
+              friendProvider.startListening(userId);
+            }
+            // Brief delay so the spinner is visible
+            await Future.delayed(const Duration(milliseconds: 500));
+          },
+          child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: friendProvider.friends.length,
+            itemBuilder: (context, index) {
+              final friend = friendProvider.friends[index];
+              final displayName = friend['displayName'] as String? ?? 'Unknown';
+              return SlideIn(
+                delay: Duration(milliseconds: 30 * index.clamp(0, 10)),
+                child: ListTile(
+                  leading: CachedAvatar(
+                    imageUrl: friend['profileImageUrl'] as String?,
+                    displayName: displayName,
+                    radius: 22,
+                  ),
+                  title: Text(
+                    displayName,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text('@${friend['username'] ?? ''}'),
+                  trailing: PopupMenuButton<String>(
+                    onSelected: (value) async {
+                      if (value == 'remove') {
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Remove Friend'),
+                            content: Text(
+                                'Remove $displayName from your friends?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('Remove',
+                                    style: TextStyle(color: Colors.red)),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirmed == true) {
+                          await friendProvider
+                              .removeFriend(friend['userId'] as String? ?? '');
+                        }
+                      }
+                    },
+                    itemBuilder: (ctx) => [
+                      const PopupMenuItem(
+                        value: 'remove',
+                        child: Row(
+                          children: [
+                            Icon(Icons.person_remove, color: Colors.red, size: 20),
+                            SizedBox(width: 8),
+                            Text('Remove Friend',
+                                style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              title: Text(
-                friend['displayName'] as String? ?? 'Unknown',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text('@${friend['username'] ?? ''}'),
-              trailing: PopupMenuButton<String>(
-                onSelected: (value) async {
-                  if (value == 'remove') {
-                    final confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Remove Friend'),
-                        content: Text(
-                            'Remove ${friend['displayName']} from your friends?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text('Remove',
-                                style: TextStyle(color: Colors.red)),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirmed == true) {
-                      await friendProvider
-                          .removeFriend(friend['userId'] as String? ?? '');
-                    }
-                  }
-                },
-                itemBuilder: (ctx) => [
-                  const PopupMenuItem(
-                    value: 'remove',
-                    child: Row(
-                      children: [
-                        Icon(Icons.person_remove, color: Colors.red, size: 20),
-                        SizedBox(width: 8),
-                        Text('Remove Friend',
-                            style: TextStyle(color: Colors.red)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
+              );
+            },
+          ),
         );
       },
     );
@@ -226,13 +263,23 @@ class _FriendsScreenState extends State<FriendsScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.mail_outline, size: 64, color: Colors.grey[400]),
-                const SizedBox(height: 16),
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: context.surfaceVariant,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.mail_outline, size: 40, color: context.textSecondary),
+                ),
+                const SizedBox(height: 20),
                 Text(
                   'No pending requests',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.grey[600],
-                      ),
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: context.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -244,16 +291,13 @@ class _FriendsScreenState extends State<FriendsScreen>
           itemCount: friendProvider.pendingRequests.length,
           itemBuilder: (context, index) {
             final request = friendProvider.pendingRequests[index];
-            return ListTile(
-              leading: CircleAvatar(
-                backgroundColor: RivlColors.primary.withOpacity(0.12),
-                child: Text(
-                  (request['senderName'] as String? ?? '?')[0].toUpperCase(),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: RivlColors.primary,
-                  ),
-                ),
+            return SlideIn(
+              delay: Duration(milliseconds: 30 * index.clamp(0, 10)),
+              child: ListTile(
+              leading: CachedAvatar(
+                imageUrl: request['senderProfileImageUrl'] as String?,
+                displayName: request['senderName'] as String? ?? '?',
+                radius: 22,
               ),
               title: Text(
                 request['senderName'] as String? ?? 'Unknown',
@@ -266,8 +310,39 @@ class _FriendsScreenState extends State<FriendsScreen>
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.red),
                     onPressed: () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Decline Request'),
+                          content: Text(
+                              'Decline friend request from ${request['senderName'] ?? 'this user'}?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Decline',
+                                  style: TextStyle(color: Colors.red)),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmed != true) return;
                       await friendProvider
                           .declineFriendRequest(request['id'] as String? ?? '');
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                'Request from ${request['senderName'] ?? 'user'} declined'),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        );
+                      }
                     },
                   ),
                   const SizedBox(width: 4),
@@ -293,6 +368,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                   ),
                 ],
               ),
+            ),
             );
           },
         );
@@ -323,15 +399,37 @@ class _FriendsScreenState extends State<FriendsScreen>
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onChanged: (query) {
-              _searchUsers(query);
-            },
+            onChanged: _onSearchChanged,
           ),
         ),
         if (_isSearching)
-          const Padding(
-            padding: EdgeInsets.all(32),
-            child: CircularProgressIndicator(),
+          Expanded(
+            child: ShimmerEffect(
+              child: ListView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: 4,
+                itemBuilder: (context, index) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      const SkeletonCircle(size: 44),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SkeletonBox(height: 14, width: 120),
+                            const SizedBox(height: 6),
+                            SkeletonBox(height: 12, width: 80),
+                          ],
+                        ),
+                      ),
+                      SkeletonBox(height: 32, width: 60, borderRadius: 16),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           )
         else
           Expanded(
@@ -341,7 +439,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                       _searchController.text.length < 2
                           ? 'Type at least 2 characters to search'
                           : 'No users found',
-                      style: TextStyle(color: Colors.grey[500]),
+                      style: TextStyle(color: context.textSecondary),
                     ),
                   )
                 : Consumer<FriendProvider>(
@@ -354,16 +452,10 @@ class _FriendsScreenState extends State<FriendsScreen>
                           final requestSent = _sentRequests.contains(user.id);
 
                           return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  RivlColors.primary.withOpacity(0.12),
-                              child: Text(
-                                (user.displayName.isNotEmpty ? user.displayName[0] : '?').toUpperCase(),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: RivlColors.primary,
-                                ),
-                              ),
+                            leading: CachedAvatar(
+                              imageUrl: user.profileImageUrl,
+                              displayName: user.displayName,
+                              radius: 22,
                             ),
                             title: Text(
                               user.displayName,
@@ -401,7 +493,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                                         child: Text(
                                           'Sent',
                                           style: TextStyle(
-                                            color: Colors.grey[600],
+                                            color: context.textSecondary,
                                             fontWeight: FontWeight.w600,
                                             fontSize: 12,
                                           ),
