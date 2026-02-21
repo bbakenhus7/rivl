@@ -16,6 +16,7 @@ import '../../utils/haptics.dart';
 import '../../utils/theme.dart';
 import '../../utils/animations.dart';
 
+import '../../models/challenge_model.dart';
 import '../../models/health_category.dart';
 import '../../widgets/challenge_card.dart';
 import '../../widgets/section_header.dart';
@@ -23,6 +24,7 @@ import '../../widgets/rivl_logo.dart';
 import '../challenges/challenge_detail_screen.dart';
 import '../main_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../wallet/wallet_screen.dart';
 import 'health_category_detail_screen.dart';
 import 'health_metric_detail_screen.dart';
 
@@ -1467,6 +1469,7 @@ class _QuickGlanceRow extends StatelessWidget {
                 label: 'Balance',
                 value: '\$${wallet.balance.toStringAsFixed(0)}',
                 color: RivlColors.success,
+                onTap: () => _showBalanceSheet(context),
               ),
             ),
             const SizedBox(width: 10),
@@ -1476,6 +1479,7 @@ class _QuickGlanceRow extends StatelessWidget {
                 label: 'At Stake',
                 value: activePot > 0 ? '\$${activePot.toStringAsFixed(0)}' : '--',
                 color: RivlColors.secondary,
+                onTap: () => _showAtStakeSheet(context),
               ),
             ),
             const SizedBox(width: 10),
@@ -1485,12 +1489,302 @@ class _QuickGlanceRow extends StatelessWidget {
                 label: 'Streak',
                 value: '${streak.currentStreak}d',
                 color: RivlColors.streak,
+                onTap: () => _showStreakSheet(context),
               ),
             ),
           ],
         );
       },
     );
+  }
+
+  void _showBalanceSheet(BuildContext context) {
+    Haptics.light();
+    final wallet = context.read<WalletProvider>();
+    final navigator = Navigator.of(context);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: ctx.surfaceVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(children: [
+              const Icon(Icons.account_balance_wallet, color: RivlColors.success, size: 20),
+              const SizedBox(width: 8),
+              Text('Wallet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: ctx.textPrimary)),
+            ]),
+            const SizedBox(height: 20),
+            Text(
+              '\$${wallet.balance.toStringAsFixed(2)}',
+              style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: ctx.textPrimary),
+            ),
+            if (wallet.pendingBalance > 0) ...[
+              const SizedBox(height: 4),
+              Text('\$${wallet.pendingBalance.toStringAsFixed(2)} pending',
+                style: TextStyle(fontSize: 13, color: ctx.textSecondary)),
+            ],
+            const SizedBox(height: 24),
+            Row(children: [
+              _SheetStat(label: 'Winnings', value: '\$${wallet.lifetimeWinnings.toStringAsFixed(0)}', color: RivlColors.success),
+              const SizedBox(width: 16),
+              _SheetStat(label: 'Losses', value: '\$${wallet.lifetimeLosses.toStringAsFixed(0)}', color: RivlColors.secondary),
+              const SizedBox(width: 16),
+              _SheetStat(
+                label: 'Net',
+                value: '${wallet.netProfit >= 0 ? '+' : ''}\$${wallet.netProfit.toStringAsFixed(0)}',
+                color: wallet.netProfit >= 0 ? RivlColors.success : RivlColors.secondary,
+              ),
+            ]),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  navigator.push(SlidePageRoute(page: const WalletScreen()));
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: RivlColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('View Wallet', style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAtStakeSheet(BuildContext context) {
+    Haptics.light();
+    final challenges = context.read<ChallengeProvider>();
+    final active = challenges.activeChallenges;
+    final activePot = active.fold<double>(0, (sum, c) => sum + c.prizeAmount);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: active.length > 3 ? 0.6 : 0.45,
+        maxChildSize: 0.85,
+        minChildSize: 0.3,
+        expand: false,
+        builder: (ctx, scrollController) => SingleChildScrollView(
+          controller: scrollController,
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: ctx.surfaceVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(children: [
+                const Icon(Icons.local_fire_department, color: RivlColors.secondary, size: 20),
+                const SizedBox(width: 8),
+                Text('At Stake', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: ctx.textPrimary)),
+              ]),
+              const SizedBox(height: 20),
+              Text(
+                activePot > 0 ? '\$${activePot.toStringAsFixed(0)}' : '--',
+                style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: ctx.textPrimary),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${active.length} active challenge${active.length == 1 ? '' : 's'}',
+                style: TextStyle(fontSize: 13, color: ctx.textSecondary),
+              ),
+              const SizedBox(height: 20),
+              if (active.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Center(child: Text('No active challenges', style: TextStyle(color: ctx.textSecondary, fontSize: 14))),
+                )
+              else
+                ...active.map((c) {
+                  final daysLeft = c.endDate != null ? c.endDate!.difference(DateTime.now()).inDays : 0;
+                  // Determine opponent label based on challenge type
+                  String opponent;
+                  if (c.isTeamVsTeam) {
+                    opponent = c.teamB?.name ?? c.teamA?.name ?? 'Squad';
+                  } else if (c.isGroup) {
+                    final count = c.participants.length;
+                    opponent = 'Group ($count)';
+                  } else {
+                    opponent = c.creatorName == 'You'
+                        ? (c.opponentName ?? 'Opponent')
+                        : c.creatorName;
+                  }
+                  final timeLabel = daysLeft > 0
+                      ? '${daysLeft}d left'
+                      : daysLeft == 0
+                          ? 'Ending today'
+                          : 'Ended';
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(color: ctx.surfaceVariant, borderRadius: BorderRadius.circular(12)),
+                      child: Row(children: [
+                        Expanded(child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('vs $opponent', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: ctx.textPrimary)),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${c.goalType.displayName}  •  $timeLabel',
+                              style: TextStyle(fontSize: 12, color: ctx.textSecondary),
+                            ),
+                          ],
+                        )),
+                        Text('\$${c.prizeAmount.toStringAsFixed(0)}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: ctx.textPrimary)),
+                      ]),
+                    ),
+                  );
+                }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showStreakSheet(BuildContext context) {
+    Haptics.light();
+    final streak = context.read<StreakProvider>();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: ctx.surfaceVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(children: [
+              const Icon(Icons.whatshot, color: RivlColors.streak, size: 20),
+              const SizedBox(width: 8),
+              Text('Streak', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: ctx.textPrimary)),
+              if (streak.streakMultiplierLabel.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: RivlColors.streak.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(streak.streakMultiplierLabel,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: RivlColors.streak)),
+                ),
+              ],
+            ]),
+            const SizedBox(height: 20),
+            Text(
+              '${streak.currentStreak} days',
+              style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: ctx.textPrimary),
+            ),
+            const SizedBox(height: 4),
+            Text('Longest: ${streak.longestStreak} days', style: TextStyle(fontSize: 13, color: ctx.textSecondary)),
+            const SizedBox(height: 24),
+            Row(children: [
+              _SheetStat(label: 'Total Logins', value: '${streak.streak?.totalLogins ?? 0}', color: RivlColors.primary),
+              const SizedBox(width: 16),
+              _SheetStat(label: 'Coins Earned', value: '${streak.streak?.totalCoinsEarned ?? 0}', color: RivlColors.streak),
+              const SizedBox(width: 16),
+              _SheetStat(label: 'Next Reward', value: '${streak.nextRewardCoins}c', color: RivlColors.success),
+            ]),
+            if (streak.streak != null && streak.streak!.rewardHistory.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              Text('Recent Rewards', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: ctx.textPrimary)),
+              const SizedBox(height: 12),
+              ...streak.streak!.rewardHistory.reversed.map((r) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(children: [
+                  Container(
+                    width: 32, height: 32,
+                    decoration: BoxDecoration(
+                      color: RivlColors.streak.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(child: Text('${r.day}',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: RivlColors.streak))),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text('Day ${r.day}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: ctx.textPrimary))),
+                  Text('+${r.coins}c', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: RivlColors.streak)),
+                ]),
+              )),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Small stat label + value used in bottom sheet rows.
+class _SheetStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _SheetStat({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 11, color: context.textSecondary)),
+        const SizedBox(height: 2),
+        Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: color)),
+      ],
+    ));
   }
 }
 
@@ -1499,61 +1793,59 @@ class _GlanceStat extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
+  final VoidCallback? onTap;
 
   const _GlanceStat({
     required this.icon,
     required this.label,
     required this.value,
     required this.color,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [context.surface, color.withOpacity(0.05)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return ScaleOnTap(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        decoration: BoxDecoration(
+          color: context.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: context.surfaceVariant,
+            width: 1,
+          ),
         ),
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 14, color: color),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: context.textSecondary,
-                  fontWeight: FontWeight.w500,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 14, color: color),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: context.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: color,
-              height: 1,
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: context.textPrimary,
+                height: 1,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
