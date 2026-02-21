@@ -7,6 +7,8 @@ import '../services/health_service.dart';
 import '../models/challenge_model.dart';
 import '../models/health_metrics.dart';
 
+export 'package:rivl/services/health_service.dart' show HealthErrorReason;
+
 class HealthProvider extends ChangeNotifier {
   final HealthService _healthService = HealthService();
   Timer? _autoRefreshTimer;
@@ -38,6 +40,9 @@ class HealthProvider extends ChangeNotifier {
   HealthMetrics get metrics => _metrics;
   String? get errorMessage => _errorMessage;
 
+  /// The reason for the most recent health data failure, or null on success.
+  HealthErrorReason? get errorReason => _healthService.lastErrorReason;
+
   void _safeNotify() {
     if (!_disposed) notifyListeners();
   }
@@ -63,6 +68,18 @@ class HealthProvider extends ChangeNotifier {
   List<DailySteps> get weeklySteps => _metrics.weeklySteps;
   List<WorkoutData> get recentWorkouts => _metrics.recentWorkouts;
 
+  // Granular sleep
+  double get deepSleepHours => _metrics.deepSleepHours;
+  double get remSleepHours => _metrics.remSleepHours;
+  double get lightSleepHours => _metrics.lightSleepHours;
+  double get awakeDuration => _metrics.awakeDuration;
+  double get timeInBed => _metrics.timeInBed;
+  int get sleepQualityScore => _metrics.sleepQualityScore;
+  double get sleepEfficiency => _metrics.sleepEfficiency;
+
+  // Exercise
+  int get exerciseMinutes => _metrics.exerciseMinutes;
+
   // Recovery and strain
   int get recoveryScore => _metrics.recoveryScore;
   String get recoveryStatus => _metrics.recoveryStatus;
@@ -71,6 +88,14 @@ class HealthProvider extends ChangeNotifier {
   // RIVL Health Score
   int get rivlHealthScore => _metrics.rivlHealthScore;
   String get rivlHealthGrade => _metrics.rivlHealthGrade;
+
+  // Health score sub-scores (0-100 each)
+  double get scoreSteps => _metrics.scoreSteps;
+  double get scoreCalories => _metrics.scoreCalories;
+  double get scoreExercise => _metrics.scoreExercise;
+  double get scoreSleep => _metrics.scoreSleep;
+  double get scoreRhr => _metrics.scoreRhr;
+  double get scoreHrv => _metrics.scoreHrv;
 
   // Goal tracking
   int get dailyGoal => _metrics.stepsGoal;
@@ -105,9 +130,18 @@ class HealthProvider extends ChangeNotifier {
         await refreshData();
       }
     } catch (e) {
-      _errorMessage = 'Failed to connect to health services';
       _isAuthorized = false;
       _isUsingDemoData = true;
+      switch (_healthService.lastErrorReason) {
+        case HealthErrorReason.healthConnectMissing:
+          _errorMessage = 'Health Connect app is required. Please install it from the Play Store.';
+          break;
+        case HealthErrorReason.deviceLocked:
+          _errorMessage = 'Unlock your device to access health data.';
+          break;
+        default:
+          _errorMessage = 'Failed to connect to health services';
+      }
     }
 
     _isLoading = false;
@@ -159,9 +193,15 @@ class HealthProvider extends ChangeNotifier {
         }
       }
     } catch (e) {
-      _errorMessage = 'Failed to fetch health data';
       _isUsingDemoData = true;
       _metrics = HealthMetrics.demo();
+      switch (_healthService.lastErrorReason) {
+        case HealthErrorReason.deviceLocked:
+          _errorMessage = 'Unlock your device to access health data.';
+          break;
+        default:
+          _errorMessage = 'Failed to fetch health data';
+      }
     }
 
     _isLoading = false;

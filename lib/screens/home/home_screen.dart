@@ -662,9 +662,10 @@ class _RivlHealthScoreCard extends StatelessWidget {
                   color: color,
                   description:
                       'Your RIVL Health Score is a single number that captures your '
-                      'overall fitness across six key dimensions: Steps (25%), '
-                      'Distance (20%), Sleep (15%), Resting Heart Rate (15%), '
-                      'VO2 Max (15%), and HRV (10%).\n\n'
+                      'overall fitness across six key dimensions: Steps (20%), '
+                      'Active Calories (15%), Exercise Minutes (15%), '
+                      'Sleep Quality (20%), Resting Heart Rate (15%), '
+                      'and HRV (15%).\n\n'
                       'Why it matters: Instead of checking six different metrics, '
                       'this score tells you at a glance whether your health is '
                       'trending in the right direction. Research shows that people '
@@ -781,6 +782,18 @@ class _RivlHealthScoreCard extends StatelessWidget {
                           height: 1.4,
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      // 6-component breakdown bars
+                      _HealthScoreBreakdown(
+                        scores: [
+                          _ScoreComponent('Steps', health.metrics.scoreSteps, RivlColors.primary),
+                          _ScoreComponent('Calories', health.metrics.scoreCalories, Colors.green),
+                          _ScoreComponent('Exercise', health.metrics.scoreExercise, Colors.orange),
+                          _ScoreComponent('Sleep', health.metrics.scoreSleep, Colors.indigo),
+                          _ScoreComponent('RHR', health.metrics.scoreRhr, Colors.pink),
+                          _ScoreComponent('HRV', health.metrics.scoreHrv, Colors.purple),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -794,6 +807,81 @@ class _RivlHealthScoreCard extends StatelessWidget {
   }
 }
 
+class _ScoreComponent {
+  final String label;
+  final double score;
+  final Color color;
+  const _ScoreComponent(this.label, this.score, this.color);
+}
+
+class _HealthScoreBreakdown extends StatelessWidget {
+  final List<_ScoreComponent> scores;
+  const _HealthScoreBreakdown({required this.scores});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 8,
+      children: scores.map((s) {
+        return SizedBox(
+          width: (MediaQuery.of(context).size.width - 72) / 3 - 4,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    s.label,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: context.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    '${s.score.round()}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: s.color,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: (s.score / 100).clamp(0.0, 1.0)),
+                duration: const Duration(milliseconds: 800),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, _) {
+                  return Container(
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: s.color.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: value,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: s.color,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
 
 // Hero Activity Rings Card (circular rings replacing linear bars)
 class _ActivityBarsCard extends StatelessWidget {
@@ -1326,12 +1414,12 @@ class _CategoryTile extends StatelessWidget {
         );
       case HealthCategory.sleepRecovery:
         final sleep = health.sleepHours > 0 ? health.formatSleep(health.sleepHours) : '--';
+        final quality = health.sleepQualityScore > 0 ? 'Quality ${health.sleepQualityScore}' : 'Quality --';
         final recovery = 'Recovery ${health.recoveryScore}';
-        final spo2 = health.bloodOxygen > 0 ? 'SpO2 ${health.bloodOxygen.round()}%' : 'SpO2 --';
         return _CategoryPreview(
           heroValue: sleep,
           heroLabel: 'Sleep',
-          subtitle: '$recovery  •  $spo2',
+          subtitle: '$quality  •  $recovery',
         );
       case HealthCategory.overall:
         final score = health.rivlHealthScore;

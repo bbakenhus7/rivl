@@ -121,6 +121,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       // Start periodic health data refresh
       healthProvider.startAutoRefresh();
 
+      // Sync health progress for all active challenges on launch
+      // (Gotcha #4: background delivery is best-effort, always re-pull on app open)
+      challengeProvider.syncAllActiveChallenges();
+
       // Auto-claim daily streak reward
       _checkDailyStreak(userId);
     } else {
@@ -151,6 +155,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         // Resume refresh and do an immediate data pull
         healthProvider.startAutoRefresh();
         healthProvider.refreshData();
+        // Re-sync all active challenges on app resume
+        final authProvider = context.read<AuthProvider>();
+        if (authProvider.user != null && !authProvider.isDemoMode) {
+          context.read<ChallengeProvider>().syncAllActiveChallenges();
+        }
         break;
     }
   }

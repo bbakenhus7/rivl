@@ -109,7 +109,7 @@ const _metricInfoMap = <HealthMetricType, _MetricInfo>{
     color: Color(0xFF6C5CE7),
     description:
         'Your RIVL Health Score is a weighted average of six dimensions: '
-        'steps, distance, sleep, resting heart rate, HRV, and VO2 Max.',
+        'steps, active calories, exercise minutes, sleep quality, resting heart rate, and HRV.',
   ),
 };
 
@@ -264,6 +264,17 @@ class _HealthCategoryDetailScreenState
                     );
                   }),
 
+                  // Sleep-specific: stage breakdown
+                  if (widget.category ==
+                      HealthCategory.sleepRecovery) ...[
+                    const SizedBox(height: 8),
+                    FadeIn(
+                      delay: Duration(
+                          milliseconds: 100 * _config.metrics.length),
+                      child: _buildSleepBreakdownCard(context),
+                    ),
+                  ],
+
                   // Activity-specific sections
                   if (widget.category ==
                       HealthCategory.activityPerformance) ...[
@@ -281,12 +292,18 @@ class _HealthCategoryDetailScreenState
                     ),
                   ],
 
-                  // Overall-specific: AI recommendations
+                  // Overall-specific: health score breakdown + AI recommendations
                   if (widget.category == HealthCategory.overall) ...[
                     const SizedBox(height: 8),
                     FadeIn(
                       delay: Duration(
                           milliseconds: 100 * _config.metrics.length),
+                      child: _buildHealthScoreBreakdownCard(context),
+                    ),
+                    const SizedBox(height: 20),
+                    FadeIn(
+                      delay: Duration(
+                          milliseconds: 100 * (_config.metrics.length + 1)),
                       child: _buildAiRecommendationCard(context),
                     ),
                   ],
@@ -921,6 +938,317 @@ class _HealthCategoryDetailScreenState
   }
 
   // ============================================
+  // SLEEP STAGE BREAKDOWN (Sleep & Recovery)
+  // ============================================
+
+  Widget _buildSleepBreakdownCard(BuildContext context) {
+    return Consumer<HealthProvider>(
+      builder: (context, health, _) {
+        final deep = health.deepSleepHours;
+        final rem = health.remSleepHours;
+        final light = health.lightSleepHours;
+        final awake = health.awakeDuration;
+        final total = health.sleepHours;
+        final quality = health.sleepQualityScore;
+        final efficiency = health.sleepEfficiency;
+
+        if (total <= 0) return const SizedBox.shrink();
+
+        final stages = [
+          _SleepStage('Deep', deep, const Color(0xFF1A237E)),
+          _SleepStage('REM', rem, const Color(0xFF7C4DFF)),
+          _SleepStage('Light', light, const Color(0xFF42A5F5)),
+          _SleepStage('Awake', awake, const Color(0xFFFFB74D)),
+        ];
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: context.surface,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Text('Sleep Stages',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _qualityColor(quality).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Quality $quality',
+                      style: TextStyle(
+                        color: _qualityColor(quality),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Stacked bar showing stage proportions
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: SizedBox(
+                  height: 20,
+                  child: Row(
+                    children: stages.where((s) => s.hours > 0).map((s) {
+                      final fraction = s.hours / (total + awake);
+                      return Expanded(
+                        flex: (fraction * 1000).round().clamp(1, 1000),
+                        child: TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0, end: 1),
+                          duration: const Duration(milliseconds: 800),
+                          builder: (context, value, _) {
+                            return Container(
+                              color: s.color.withOpacity(0.15 + 0.85 * value),
+                            );
+                          },
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Stage breakdown rows
+              ...stages.map((s) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: s.color,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      s.label,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      _formatHours(s.hours),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 42,
+                      child: Text(
+                        total > 0 ? '${(s.hours / (total + awake) * 100).round()}%' : '--',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: context.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+
+              const Divider(height: 24),
+
+              // Efficiency row
+              Row(
+                children: [
+                  Icon(Icons.speed, size: 16, color: context.textSecondary),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Sleep Efficiency',
+                    style: TextStyle(fontSize: 13, color: context.textSecondary),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${efficiency.round()}%',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Color _qualityColor(int score) {
+    if (score >= 80) return RivlColors.success;
+    if (score >= 60) return Colors.lightGreen;
+    if (score >= 40) return RivlColors.warning;
+    return RivlColors.error;
+  }
+
+  String _formatHours(double hours) {
+    final h = hours.floor();
+    final m = ((hours - h) * 60).round();
+    if (h == 0 && m == 0) return '0m';
+    if (h == 0) return '${m}m';
+    if (m == 0) return '${h}h';
+    return '${h}h ${m}m';
+  }
+
+  // ============================================
+  // HEALTH SCORE BREAKDOWN (Overall)
+  // ============================================
+
+  Widget _buildHealthScoreBreakdownCard(BuildContext context) {
+    return Consumer<HealthProvider>(
+      builder: (context, health, _) {
+        final components = [
+          _ScoreBar('Steps', health.scoreSteps, 0.20, Icons.directions_walk, RivlColors.primary),
+          _ScoreBar('Calories', health.scoreCalories, 0.15, Icons.local_fire_department, Colors.green),
+          _ScoreBar('Exercise', health.scoreExercise, 0.15, Icons.fitness_center, Colors.orange),
+          _ScoreBar('Sleep', health.scoreSleep, 0.20, Icons.bedtime, Colors.indigo),
+          _ScoreBar('RHR', health.scoreRhr, 0.15, Icons.monitor_heart, Colors.pink),
+          _ScoreBar('HRV', health.scoreHrv, 0.15, Icons.show_chart, Colors.purple),
+        ];
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: context.surface,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          _config.accentColor.withOpacity(0.18),
+                          _config.accentColor.withOpacity(0.08),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.bar_chart_rounded, color: _config.accentColor, size: 18),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text('Score Breakdown',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              ...components.map((c) => Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: Row(
+                  children: [
+                    Icon(c.icon, size: 16, color: c.color),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 62,
+                      child: Text(
+                        c.label,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0, end: (c.score / 100).clamp(0.0, 1.0)),
+                        duration: const Duration(milliseconds: 800),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, value, _) {
+                          return Container(
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: c.color.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: FractionallySizedBox(
+                              alignment: Alignment.centerLeft,
+                              widthFactor: value,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: c.color,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 28,
+                      child: Text(
+                        '${c.score.round()}',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: c.color,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    SizedBox(
+                      width: 28,
+                      child: Text(
+                        '${(c.weight * 100).round()}%',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: context.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ============================================
   // AI RECOMMENDATION CARD (Overall)
   // ============================================
 
@@ -1282,4 +1610,20 @@ class _AiTip {
     required this.title,
     required this.message,
   });
+}
+
+class _SleepStage {
+  final String label;
+  final double hours;
+  final Color color;
+  const _SleepStage(this.label, this.hours, this.color);
+}
+
+class _ScoreBar {
+  final String label;
+  final double score;
+  final double weight;
+  final IconData icon;
+  final Color color;
+  const _ScoreBar(this.label, this.score, this.weight, this.icon, this.color);
 }

@@ -121,9 +121,9 @@ class HelpSupportScreen extends StatelessWidget {
             _FaqCard(
               question: 'How does RIVL calculate my Health Score?',
               answer: 'Your RIVL Health Score is a weighted average of six dimensions: '
-                  'Steps (25%), Distance (20%), Sleep (15%), Resting Heart Rate (15%), '
-                  'VO2 Max (15%), and HRV (10%). Each dimension is scored 0-100, then combined '
-                  'into your overall score.',
+                  'Steps (20%), Active Calories (15%), Exercise Minutes (15%), '
+                  'Sleep Quality (20%), Resting Heart Rate (15%), and HRV (15%). '
+                  'Each dimension is scored 0-100, then combined into your overall score.',
             ),
             _FaqCard(
               question: 'How do challenges work?',

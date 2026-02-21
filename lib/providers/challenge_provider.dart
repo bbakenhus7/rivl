@@ -1510,6 +1510,54 @@ class ChallengeProvider extends ChangeNotifier {
   }
 
   // ============================================
+  // SYNC ALL ACTIVE CHALLENGES
+  // ============================================
+
+  /// Sync health data for all active challenges. Call on app open and
+  /// periodically to keep Firestore progress up to date (Section 4 of
+  /// integration doc). Gotcha #4: background delivery is best-effort on
+  /// iOS, so always re-pull on app open.
+  Future<void> syncAllActiveChallenges() async {
+    if (_isSyncing) return;
+    final active = activeChallenges;
+    if (active.isEmpty) return;
+
+    _isSyncing = true;
+    _safeNotify();
+
+    for (final challenge in active) {
+      if (challenge.startDate == null) continue;
+      // Skip demo challenges — no Firestore doc to update
+      if (challenge.id.startsWith('demo-')) continue;
+
+      try {
+        final result = await _healthService.getProgressForChallenge(
+          goalType: challenge.goalType,
+          startDate: challenge.startDate!,
+          endDate: challenge.endDate ?? DateTime.now(),
+        );
+
+        await _firebaseService.syncSteps(
+          challengeId: challenge.id,
+          steps: result.total,
+          stepHistory: result.history,
+        );
+
+        // Best-effort anti-cheat on each sync
+        if (result.history.isNotEmpty) {
+          _runAntiCheatAnalysis(challenge, result.history);
+        }
+      } catch (e) {
+        debugPrint('syncAllActiveChallenges: failed for ${challenge.id}: $e');
+        // Continue to next challenge — don't block on one failure
+      }
+    }
+
+    _isSyncing = false;
+    _safeNotify();
+  }
+
+  // ============================================
   // SEARCH
   // ============================================
 

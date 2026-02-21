@@ -19,6 +19,16 @@ class HealthMetrics {
   final List<WorkoutData> recentWorkouts;
   final DateTime lastUpdated;
 
+  // Granular sleep breakdown (hours)
+  final double deepSleepHours;
+  final double remSleepHours;
+  final double lightSleepHours;
+  final double awakeDuration; // time awake during sleep session
+  final double timeInBed; // total time in bed (iOS only, 0 if unavailable)
+
+  // Exercise
+  final int exerciseMinutes; // Apple Exercise ring minutes (iOS)
+
   HealthMetrics({
     required this.steps,
     required this.heartRate,
@@ -33,6 +43,12 @@ class HealthMetrics {
     required this.weeklySteps,
     required this.recentWorkouts,
     required this.lastUpdated,
+    this.deepSleepHours = 0,
+    this.remSleepHours = 0,
+    this.lightSleepHours = 0,
+    this.awakeDuration = 0,
+    this.timeInBed = 0,
+    this.exerciseMinutes = 0,
   });
 
   // Daily goal calculations
@@ -61,6 +77,49 @@ class HealthMetrics {
       ? weeklySteps.map((d) => d.steps).reduce((a, b) => a > b ? a : b)
       : 0;
 
+  // Sleep quality metrics
+  double get sleepEfficiency {
+    if (timeInBed <= 0) {
+      // If no in-bed data, estimate from total sleep + awake time
+      final totalSession = sleepHours + awakeDuration;
+      return totalSession > 0 ? (sleepHours / totalSession * 100).clamp(0, 100) : 0;
+    }
+    return (sleepHours / timeInBed * 100).clamp(0, 100);
+  }
+
+  double get deepSleepPercent => sleepHours > 0 ? (deepSleepHours / sleepHours * 100) : 0;
+  double get remSleepPercent => sleepHours > 0 ? (remSleepHours / sleepHours * 100) : 0;
+  double get lightSleepPercent => sleepHours > 0 ? (lightSleepHours / sleepHours * 100) : 0;
+
+  /// Composite sleep quality score (0-100) factoring in duration, efficiency,
+  /// and stage composition. Deep + REM should be ~40-50% of total sleep.
+  int get sleepQualityScore {
+    if (sleepHours <= 0) return 0;
+
+    // Duration score: 7-9h optimal
+    double durationScore;
+    if (sleepHours >= 7 && sleepHours <= 9) {
+      durationScore = 100;
+    } else if (sleepHours >= 6 && sleepHours < 7) {
+      durationScore = 70 + (sleepHours - 6) * 30;
+    } else if (sleepHours > 9 && sleepHours <= 10) {
+      durationScore = 100 - (sleepHours - 9) * 20;
+    } else {
+      durationScore = (sleepHours / 7 * 60).clamp(0, 60);
+    }
+
+    // Efficiency score: 85%+ is good
+    final effScore = (sleepEfficiency / 95 * 100).clamp(0.0, 100.0);
+
+    // Deep + REM score: 40-50% of total is ideal
+    final restorativePercent = deepSleepPercent + remSleepPercent;
+    final restorativeScore = (restorativePercent / 45 * 100).clamp(0.0, 100.0);
+
+    // Weighted: duration matters most, then efficiency, then composition
+    final weighted = (durationScore * 0.45) + (effScore * 0.30) + (restorativeScore * 0.25);
+    return weighted.round().clamp(0, 100);
+  }
+
   // Recovery score (simplified calculation based on HRV and resting HR)
   int get recoveryScore {
     if (hrv == 0 && restingHeartRate == 0) return 75; // Default if no data
@@ -81,57 +140,23 @@ class HealthMetrics {
     return 'Low';
   }
 
-  // RIVL Health Score: combined metric from all 6 health dimensions (0-100)
+  // RIVL Health Score sub-scores (0-100 each), exposed for UI breakdown.
+  double get scoreSteps => (steps / 10000 * 100).clamp(0.0, 100.0);
+  double get scoreCalories => (activeCalories / 500 * 100).clamp(0.0, 100.0);
+  double get scoreExercise => (exerciseMinutes / 30 * 100).clamp(0.0, 100.0);
+  double get scoreSleep => sleepQualityScore.toDouble();
+  double get scoreRhr => ((80 - restingHeartRate) / 30 * 100).clamp(0.0, 100.0);
+  double get scoreHrv => ((hrv - 20) / 80 * 100).clamp(0.0, 100.0);
+
+  // RIVL Health Score: composite of steps, active calories, exercise minutes,
+  // sleep quality, resting HR, and HRV (0-100).
   int get rivlHealthScore {
-    // 1. Steps score (0-100): 10K steps = 100
-    final stepsScore = (steps / 10000 * 100).clamp(0.0, 100.0);
-
-    // 2. Distance score (0-100): 5 miles = 100
-    final distanceScore = (distance / 5.0 * 100).clamp(0.0, 100.0);
-
-    // 3. Sleep score (0-100): 7-9 hours is optimal
-    double sleepScore;
-    if (sleepHours >= 7 && sleepHours <= 9) {
-      sleepScore = 100;
-    } else if (sleepHours >= 6 && sleepHours < 7) {
-      sleepScore = 70 + (sleepHours - 6) * 30;
-    } else if (sleepHours > 9 && sleepHours <= 10) {
-      sleepScore = 100 - (sleepHours - 9) * 20;
-    } else {
-      sleepScore = (sleepHours / 7 * 60).clamp(0, 60);
-    }
-
-    // 4. Resting heart rate score (0-100): lower is better, 50-80 range
-    final rhrScore = ((80 - restingHeartRate) / 30 * 100).clamp(0.0, 100.0);
-
-    // 5. HRV score (0-100): higher is better, 20-100ms range
-    final hrvScoreVal = ((hrv - 20) / 80 * 100).clamp(0.0, 100.0);
-
-    // 6. VO2 Max score (0-100): higher is better, 25-60 range
-    // VO2 Max is not yet supported by the health package — exclude from
-    // the weighted average when unavailable so it doesn't drag the score down.
-    final hasVo2 = vo2Max > 0;
-    final vo2Score = hasVo2 ? ((vo2Max - 25) / 35 * 100).clamp(0.0, 100.0) : 0.0;
-
-    // Weighted average: steps & distance matter most for a fitness competition.
-    // When VO2 Max is unavailable, redistribute its 15% weight proportionally.
-    double weighted;
-    if (hasVo2) {
-      weighted = (stepsScore * 0.25) +
-          (distanceScore * 0.20) +
-          (sleepScore * 0.15) +
-          (rhrScore * 0.15) +
-          (hrvScoreVal * 0.10) +
-          (vo2Score * 0.15);
-    } else {
-      // Redistribute the 15% VO2 weight across the other 5 dimensions
-      weighted = (stepsScore * 0.30) +
-          (distanceScore * 0.23) +
-          (sleepScore * 0.18) +
-          (rhrScore * 0.17) +
-          (hrvScoreVal * 0.12);
-    }
-
+    final weighted = (scoreSteps * 0.20) +
+        (scoreCalories * 0.15) +
+        (scoreExercise * 0.15) +
+        (scoreSleep * 0.20) +
+        (scoreRhr * 0.15) +
+        (scoreHrv * 0.15);
     return weighted.round().clamp(0, 100);
   }
 
@@ -156,7 +181,12 @@ class HealthMetrics {
   factory HealthMetrics.demo() {
     final rnd = Random();
     final now = DateTime.now();
-    
+    final demoSleep = 6.5 + rnd.nextDouble() * 2;
+    final demoDeep = demoSleep * (0.15 + rnd.nextDouble() * 0.10);
+    final demoRem = demoSleep * (0.18 + rnd.nextDouble() * 0.08);
+    final demoLight = demoSleep - demoDeep - demoRem;
+    final demoAwake = 0.2 + rnd.nextDouble() * 0.5;
+
     return HealthMetrics(
       steps: 6234 + rnd.nextInt(4000),
       heartRate: 68 + rnd.nextInt(20),
@@ -164,7 +194,13 @@ class HealthMetrics {
       hrv: 45.0 + rnd.nextDouble() * 30,
       activeCalories: 320 + rnd.nextInt(300),
       distance: 2.5 + rnd.nextDouble() * 3,
-      sleepHours: 6.5 + rnd.nextDouble() * 2,
+      sleepHours: demoSleep,
+      deepSleepHours: demoDeep,
+      remSleepHours: demoRem,
+      lightSleepHours: demoLight,
+      awakeDuration: demoAwake,
+      timeInBed: demoSleep + demoAwake + 0.1 + rnd.nextDouble() * 0.3,
+      exerciseMinutes: 15 + rnd.nextInt(45),
       vo2Max: 38.0 + rnd.nextDouble() * 15,
       respiratoryRate: 14.0 + rnd.nextDouble() * 4,
       bloodOxygen: 96.0 + rnd.nextDouble() * 3,
