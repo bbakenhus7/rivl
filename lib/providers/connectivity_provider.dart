@@ -4,6 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 
 class ConnectivityProvider extends ChangeNotifier {
   bool _isOnline = true;
+  bool _isDisposed = false;
   bool get isOnline => _isOnline;
 
   late StreamSubscription<List<ConnectivityResult>> _subscription;
@@ -19,6 +20,7 @@ class ConnectivityProvider extends ChangeNotifier {
   }
 
   void _updateConnectivity(List<ConnectivityResult> result) {
+    if (_isDisposed) return;
     final wasOnline = _isOnline;
     _isOnline = result.isNotEmpty && !result.contains(ConnectivityResult.none);
     if (wasOnline != _isOnline) {
@@ -28,6 +30,7 @@ class ConnectivityProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _isDisposed = true;
     _subscription.cancel();
     super.dispose();
   }

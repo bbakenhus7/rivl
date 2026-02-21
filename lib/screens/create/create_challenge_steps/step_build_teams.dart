@@ -468,7 +468,7 @@ class _SquadSectionState extends State<SquadSection> {
 
 class TeamMemberPickerSheet extends StatefulWidget {
   final bool isTeamA;
-  final dynamic provider; // ChallengeProvider
+  final ChallengeProvider provider;
 
   const TeamMemberPickerSheet({
     super.key,

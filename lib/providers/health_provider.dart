@@ -158,7 +158,10 @@ class HealthProvider extends ChangeNotifier {
   // DATA FETCHING
   // ============================================
 
+  bool _isRefreshing = false;
+
   Future<void> refreshData() async {
+    if (_isRefreshing) return;
     if (!_isAuthorized) {
       await checkAuthorization();
       if (!_isAuthorized) {
@@ -170,6 +173,7 @@ class HealthProvider extends ChangeNotifier {
       }
     }
 
+    _isRefreshing = true;
     _isLoading = true;
     _errorMessage = null;
     _safeNotify();
@@ -204,6 +208,7 @@ class HealthProvider extends ChangeNotifier {
       }
     }
 
+    _isRefreshing = false;
     _isLoading = false;
     _safeNotify();
   }

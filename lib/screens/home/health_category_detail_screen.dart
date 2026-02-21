@@ -1515,7 +1515,7 @@ class _HealthCategoryDetailScreenState
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
-    return names[month - 1];
+    return names[(month - 1).clamp(0, 11)];
   }
 }
 

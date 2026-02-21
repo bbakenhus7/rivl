@@ -93,7 +93,7 @@ class _StepsTrendScreenState extends State<StepsTrendScreen> {
   }
 
   Widget _buildCurrentCard(BuildContext context) {
-    final health = context.read<HealthProvider>();
+    final health = context.watch<HealthProvider>();
     final todaySteps = health.todaySteps;
     final goalProgress = health.goalProgress;
 
@@ -390,7 +390,7 @@ class _StepsTrendScreenState extends State<StepsTrendScreen> {
   }
 
   Widget _buildStatsRow(BuildContext context) {
-    final health = context.read<HealthProvider>();
+    final health = context.watch<HealthProvider>();
     return Row(
       children: [
         _StatCard(

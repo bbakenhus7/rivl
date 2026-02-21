@@ -41,11 +41,11 @@ class _FriendsScreenState extends State<FriendsScreen>
       setState(() => _searchResults = []);
       return;
     }
+    final currentUserId = context.read<AuthProvider>().user?.id;
     setState(() => _isSearching = true);
     try {
       _searchResults = await FirebaseService().searchUsers(query);
       // Remove current user from results
-      final currentUserId = context.read<AuthProvider>().user?.id;
       _searchResults.removeWhere((u) => u.id == currentUserId);
     } catch (e) {
       _searchResults = [];

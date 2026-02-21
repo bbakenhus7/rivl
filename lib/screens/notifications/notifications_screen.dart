@@ -258,8 +258,9 @@ class _NotificationTile extends StatelessWidget {
               ),
         onTap: () {
           Haptics.light();
-          if (!isRead) {
-            provider.markAsRead(notification['id']);
+          final notifId = notification['id'] as String?;
+          if (!isRead && notifId != null) {
+            provider.markAsRead(notifId);
           }
           final data = notification['data'] as Map<String, dynamic>?;
           final challengeId = data?['challengeId'] as String?;

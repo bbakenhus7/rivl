@@ -1097,10 +1097,15 @@ class _EditAttributesSheetState extends State<_EditAttributesSheet> {
 
     if (updates.isNotEmpty) {
       try {
+        final auth = context.read<AuthProvider>();
+        if (auth.isDemoMode) {
+          if (mounted) Navigator.pop(context);
+          return;
+        }
         await FirebaseService().updateUser(widget.user.id, updates);
         // Refresh user data
         if (mounted) {
-          await context.read<AuthProvider>().refreshUser();
+          await auth.refreshUser();
         }
       } catch (_) {}
     }
@@ -1693,12 +1698,12 @@ class _SettingsSheet extends StatelessWidget {
             leading: const Icon(Icons.logout, color: RivlColors.error),
             title: const Text('Sign Out', style: TextStyle(color: RivlColors.error)),
             onTap: () async {
+              final auth = context.read<AuthProvider>();
+              final router = GoRouter.of(context);
               Navigator.pop(context); // close bottom sheet
               Haptics.medium();
-              await context.read<AuthProvider>().signOut();
-              if (context.mounted) {
-                context.go(AppRoutes.login);
-              }
+              await auth.signOut();
+              router.go(AppRoutes.login);
             },
           ),
           SizedBox(height: MediaQuery.of(context).padding.bottom + 16),

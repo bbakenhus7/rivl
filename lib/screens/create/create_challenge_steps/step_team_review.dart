@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../../../models/challenge_model.dart';
+import '../../../models/user_model.dart';
 import '../../../utils/theme.dart';
 import '../../../utils/animations.dart';
 
@@ -10,8 +11,8 @@ class StepTeamReview extends StatelessWidget {
   final String teamBName;
   final String? teamALabel;
   final String? teamBLabel;
-  final List<dynamic> teamAMembers;
-  final List<dynamic> teamBMembers;
+  final List<UserModel> teamAMembers;
+  final List<UserModel> teamBMembers;
   final int teamSize;
   final StakeOption stake;
   final ChallengeDuration duration;
@@ -104,7 +105,7 @@ class StepTeamReview extends StatelessWidget {
             child: ReviewSquadCard(
               squadName: teamAName.isEmpty ? 'Your Squad' : teamAName,
               label: teamALabel,
-              members: ['You (Captain)', ...teamAMembers.map((m) => m.displayName as String)],
+              members: ['You (Captain)', ...teamAMembers.map((m) => m.displayName)],
               color: RivlColors.primary,
               onEdit: () => onEditStep(1),
             ),
@@ -127,7 +128,7 @@ class StepTeamReview extends StatelessWidget {
             child: ReviewSquadCard(
               squadName: teamBName.isEmpty ? 'Rival Squad' : teamBName,
               label: teamBLabel,
-              members: teamBMembers.map((m) => m.displayName as String).toList(),
+              members: teamBMembers.map((m) => m.displayName).toList(),
               color: const Color(0xFFFF6B5B),
               onEdit: () => onEditStep(1),
             ),

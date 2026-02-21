@@ -806,15 +806,24 @@ class FirebaseService {
     final challenge = await getChallenge(challengeId);
     if (challenge == null) throw Exception('Challenge not found');
 
-    if (challenge.stakeAmount > 0) {
-      // Atomic decline + refund
-      await _db.runTransaction((txn) async {
-        final challengeRef = _db.collection('challenges').doc(challengeId);
-        txn.update(challengeRef, {
-          'status': ChallengeStatus.cancelled.name,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+    // Use transaction for all declines to prevent double-refund TOCTOU race
+    await _db.runTransaction((txn) async {
+      final challengeRef = _db.collection('challenges').doc(challengeId);
+      final challengeDoc = await txn.get(challengeRef);
+      if (!challengeDoc.exists) throw Exception('Challenge not found');
 
+      // Verify status inside transaction to prevent race condition
+      final currentStatus = challengeDoc.data()?['status'] as String?;
+      if (currentStatus != ChallengeStatus.pending.name) {
+        return; // Already declined/accepted — skip
+      }
+
+      txn.update(challengeRef, {
+        'status': ChallengeStatus.cancelled.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (challenge.stakeAmount > 0) {
         // Refund the creator's stake
         final walletRef = _db.collection('wallets').doc(challenge.creatorId);
         final walletDoc = await txn.get(walletRef);
@@ -841,13 +850,8 @@ class FirebaseService {
             'completedAt': FieldValue.serverTimestamp(),
           });
         }
-      });
-    } else {
-      await _db.collection('challenges').doc(challengeId).update({
-        'status': ChallengeStatus.cancelled.name,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    }
+      }
+    });
 
     // Notify the creator that their challenge was declined
     await _sendNotification(

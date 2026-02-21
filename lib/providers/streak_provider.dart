@@ -69,6 +69,7 @@ class StreakProvider with ChangeNotifier {
   Future<bool> claimDailyReward(String userId) async {
     if (_streak == null || !_streak!.canClaimToday) return false;
     if (_isClaiming) return false; // Guard against double-claim
+    if (userId.startsWith('demo')) return false;
 
     _isClaiming = true;
 

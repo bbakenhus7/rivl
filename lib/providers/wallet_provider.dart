@@ -47,6 +47,7 @@ class WalletProvider extends ChangeNotifier {
   // ============================================
 
   Future<void> initialize(String userId) async {
+    if (userId.startsWith('demo')) return;
     _isLoading = true;
     _safeNotify();
 

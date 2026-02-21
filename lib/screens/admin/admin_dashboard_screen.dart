@@ -275,12 +275,13 @@ class _FlaggedChallengeCard extends StatelessWidget {
   }
 
   void _approveChallenge(BuildContext context, ChallengeModel challenge) async {
+    final messenger = ScaffoldMessenger.of(context);
     await FirebaseFirestore.instance
         .collection('challenges')
         .doc(challenge.id)
         .update({'flagged': false, 'flagReason': null});
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       const SnackBar(content: Text('Challenge approved')),
     );
   }
@@ -767,6 +768,8 @@ class ChallengeReviewScreen extends StatelessWidget {
   }
 
   void _resolveDispute(BuildContext context, bool approve) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     await FirebaseFirestore.instance
         .collection('challenges')
         .doc(challenge.id)
@@ -776,8 +779,8 @@ class ChallengeReviewScreen extends StatelessWidget {
       'flagReason': null,
     });
 
-    Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
+    navigator.pop();
+    messenger.showSnackBar(
       SnackBar(
         content: Text(approve ? 'Challenge approved' : 'Challenge cancelled'),
       ),

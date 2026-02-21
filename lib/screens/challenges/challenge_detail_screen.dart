@@ -1266,9 +1266,12 @@ class _QuickRematchCard extends StatelessWidget {
     if (opponentId == null) return;
 
     final provider = context.read<ChallengeProvider>();
+    final walletProvider = context.read<WalletProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
 
     // Set up same challenge parameters
-    final opponent = await _getOpponentAsUser(context, opponentId, opponentName);
+    final opponent = await _getOpponentAsUser(provider, opponentId, opponentName);
     if (opponent == null) return;
 
     provider.setSelectedOpponent(opponent);
@@ -1283,16 +1286,16 @@ class _QuickRematchCard extends StatelessWidget {
     provider.setSelectedStake(stakeMatch);
 
     // Create the challenge
-    final walletBalance = context.read<WalletProvider>().balance;
+    final walletBalance = walletProvider.balance;
     final challengeId = await provider.createChallenge(walletBalance: walletBalance);
-    if (challengeId != null && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+    if (challengeId != null) {
+      messenger.showSnackBar(
         SnackBar(
           content: Text('Rematch sent to ${opponentName ?? 'opponent'}!'),
           backgroundColor: RivlColors.success,
         ),
       );
-      Navigator.pop(context);
+      navigator.pop();
     }
   }
 
@@ -1301,7 +1304,8 @@ class _QuickRematchCard extends StatelessWidget {
     if (opponentId == null) return;
 
     final provider = context.read<ChallengeProvider>();
-    final opponent = await _getOpponentAsUser(context, opponentId, opponentName);
+    final navigator = Navigator.of(context);
+    final opponent = await _getOpponentAsUser(provider, opponentId, opponentName);
     if (opponent == null) return;
 
     // Pre-fill form with previous settings
@@ -1316,10 +1320,8 @@ class _QuickRematchCard extends StatelessWidget {
     provider.setSelectedStake(stakeMatch);
 
     // Navigate to create screen (tab index 2)
-    if (context.mounted) {
-      Navigator.pop(context);
-      MainScreen.onTabSelected?.call(2);
-    }
+    navigator.pop();
+    MainScreen.onTabSelected?.call(2);
   }
 
   void _doubleOrNothing(BuildContext context, ChallengeModel challenge,
@@ -1327,7 +1329,11 @@ class _QuickRematchCard extends StatelessWidget {
     if (opponentId == null) return;
 
     final provider = context.read<ChallengeProvider>();
-    final opponent = await _getOpponentAsUser(context, opponentId, opponentName);
+    final walletProvider = context.read<WalletProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    final opponent = await _getOpponentAsUser(provider, opponentId, opponentName);
     if (opponent == null) return;
 
     provider.setSelectedOpponent(opponent);
@@ -1342,24 +1348,23 @@ class _QuickRematchCard extends StatelessWidget {
     );
     provider.setSelectedStake(stakeMatch);
 
-    final walletBalance = context.read<WalletProvider>().balance;
+    final walletBalance = walletProvider.balance;
     final challengeId = await provider.createChallenge(walletBalance: walletBalance);
-    if (challengeId != null && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+    if (challengeId != null) {
+      messenger.showSnackBar(
         SnackBar(
           content: Text(
               'Double or nothing! \$${doubleStake.toInt()} challenge sent to ${opponentName ?? 'opponent'}!'),
           backgroundColor: RivlColors.secondary,
         ),
       );
-      Navigator.pop(context);
+      navigator.pop();
     }
   }
 
   Future<dynamic> _getOpponentAsUser(
-      BuildContext context, String opponentId, String? opponentName) async {
+      ChallengeProvider provider, String opponentId, String? opponentName) async {
     // Search for opponent to get their UserModel
-    final provider = context.read<ChallengeProvider>();
     if (opponentName != null) {
       await provider.searchUsers(opponentName);
       final results = provider.searchResults;

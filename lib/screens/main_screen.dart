@@ -36,13 +36,14 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
+  final _createKey = GlobalKey<CreateChallengeScreenState>();
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    ChallengesScreen(),
-    CreateChallengeScreen(),
-    ActivityFeedScreen(),
-    ProfileScreen(),
+  late final List<Widget> _screens = [
+    const HomeScreen(),
+    const ChallengesScreen(),
+    CreateChallengeScreen(key: _createKey),
+    const ActivityFeedScreen(),
+    const ProfileScreen(),
   ];
 
   @override
@@ -50,7 +51,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     MainScreen.onTabSelected = (index) {
-      if (mounted) setState(() => _currentIndex = index);
+      if (mounted) {
+        if (index == 2) _createKey.currentState?.resetForm();
+        setState(() => _currentIndex = index);
+      }
     };
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeData();
@@ -136,12 +140,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    MainScreen.onTabSelected = null;
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!mounted) return;
     final healthProvider = context.read<HealthProvider>();
     switch (state) {
       case AppLifecycleState.paused:
@@ -170,9 +176,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
     // Wait for streak and battle pass data to load
     await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
 
-    if (streakProvider.canClaimToday && mounted) {
+    if (streakProvider.canClaimToday) {
       await streakProvider.claimDailyReward(userId);
+      if (!mounted) return;
 
       // Award daily login XP
       await battlePassProvider.addXP(
@@ -180,6 +188,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         XPSource.DAILY_LOGIN,
         'daily_login',
       );
+      if (!mounted) return;
 
       // Award streak bonus XP (scales with streak, capped at 7 days)
       final streakDays = streakProvider.currentStreak.clamp(1, 7);
@@ -189,6 +198,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           XPSource.STREAK_BONUS * (streakDays - 1),
           'streak_bonus',
         );
+        if (!mounted) return;
       }
 
       // Show reward popup
@@ -250,6 +260,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               selectedIndex: _currentIndex,
               onDestinationSelected: (index) {
                 Haptics.selection();
+                if (index == 2) _createKey.currentState?.resetForm();
                 setState(() => _currentIndex = index);
               },
               surfaceTintColor: Colors.transparent,

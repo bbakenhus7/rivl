@@ -32,10 +32,10 @@ class CreateChallengeScreen extends StatefulWidget {
   const CreateChallengeScreen({super.key});
 
   @override
-  State<CreateChallengeScreen> createState() => _CreateChallengeScreenState();
+  State<CreateChallengeScreen> createState() => CreateChallengeScreenState();
 }
 
-class _CreateChallengeScreenState extends State<CreateChallengeScreen>
+class CreateChallengeScreenState extends State<CreateChallengeScreen>
     with TickerProviderStateMixin {
   int _currentStep = 0;
   bool _challengeSent = false;
@@ -63,6 +63,17 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ChallengeProvider>().loadDemoOpponents();
     });
+  }
+
+  /// Reset the form when returning to this screen (IndexedStack keeps state alive).
+  void resetForm() {
+    if (_challengeSent || _currentStep > 0) {
+      setState(() {
+        _challengeSent = false;
+        _currentStep = 0;
+      });
+      context.read<ChallengeProvider>().resetCreateForm();
+    }
   }
 
   bool _canProceed(ChallengeProvider provider) {
@@ -129,7 +140,9 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
   }
 
   Future<void> _sendChallenge(ChallengeProvider provider) async {
-    var walletBalance = context.read<WalletProvider>().balance;
+    final walletProvider = context.read<WalletProvider>();
+    final friendProvider = context.read<FriendProvider>();
+    var walletBalance = walletProvider.balance;
     final stakeAmount = provider.selectedStake.amount;
 
     // Prompt to add funds if balance is insufficient
@@ -140,7 +153,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
         currentBalance: walletBalance,
       );
       if (!funded || !mounted) return;
-      walletBalance = context.read<WalletProvider>().balance;
+      walletBalance = walletProvider.balance;
     }
 
     final String? challengeId;
@@ -150,7 +163,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen>
       challengeId = await provider.createGroupChallenge(walletBalance: walletBalance);
     } else {
       final isFriend = provider.selectedOpponent != null &&
-          context.read<FriendProvider>().isFriend(provider.selectedOpponent!.id);
+          friendProvider.isFriend(provider.selectedOpponent!.id);
       challengeId = await provider.createChallenge(
         walletBalance: walletBalance,
         isFriendChallenge: isFriend,

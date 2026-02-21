@@ -189,6 +189,7 @@ class BattlePassProvider with ChangeNotifier {
   /// Add XP to user's progress
   Future<bool> addXP(String userId, int xp, String source) async {
     if (_progress == null) return false;
+    if (userId.startsWith('demo')) return false;
 
     try {
       final levelBefore = _progress!.currentLevel;
@@ -252,6 +253,7 @@ class BattlePassProvider with ChangeNotifier {
   /// Claim a reward at a specific level
   Future<bool> claimReward(String userId, int level, RewardTier tier) async {
     if (_progress == null || _currentSeason == null) return false;
+    if (userId.startsWith('demo')) return false;
 
     // Check if user has reached this level
     if (_progress!.currentLevel < level) {
@@ -327,6 +329,7 @@ class BattlePassProvider with ChangeNotifier {
   /// Unlock premium pass
   Future<bool> unlockPremium(String userId) async {
     if (_progress == null) return false;
+    if (userId.startsWith('demo')) return false;
 
     try {
       _progress = BattlePassProgress(
