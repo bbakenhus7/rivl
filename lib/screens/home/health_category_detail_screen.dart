@@ -40,7 +40,7 @@ const _metricInfoMap = <HealthMetricType, _MetricInfo>{
   ),
   HealthMetricType.restingHeartRate: _MetricInfo(
     icon: Icons.monitor_heart,
-    label: 'Resting HR',
+    label: 'Resting Heart Rate',
     unit: 'bpm',
     color: Colors.pink,
     description:
@@ -50,7 +50,7 @@ const _metricInfoMap = <HealthMetricType, _MetricInfo>{
   ),
   HealthMetricType.hrv: _MetricInfo(
     icon: Icons.show_chart,
-    label: 'HRV',
+    label: 'Heart Rate Variability',
     unit: 'ms',
     color: Colors.purple,
     description:
@@ -1160,7 +1160,7 @@ class _HealthCategoryDetailScreenState
           _ScoreBar('Calories', health.scoreCalories, 0.15, Icons.local_fire_department, Colors.green),
           _ScoreBar('Exercise', health.scoreExercise, 0.15, Icons.fitness_center, Colors.orange),
           _ScoreBar('Sleep', health.scoreSleep, 0.20, Icons.bedtime, Colors.indigo),
-          _ScoreBar('RHR', health.scoreRhr, 0.15, Icons.monitor_heart, Colors.pink),
+          _ScoreBar('Resting HR', health.scoreRhr, 0.15, Icons.monitor_heart, Colors.pink),
           _ScoreBar('HRV', health.scoreHrv, 0.15, Icons.show_chart, Colors.purple),
         ];
 
@@ -1209,7 +1209,7 @@ class _HealthCategoryDetailScreenState
                     Icon(c.icon, size: 16, color: c.color),
                     const SizedBox(width: 8),
                     SizedBox(
-                      width: 62,
+                      width: 78,
                       child: Text(
                         c.label,
                         style: const TextStyle(

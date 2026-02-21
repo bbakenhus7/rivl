@@ -811,7 +811,7 @@ class _RivlHealthScoreCard extends StatelessWidget {
                           _ScoreComponent('Calories', health.metrics.scoreCalories, Colors.green),
                           _ScoreComponent('Exercise', health.metrics.scoreExercise, Colors.orange),
                           _ScoreComponent('Sleep', health.metrics.scoreSleep, Colors.indigo),
-                          _ScoreComponent('RHR', health.metrics.scoreRhr, Colors.pink),
+                          _ScoreComponent('Resting HR', health.metrics.scoreRhr, Colors.pink),
                           _ScoreComponent('HRV', health.metrics.scoreHrv, Colors.purple),
                         ],
                       ),
@@ -1418,7 +1418,7 @@ class _CategoryTile extends StatelessWidget {
       case HealthCategory.heartHealth:
         final hr = health.heartRate > 0 ? '${health.heartRate}' : '--';
         final hrv = health.hrv > 0 ? 'HRV ${health.hrv.round()}ms' : 'HRV --';
-        final rhr = health.restingHeartRate > 0 ? 'RHR ${health.restingHeartRate}' : 'RHR --';
+        final rhr = health.restingHeartRate > 0 ? 'Resting HR ${health.restingHeartRate}' : 'Resting HR --';
         return _CategoryPreview(
           heroValue: '$hr bpm',
           heroLabel: 'Heart Rate',
